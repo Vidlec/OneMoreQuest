@@ -1,0 +1,16 @@
+# Read by the CurseForge packager (BigWigsMods/packager) when OneMoreQuest is packaged and uploaded automatically.
+package-as: OneMoreQuest
+
+required-dependencies:
+  - questiedb
+
+optional-dependencies:
+  - auctionator
+  - tnnys-mob-loot
+  - tomtom
+  - azeroth-cesky
+  - leatrix-maps
+
+ignore:
+  - tests
+  - .pkgmeta

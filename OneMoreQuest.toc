@@ -1,0 +1,94 @@
+## Interface: 16001
+## Title: OneMoreQuest
+## Notes: Just one more quest: a quest log beside the map, a tracker grouped by zone, and map marks showing where to go. Built on QuestieDB.
+## Version: 0.12.0
+## X-License: GPL-3.0
+## Dependencies: QuestieDB
+## OptionalDeps: TnnysMobLoot, Auctionator, TomTom, AzerothCesky, WowfCZ, Spoken, Spoken_Quests, ForeverDungeonJournal
+## SavedVariables: OneMoreQuestDB
+## IconTexture: Interface\AddOns\OneMoreQuest\Media\Logo64
+
+Core.lua
+Locale.lua
+Locales\Czech.lua
+Locales\CzechLog.lua
+Locales\CzechChronicle.lua
+Locales\CzechSettings.lua
+Locales\CzechMap.lua
+QuestText.lua
+Translators\AzerothCesky.lua
+Translators\WowfCZ.lua
+Translators\Spoken.lua
+Database.lua
+CraftedItems.lua
+Crafting.lua
+LearnedDungeons.lua
+Geometry.lua
+Location.lua
+Chain.lua
+QuestState.lua
+Focus.lua
+Model.lua
+HiddenQuests.lua
+EventQuests.lua
+Events.lua
+GameOffers.lua
+DataCheck.lua
+Availability.lua
+Prices.lua
+Loot.lua
+Drops.lua
+Profit.lua
+KillCounter.lua
+UnitTooltip.lua
+History.lua
+Chronicle.lua
+Ledger.lua
+Warnings.lua
+Comms.lua
+QuestieBridge.lua
+Party.lua
+Announce.lua
+AutoQuest.lua
+Nameplates.lua
+Widgets.lua
+QuestTooltip.lua
+MissedReport.lua
+BlizzardTracker.lua
+ItemButtons.lua
+TrackerFrame.lua
+WindowBorder.lua
+Log\Base.lua
+Log\List.lua
+Log\QuestPage.lua
+Log\QuestsTab.lua
+Log\AvailableTab.lua
+Log\DungeonsTab.lua
+Log\SettingsView.lua
+Log\Window.lua
+MapDock.lua
+MapPins.lua
+MapMarks\Compose.lua
+MapMarks\Look.lua
+MapMarks\Pills.lua
+MapMarks\Layout.lua
+MapMarks\Shapes.lua
+MapMarks\Areas.lua
+MapMarks\Draw.lua
+MinimapPins.lua
+MapHover.lua
+Waypoints.lua
+Compatibility.lua
+Compatibility\Questie.lua
+Compatibility\SpokenPlaces.lua
+Compatibility\QuestieDB.lua
+Compatibility\TomTom.lua
+Compatibility\Auctionator.lua
+Compatibility\TnnysMobLoot.lua
+Compatibility\LeatrixMaps.lua
+Compatibility\MapUtils.lua
+Compatibility\OpenMap.lua
+Compatibility\ForeverDungeonJournal.lua
+Settings.lua
+ChroniclePage.lua
+ChroniclePictures.lua
