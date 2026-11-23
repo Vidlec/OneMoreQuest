@@ -1,0 +1,4 @@
+k="t" x=1223.50 y=140.50 w=32 h=32 tex="Interface\\Minimap\\MinimapArrow" a=1
+k="t" x=1223.50 y=140.50 w=32 h=32 tex="Interface\\Minimap\\MinimapArrow" a=1
+k="t" x=1240 y=169.20 w=14 h=14 atlas="PlayerPartyBlip" vc=[0.67,0.83,0.45,1] a=1
+k="t" x=1240 y=169.20 w=14 h=14 atlas="PlayerPartyBlip" vc=[0.67,0.83,0.45,1] a=1

@@ -1,0 +1,12 @@
+# Installed by bun install (the simulator, a repo of its own, is linked in: cd ../AddonSim && bun link)
+node_modules/
+
+# What the simulator's runner leaves in the scenarios folder: the last run's scenes, its times, coverage and the
+# audits' outputs
+sim/scenarios/.last-run/
+sim/scenarios/.timings.json
+sim/scenarios/.coverage/
+sim/scenarios/.visual/
+sim/scenarios/.api-budget*.txt
+sim/scenarios/.mock-export*.json
+sim/scenarios/.profile*.txt

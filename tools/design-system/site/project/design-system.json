@@ -1,0 +1,772 @@
+{
+ "v": 3,
+ "layout": "files",
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-17T14:10:27Z"
+ },
+ "title": "WoW Forever UI",
+ "namespace": "WowForeverUI",
+ "libraries": [],
+ "sections": {},
+ "groups": [
+  "Bars",
+  "Buttons",
+  "Inset",
+  "Lists",
+  "Professions",
+  "Spellbook",
+  "Tooltip",
+  "Window",
+  "Money",
+  "Map marks",
+  "Icons",
+  "Classic textures"
+ ],
+ "assetGroups": {
+  "Bars": {
+   "name": "Bars",
+   "tile": "m",
+   "order": [
+    "common-stat-bar-bg.png",
+    "common-stat-bar-blue.png",
+    "common-stat-bar-white.png"
+   ],
+   "files": {
+    "common-stat-bar-bg.png": {
+     "name": "common-stat-bar-bg.png",
+     "blob": "ba61d06957f31bcd94485aecf4e53f54",
+     "size": 1840,
+     "type": "image/png"
+    },
+    "common-stat-bar-blue.png": {
+     "name": "common-stat-bar-blue.png",
+     "blob": "bd85e09cdf52774c4ebc8485c51c09b0",
+     "size": 1964,
+     "type": "image/png"
+    },
+    "common-stat-bar-white.png": {
+     "name": "common-stat-bar-white.png",
+     "blob": "1b44351afc29b718e9ebb8d990d67749",
+     "size": 1675,
+     "type": "image/png"
+    }
+   }
+  },
+  "Buttons": {
+   "name": "Buttons",
+   "tile": "m",
+   "order": [
+    "128-redbutton-center-disabled.png",
+    "128-redbutton-center-pressed.png",
+    "128-redbutton-center.png",
+    "128-redbutton-highlight.png",
+    "128-redbutton-left-disabled.png",
+    "128-redbutton-left-pressed.png",
+    "128-redbutton-left.png",
+    "128-redbutton-right-disabled.png",
+    "128-redbutton-right-pressed.png",
+    "128-redbutton-right.png"
+   ],
+   "files": {
+    "128-redbutton-center-disabled.png": {
+     "name": "128-redbutton-center-disabled.png",
+     "blob": "b776917e00546c6a08ee58f83fc84ab3",
+     "size": 4944,
+     "type": "image/png"
+    },
+    "128-redbutton-center-pressed.png": {
+     "name": "128-redbutton-center-pressed.png",
+     "blob": "9e811125b6504aa85b85f908520e28ab",
+     "size": 7970,
+     "type": "image/png"
+    },
+    "128-redbutton-center.png": {
+     "name": "128-redbutton-center.png",
+     "blob": "fd9e820f4721824f1db7b1a51cca869b",
+     "size": 8993,
+     "type": "image/png"
+    },
+    "128-redbutton-highlight.png": {
+     "name": "128-redbutton-highlight.png",
+     "blob": "cce913c39424778fa3292dd00dfc16a9",
+     "size": 40593,
+     "type": "image/png"
+    },
+    "128-redbutton-left-disabled.png": {
+     "name": "128-redbutton-left-disabled.png",
+     "blob": "26e0631634baeb19aed6e947645b5e4a",
+     "size": 10766,
+     "type": "image/png"
+    },
+    "128-redbutton-left-pressed.png": {
+     "name": "128-redbutton-left-pressed.png",
+     "blob": "935ebb36510c49f61c7dbaa2106593fe",
+     "size": 15732,
+     "type": "image/png"
+    },
+    "128-redbutton-left.png": {
+     "name": "128-redbutton-left.png",
+     "blob": "5ea64d5c4efe93d2439fa8c9879aad49",
+     "size": 18654,
+     "type": "image/png"
+    },
+    "128-redbutton-right-disabled.png": {
+     "name": "128-redbutton-right-disabled.png",
+     "blob": "d19c24abaa932449b44cac9c253bfa5a",
+     "size": 21919,
+     "type": "image/png"
+    },
+    "128-redbutton-right-pressed.png": {
+     "name": "128-redbutton-right-pressed.png",
+     "blob": "b3e57d98486d47123a9ab90c1670e983",
+     "size": 34562,
+     "type": "image/png"
+    },
+    "128-redbutton-right.png": {
+     "name": "128-redbutton-right.png",
+     "blob": "ffbad23bd08c9b7386c701f48c675a7f",
+     "size": 39390,
+     "type": "image/png"
+    }
+   }
+  },
+  "Inset": {
+   "name": "Inset",
+   "tile": "s",
+   "order": [
+    "ui-frame-innerbotleftcorner.png",
+    "ui-frame-innerbotright.png",
+    "ui-frame-innerbottile.png",
+    "ui-frame-innerlefttile.png",
+    "ui-frame-innerrighttile.png",
+    "ui-frame-innertopleft.png",
+    "ui-frame-innertopright.png",
+    "ui-frame-innertoptile.png"
+   ],
+   "files": {
+    "ui-frame-innerbotleftcorner.png": {
+     "name": "ui-frame-innerbotleftcorner.png",
+     "blob": "0c485d44e18e496da2e22aecbc4136dc",
+     "size": 267,
+     "type": "image/png"
+    },
+    "ui-frame-innerbotright.png": {
+     "name": "ui-frame-innerbotright.png",
+     "blob": "a3e5515ec58be0cd42b544b3395f3d8a",
+     "size": 259,
+     "type": "image/png"
+    },
+    "ui-frame-innerbottile.png": {
+     "name": "ui-frame-innerbottile.png",
+     "blob": "a254f044aa348b189ba147712dbeb571",
+     "size": 629,
+     "type": "image/png"
+    },
+    "ui-frame-innerlefttile.png": {
+     "name": "ui-frame-innerlefttile.png",
+     "blob": "142156a624e3699d3ff4610e042bf1e2",
+     "size": 553,
+     "type": "image/png"
+    },
+    "ui-frame-innerrighttile.png": {
+     "name": "ui-frame-innerrighttile.png",
+     "blob": "cde1c33d48f7f3681a2fffeed43aaaa6",
+     "size": 403,
+     "type": "image/png"
+    },
+    "ui-frame-innertopleft.png": {
+     "name": "ui-frame-innertopleft.png",
+     "blob": "7f640dfb74dac120defdcc3e30428ce1",
+     "size": 245,
+     "type": "image/png"
+    },
+    "ui-frame-innertopright.png": {
+     "name": "ui-frame-innertopright.png",
+     "blob": "937d90845529dc0a0dd5a404cbc10460",
+     "size": 253,
+     "type": "image/png"
+    },
+    "ui-frame-innertoptile.png": {
+     "name": "ui-frame-innertoptile.png",
+     "blob": "a4719e20fe55938d23e52717b981a62d",
+     "size": 267,
+     "type": "image/png"
+    }
+   }
+  },
+  "Lists": {
+   "name": "Lists",
+   "tile": "s",
+   "order": [
+    "campaign_headericon_closed.png",
+    "campaign_headericon_open.png",
+    "checkbox-minimal.png",
+    "checkmark-minimal.png",
+    "common-button-list-minus.png",
+    "common-button-list-plus.png",
+    "common-dropdown-a-button.png",
+    "common-search-border-left.png",
+    "common-search-border-middle.png",
+    "common-search-border-right.png",
+    "common-search-magnifyingglass.png",
+    "spellbook-skilllinetab.png",
+    "ui-character-info-gearslot.png",
+    "ui-character-info-scrollline-long.png",
+    "ui-character-info-scrollline.png",
+    "ui-character-info-title.png"
+   ],
+   "files": {
+    "campaign_headericon_closed.png": {
+     "name": "campaign_headericon_closed.png",
+     "blob": "237c1f976e6451d925b60027ea682eab",
+     "size": 1207,
+     "type": "image/png"
+    },
+    "campaign_headericon_open.png": {
+     "name": "campaign_headericon_open.png",
+     "blob": "86e21a7408a67bd552c9a3f391aee1ef",
+     "size": 1169,
+     "type": "image/png"
+    },
+    "checkbox-minimal.png": {
+     "name": "checkbox-minimal.png",
+     "blob": "74a9214d8d5604d26198d47f16a0bb55",
+     "size": 1100,
+     "type": "image/png"
+    },
+    "checkmark-minimal.png": {
+     "name": "checkmark-minimal.png",
+     "blob": "fe598544da3e971d6df7245847bd7b41",
+     "size": 747,
+     "type": "image/png"
+    },
+    "common-button-list-minus.png": {
+     "name": "common-button-list-minus.png",
+     "blob": "3b65f85f71380e54ccb8b7fc4129bdbf",
+     "size": 237,
+     "type": "image/png"
+    },
+    "common-button-list-plus.png": {
+     "name": "common-button-list-plus.png",
+     "blob": "886bede6697dc9f4d80a7090e96ff537",
+     "size": 507,
+     "type": "image/png"
+    },
+    "common-dropdown-a-button.png": {
+     "name": "common-dropdown-a-button.png",
+     "blob": "03ce9e4384d6d55544488221dc473c49",
+     "size": 1423,
+     "type": "image/png"
+    },
+    "common-search-border-left.png": {
+     "name": "common-search-border-left.png",
+     "blob": "0e03b9d854556608a0ab42359fdbb766",
+     "size": 720,
+     "type": "image/png"
+    },
+    "common-search-border-middle.png": {
+     "name": "common-search-border-middle.png",
+     "blob": "d7e688b03c994ae5dadbe7d0e3989b43",
+     "size": 445,
+     "type": "image/png"
+    },
+    "common-search-border-right.png": {
+     "name": "common-search-border-right.png",
+     "blob": "77a00e3deda2cbeb8614683432e5c4e9",
+     "size": 738,
+     "type": "image/png"
+    },
+    "common-search-magnifyingglass.png": {
+     "name": "common-search-magnifyingglass.png",
+     "blob": "87bf01ffe5e4de262245d9baf3bd0a61",
+     "size": 979,
+     "type": "image/png"
+    },
+    "spellbook-skilllinetab.png": {
+     "name": "spellbook-skilllinetab.png",
+     "blob": "b08d1560bc8ec8b0c81da4e6f201e0ed",
+     "size": 3147,
+     "type": "image/png"
+    },
+    "ui-character-info-gearslot.png": {
+     "name": "ui-character-info-gearslot.png",
+     "blob": "d67aabee69194bbc53816eebcc140c9d",
+     "size": 3864,
+     "type": "image/png"
+    },
+    "ui-character-info-scrollline-long.png": {
+     "name": "ui-character-info-scrollline-long.png",
+     "blob": "e4bd3d8258848a6a07a6381663d7a188",
+     "size": 1109,
+     "type": "image/png"
+    },
+    "ui-character-info-scrollline.png": {
+     "name": "ui-character-info-scrollline.png",
+     "blob": "e0b6abc3b167ed64bf6878da3d9d7eca",
+     "size": 791,
+     "type": "image/png"
+    },
+    "ui-character-info-title.png": {
+     "name": "ui-character-info-title.png",
+     "blob": "365e0180c1704e8df9289fa5091272c9",
+     "size": 5460,
+     "type": "image/png"
+    }
+   }
+  },
+  "Professions": {
+   "name": "Professions",
+   "tile": "m",
+   "order": [
+    "heavybronze-frame-basic.png",
+    "professions-slot-frame.png"
+   ],
+   "files": {
+    "heavybronze-frame-basic.png": {
+     "name": "heavybronze-frame-basic.png",
+     "blob": "a177630440ac3b98fd9019c388e1ec8e",
+     "size": 5497,
+     "type": "image/png"
+    },
+    "professions-slot-frame.png": {
+     "name": "professions-slot-frame.png",
+     "blob": "f63dfd69544cd0cd6ee38fc7a537fe09",
+     "size": 971,
+     "type": "image/png"
+    }
+   }
+  },
+  "Spellbook": {
+   "name": "Spellbook",
+   "tile": "m",
+   "order": [
+    "spellbook-divider.png",
+    "spellbook-item-backplate.png",
+    "spellbook-page-left.png",
+    "spellbook-page-right.png"
+   ],
+   "files": {
+    "spellbook-divider.png": {
+     "name": "spellbook-divider.png",
+     "blob": "0330cd31c398cf35b3aa2a421e60326a",
+     "size": 11062,
+     "type": "image/png"
+    },
+    "spellbook-item-backplate.png": {
+     "name": "spellbook-item-backplate.png",
+     "blob": "3645d6cff053413fb69444cf10ebd5fb",
+     "size": 25158,
+     "type": "image/png"
+    },
+    "spellbook-page-left.png": {
+     "name": "spellbook-page-left.png",
+     "blob": "d8d4ba10f343b0894f95dc8905528b33",
+     "size": 932541,
+     "type": "image/png"
+    },
+    "spellbook-page-right.png": {
+     "name": "spellbook-page-right.png",
+     "blob": "7fda5d368f2de40408f7bd510f9a2c85",
+     "size": 968720,
+     "type": "image/png"
+    }
+   }
+  },
+  "Tooltip": {
+   "name": "Tooltip",
+   "tile": "s",
+   "order": [
+    "tooltip-nineslice-center.png",
+    "tooltip-nineslice-cornerbottomleft.png",
+    "tooltip-nineslice-cornerbottomright.png",
+    "tooltip-nineslice-cornertopleft.png",
+    "tooltip-nineslice-cornertopright.png",
+    "tooltip-nineslice-edgebottom.png",
+    "tooltip-nineslice-edgeleft.png",
+    "tooltip-nineslice-edgeright.png",
+    "tooltip-nineslice-edgetop.png"
+   ],
+   "files": {
+    "tooltip-nineslice-center.png": {
+     "name": "tooltip-nineslice-center.png",
+     "blob": "bee7cf2517b870b6eefbf9f13adb1733",
+     "size": 208,
+     "type": "image/png"
+    },
+    "tooltip-nineslice-cornerbottomleft.png": {
+     "name": "tooltip-nineslice-cornerbottomleft.png",
+     "blob": "f5a82eaa303f8c121adaec382b7bb55a",
+     "size": 291,
+     "type": "image/png"
+    },
+    "tooltip-nineslice-cornerbottomright.png": {
+     "name": "tooltip-nineslice-cornerbottomright.png",
+     "blob": "47079fd8b2c2758468564eae13db3bf7",
+     "size": 282,
+     "type": "image/png"
+    },
+    "tooltip-nineslice-cornertopleft.png": {
+     "name": "tooltip-nineslice-cornertopleft.png",
+     "blob": "a3f3f56ffa838827fc44c6263389cc42",
+     "size": 266,
+     "type": "image/png"
+    },
+    "tooltip-nineslice-cornertopright.png": {
+     "name": "tooltip-nineslice-cornertopright.png",
+     "blob": "28bd7c645a927d5806d6d9f283874341",
+     "size": 280,
+     "type": "image/png"
+    },
+    "tooltip-nineslice-edgebottom.png": {
+     "name": "tooltip-nineslice-edgebottom.png",
+     "blob": "025da1d5d908342d19ca8d457ef1c8d3",
+     "size": 234,
+     "type": "image/png"
+    },
+    "tooltip-nineslice-edgeleft.png": {
+     "name": "tooltip-nineslice-edgeleft.png",
+     "blob": "e83c01fa0d01b40e1a512b1982177224",
+     "size": 207,
+     "type": "image/png"
+    },
+    "tooltip-nineslice-edgeright.png": {
+     "name": "tooltip-nineslice-edgeright.png",
+     "blob": "bbd20b8423a37623478a13c489c78d49",
+     "size": 239,
+     "type": "image/png"
+    },
+    "tooltip-nineslice-edgetop.png": {
+     "name": "tooltip-nineslice-edgetop.png",
+     "blob": "e5873b7736bc7e5da62e7abe5b51070f",
+     "size": 235,
+     "type": "image/png"
+    }
+   }
+  },
+  "Window": {
+   "name": "Window",
+   "tile": "m",
+   "order": [
+    "redbutton-exit.png",
+    "ui-background-marble.png",
+    "ui-background-rock.png",
+    "ui-frame-metal-cornerbottomleft.png",
+    "ui-frame-metal-cornerbottomright.png",
+    "ui-frame-metal-cornertopright.png",
+    "ui-frame-metal-edgebottom.png",
+    "ui-frame-metal-edgeleft.png",
+    "ui-frame-metal-edgeright.png",
+    "ui-frame-metal-edgetop.png",
+    "ui-frame-portraitmetal-cornertopleft.png",
+    "ui-frame-toptilestreaks.png"
+   ],
+   "files": {
+    "redbutton-exit.png": {
+     "name": "redbutton-exit.png",
+     "blob": "94553e5ef9f3afedced5ca846ab06c05",
+     "size": 1793,
+     "type": "image/png"
+    },
+    "ui-background-marble.png": {
+     "name": "ui-background-marble.png",
+     "blob": "bc28eb4f87df7e23959b0c1eb88a44cf",
+     "size": 25668,
+     "type": "image/png"
+    },
+    "ui-background-rock.png": {
+     "name": "ui-background-rock.png",
+     "blob": "30ace8b96e0aa708b9e1a0bd3fb99b1f",
+     "size": 237460,
+     "type": "image/png"
+    },
+    "ui-frame-metal-cornerbottomleft.png": {
+     "name": "ui-frame-metal-cornerbottomleft.png",
+     "blob": "980cb1b2057ced12b7cb5f987a11e47f",
+     "size": 10578,
+     "type": "image/png"
+    },
+    "ui-frame-metal-cornerbottomright.png": {
+     "name": "ui-frame-metal-cornerbottomright.png",
+     "blob": "0c6d743469638763cb1ae29438cc5062",
+     "size": 10868,
+     "type": "image/png"
+    },
+    "ui-frame-metal-cornertopright.png": {
+     "name": "ui-frame-metal-cornertopright.png",
+     "blob": "cb4c2acfc1669279da25f357191711d9",
+     "size": 22606,
+     "type": "image/png"
+    },
+    "ui-frame-metal-edgebottom.png": {
+     "name": "ui-frame-metal-edgebottom.png",
+     "blob": "384623cd2ecd684a9fae502b6cd336a6",
+     "size": 5518,
+     "type": "image/png"
+    },
+    "ui-frame-metal-edgeleft.png": {
+     "name": "ui-frame-metal-edgeleft.png",
+     "blob": "9e16f886cd5e179e47d1eeed3df9e1c8",
+     "size": 8780,
+     "type": "image/png"
+    },
+    "ui-frame-metal-edgeright.png": {
+     "name": "ui-frame-metal-edgeright.png",
+     "blob": "00d7a139551b9331c7d2e1892792203c",
+     "size": 9368,
+     "type": "image/png"
+    },
+    "ui-frame-metal-edgetop.png": {
+     "name": "ui-frame-metal-edgetop.png",
+     "blob": "a8659b908107c9fefa591da17f9df816",
+     "size": 24306,
+     "type": "image/png"
+    },
+    "ui-frame-portraitmetal-cornertopleft.png": {
+     "name": "ui-frame-portraitmetal-cornertopleft.png",
+     "blob": "e202e375b9471da9b4f1430e5fe97bb1",
+     "size": 28492,
+     "type": "image/png"
+    },
+    "ui-frame-toptilestreaks.png": {
+     "name": "ui-frame-toptilestreaks.png",
+     "blob": "70ee5b81f66d812ae5e88032a1bbdc41",
+     "size": 5940,
+     "type": "image/png"
+    }
+   }
+  },
+  "Money": {
+   "name": "Money",
+   "tile": "s",
+   "order": [
+    "ui-coppericon.png",
+    "ui-goldicon.png",
+    "ui-silvericon.png"
+   ],
+   "files": {
+    "ui-coppericon.png": {
+     "name": "ui-coppericon.png",
+     "blob": "040628cde515bff79d2b6fe38f99f786",
+     "size": 465,
+     "type": "image/png"
+    },
+    "ui-goldicon.png": {
+     "name": "ui-goldicon.png",
+     "blob": "6ac8dc4ee70acc8840fdd4cdaa6dec58",
+     "size": 470,
+     "type": "image/png"
+    },
+    "ui-silvericon.png": {
+     "name": "ui-silvericon.png",
+     "blob": "b8a295099dc58cf25fba0389ad83eb42",
+     "size": 452,
+     "type": "image/png"
+    }
+   }
+  },
+  "Map marks": {
+   "name": "Map marks",
+   "tile": "s",
+   "order": [
+    "dungeon.png",
+    "questdaily.png",
+    "questnormal.png",
+    "questturnin.png",
+    "raid.png",
+    "trivialquests.png"
+   ],
+   "files": {
+    "dungeon.png": {
+     "name": "dungeon.png",
+     "blob": "e51d836bb274977d22f6d93343b19e30",
+     "size": 5251,
+     "type": "image/png"
+    },
+    "questdaily.png": {
+     "name": "questdaily.png",
+     "blob": "766d47097adb62ff5c15cd9f26ab15e8",
+     "size": 1257,
+     "type": "image/png"
+    },
+    "questnormal.png": {
+     "name": "questnormal.png",
+     "blob": "f06c285270ba70fd4c03038bb5caa28a",
+     "size": 2279,
+     "type": "image/png"
+    },
+    "questturnin.png": {
+     "name": "questturnin.png",
+     "blob": "8b8ef702b70ab3012cae35b7a8186265",
+     "size": 1287,
+     "type": "image/png"
+    },
+    "raid.png": {
+     "name": "raid.png",
+     "blob": "560ee6688d94343efaa39e31e8ec7571",
+     "size": 5414,
+     "type": "image/png"
+    },
+    "trivialquests.png": {
+     "name": "trivialquests.png",
+     "blob": "21571f8998157ccb1289eb47ff94c0ba",
+     "size": 1383,
+     "type": "image/png"
+    }
+   }
+  },
+  "Icons": {
+   "name": "Icons",
+   "tile": "m",
+   "order": [
+    "ability_tracking.png",
+    "inv_misc_coin_01.png",
+    "inv_misc_pocketwatch_01.png",
+    "inv_misc_ticket_tarot_madness.png",
+    "inv_scroll_03.png",
+    "xp_icon.png"
+   ],
+   "files": {
+    "ability_tracking.png": {
+     "name": "ability_tracking.png",
+     "blob": "3dda39becb2bc87457cf7f9b6469efcd",
+     "size": 3555,
+     "type": "image/png"
+    },
+    "inv_misc_coin_01.png": {
+     "name": "inv_misc_coin_01.png",
+     "blob": "c64da4f76477a0580cf1d72b4a7b3d61",
+     "size": 4364,
+     "type": "image/png"
+    },
+    "inv_misc_pocketwatch_01.png": {
+     "name": "inv_misc_pocketwatch_01.png",
+     "blob": "0b9b83647452669cae335687f23ecad8",
+     "size": 4396,
+     "type": "image/png"
+    },
+    "inv_misc_ticket_tarot_madness.png": {
+     "name": "inv_misc_ticket_tarot_madness.png",
+     "blob": "b807364555bc149e56ac71faadf47bb7",
+     "size": 5164,
+     "type": "image/png"
+    },
+    "inv_scroll_03.png": {
+     "name": "inv_scroll_03.png",
+     "blob": "56f52b821467ae814310d1d943384f9a",
+     "size": 3177,
+     "type": "image/png"
+    },
+    "xp_icon.png": {
+     "name": "xp_icon.png",
+     "blob": "915d1427cfaf22db82631671b324ca21",
+     "size": 3311,
+     "type": "image/png"
+    }
+   }
+  },
+  "Classic textures": {
+   "name": "Classic textures",
+   "tile": "m",
+   "order": [
+    "ui-dialogbox-border.png",
+    "ui-dialogbox-background.png",
+    "ui-dialogbox-header.png",
+    "ui-tooltip-border.png",
+    "ui-tooltip-background.png",
+    "questbg.png",
+    "ui-panel-button-up.png",
+    "ui-checkbox-up.png",
+    "ui-checkbox-check.png",
+    "ui-questitemnameframe.png",
+    "ui-quickslot2.png",
+    "ui-statusbar.png"
+   ],
+   "files": {
+    "ui-dialogbox-border.png": {
+     "name": "ui-dialogbox-border.png",
+     "blob": "83bb84b4c8dc99d17ffa467c890a9a62",
+     "size": 2783,
+     "type": "image/png"
+    },
+    "ui-dialogbox-background.png": {
+     "name": "ui-dialogbox-background.png",
+     "blob": "007f067a355920c4dd62bd87292cee75",
+     "size": 226,
+     "type": "image/png"
+    },
+    "ui-dialogbox-header.png": {
+     "name": "ui-dialogbox-header.png",
+     "blob": "b32c8d1531f2cf5eede118b4376d5a4d",
+     "size": 8794,
+     "type": "image/png"
+    },
+    "ui-tooltip-border.png": {
+     "name": "ui-tooltip-border.png",
+     "blob": "b7279c2e57b6e66ee4ebf62e70fa58d2",
+     "size": 416,
+     "type": "image/png"
+    },
+    "ui-tooltip-background.png": {
+     "name": "ui-tooltip-background.png",
+     "blob": "02b38cf44e20b0ca95bb918806e8580f",
+     "size": 208,
+     "type": "image/png"
+    },
+    "questbg.png": {
+     "name": "questbg.png",
+     "blob": "95d7b3fc106fdff94467eb7d15dffe90",
+     "size": 98982,
+     "type": "image/png"
+    },
+    "ui-panel-button-up.png": {
+     "name": "ui-panel-button-up.png",
+     "blob": "d5f4b1acd3b5787fd3dd6b06ed613718",
+     "size": 875,
+     "type": "image/png"
+    },
+    "ui-checkbox-up.png": {
+     "name": "ui-checkbox-up.png",
+     "blob": "dd18b56551047eb2a8cbb6fdeef2c95d",
+     "size": 256,
+     "type": "image/png"
+    },
+    "ui-checkbox-check.png": {
+     "name": "ui-checkbox-check.png",
+     "blob": "7bb80b7bceac2f65afcaa31d8d440a7e",
+     "size": 463,
+     "type": "image/png"
+    },
+    "ui-questitemnameframe.png": {
+     "name": "ui-questitemnameframe.png",
+     "blob": "6b4fe1ea96db03446e4a9234252f4415",
+     "size": 463,
+     "type": "image/png"
+    },
+    "ui-quickslot2.png": {
+     "name": "ui-quickslot2.png",
+     "blob": "76a6152b847edee667c0bfb44ce18fe3",
+     "size": 398,
+     "type": "image/png"
+    },
+    "ui-statusbar.png": {
+     "name": "ui-statusbar.png",
+     "blob": "602fac777ccc7be83e97049fc43e4827",
+     "size": 319,
+     "type": "image/png"
+    }
+   }
+  }
+ },
+ "blobs": {},
+ "docs": {
+  "readme": "project/README.md",
+  "sections": []
+ },
+ "lastChange": {
+  "by": "Claude",
+  "at": "2026-11-17T14:58:06Z",
+  "via": "Claude Code",
+  "note": "Rebuilt on Forever's own window kit (-c60 atlases): Window, InsetPanel, RedButton, Tooltip, CheckBox, SearchBox, StatList, SkillBar, Slots, SpellbookPage"
+ }
+}

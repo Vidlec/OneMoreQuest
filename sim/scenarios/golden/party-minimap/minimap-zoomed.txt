@@ -1,0 +1,5 @@
+k="t" x=1149 y=44 w=198 h=198 c=[0.05,0.06,0.08,1] a=1 mask="Interface\\CharacterFrame\\TempPortraitAlphaMask"
+k="t" x=1232 y=127 w=32 h=32 tex="Interface\\Minimap\\MinimapArrow" a=1
+k="t" x=1232 y=127 w=32 h=32 tex="Interface\\Minimap\\MinimapArrow" a=1
+k="t" x=1248.50 y=155.70 w=14 h=14 atlas="PlayerPartyBlip" vc=[0.67,0.83,0.45,1] a=1
+k="t" x=1248.50 y=155.70 w=14 h=14 atlas="PlayerPartyBlip" vc=[0.67,0.83,0.45,1] a=1

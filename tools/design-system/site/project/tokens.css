@@ -1,0 +1,75 @@
+/* WoW Forever UI — generated from tokens.json */
+:root, [data-theme="game"] {
+  --normal-font: #ffd200;
+  --highlight-font: #ffffff;
+  --disabled-font: #808080;
+  --lightgray-font: #999999;
+  --red-font: #ff2020;
+  --dim-red-font: #cc1919;
+  --green-font: #19ff19;
+  --yellow-font: #ffff00;
+  --lightyellow-font: #ffff99;
+  --orange-font: #ff8040;
+  --blue-font: #00bff3;
+  --passive-spell-font: #c4a300;
+  --parchment-text: #2e1f0f;
+  --parchment-title: #000000;
+  --quest-title-brown: #7d590d;
+  --objective-font: #cccccc;
+  --objective-highlight-font: #ffffff;
+  --objective-disabled-font: #7f7f7f;
+  --parchment-ground: #c79659;
+  --frame-ground: #1b1712;
+  --tooltip-ground: #171730;
+  --tooltip-border: #ffffff;
+  --quality-poor: #9d9d9d;
+  --quality-common: #ffffff;
+  --quality-uncommon: #1eff00;
+  --quality-rare: #0070dd;
+  --quality-epic: #a335ee;
+  --quality-legendary: #ff8000;
+  --quality-artifact: #e6cc80;
+  --difficulty-impossible: #ff1a1a;
+  --difficulty-verydifficult: #ff8040;
+  --difficulty-difficult: #ffd100;
+  --difficulty-standard: #40bf40;
+  --difficulty-trivial: #808080;
+  --difficulty-header: #b2b2b2;
+  --class-warrior: #c69b6d;
+  --class-paladin: #f48cba;
+  --class-hunter: #aad372;
+  --class-rogue: #fff468;
+  --class-priest: #ffffff;
+  --class-shaman: #0070dd;
+  --class-mage: #3fc7eb;
+  --class-warlock: #8788ee;
+  --class-druid: #ff7c0a;
+}
+:root {
+  --window-corner: 95px;
+  --window-title: 24px;
+  --inset-edge: 6px;
+  --tooltip-edge: 7px;
+  --button-height: 24px;
+  --checkbox-size: 30px;
+  --search-height: 30px;
+  --stat-line: 28px;
+  --title-plate: 32px;
+  --gear-slot: 55px;
+  --profession-slot: 40px;
+  --radius-none: 0px;
+  --font-friz: "Marcellus", "Friz Quadrata TT", Georgia, serif;
+  --font-morpheus: "Metamorphous", "Morpheus", Georgia, serif;
+  --font-narrow: "Archivo Narrow", "Arial Narrow", Arial, sans-serif;
+}
+.GameFontWhiteTiny { font-family: var(--font-friz); font-size: 9px; line-height: 11px; font-weight: 400; }
+.GameFontNormalSmall { font-family: var(--font-friz); font-size: 10px; line-height: 12px; font-weight: 400; }
+.GameFontNormal { font-family: var(--font-friz); font-size: 12px; line-height: 14px; font-weight: 400; }
+.QuestFont { font-family: var(--font-friz); font-size: 13px; line-height: 16px; font-weight: 400; }
+.GameFontNormalLarge { font-family: var(--font-friz); font-size: 16px; line-height: 19px; font-weight: 400; }
+.GameFontNormalHuge { font-family: var(--font-friz); font-size: 20px; line-height: 24px; font-weight: 400; }
+.QuestFont_Large { font-family: var(--font-morpheus); font-size: 15px; line-height: 18px; font-weight: 400; }
+.QuestTitleFont { font-family: var(--font-morpheus); font-size: 18px; line-height: 21px; font-weight: 400; }
+.Fancy22Font { font-family: var(--font-morpheus); font-size: 22px; line-height: 26px; font-weight: 400; }
+.NumberFontNormal { font-family: var(--font-narrow); font-size: 14px; line-height: 16px; font-weight: 400; }
+.ChatFontNormal { font-family: var(--font-narrow); font-size: 14px; line-height: 17px; font-weight: 400; }

@@ -1,0 +1,26 @@
+<!-- @dsCard height=300 -->
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@400;600&family=Marcellus&family=Metamorphous&display=swap">
+<style>
+html,body{margin:0;height:100%}
+body{background:#14110d;width:960px;height:300px;position:relative;overflow:hidden;font-family:var(--font-friz)}
+.gold{fill:var(--normal-font)} .parch{fill:var(--parchment-ground)} .ink{fill:var(--parchment-text)} .blue{fill:var(--quality-rare)} .epic{fill:var(--quality-epic)} .green{fill:var(--quality-uncommon)}
+.name{position:absolute;left:44px;bottom:58px;font:400 72px/.94 var(--font-morpheus);color:var(--normal-font);max-width:440px}
+.tag{position:absolute;left:46px;bottom:30px;font:13px var(--font-friz);color:var(--lightgray-font)}
+</style></head><body>
+<svg width="960" height="300" style="position:absolute;inset:0">
+<!-- blocks: parchment-ground 300x300 slab, normal-font gold 140x160, parchment-text ink 140x140, quality-rare 70x70
+     arrangement: one tall parchment slab right with gold and ink satellites, square like the game's frames
+     pattern: the item qualities as a strip of square slots at profession-slot (40) pitch: the game's own way to say value
+     steps and radii: profession-slot 40, title-plate 32, radius-none 0 -->
+<rect class="parch" x="660" y="0" width="300" height="300"/>
+<rect class="gold" x="520" y="0" width="140" height="160"/>
+<rect class="ink" x="520" y="160" width="140" height="140"/>
+<rect class="blue" x="590" y="230" width="70" height="70"/>
+<g>
+<rect class="green" x="692" y="232" width="32" height="32"/><rect class="blue" x="729" y="232" width="32" height="32"/><rect class="epic" x="766" y="232" width="32" height="32"/><rect class="gold" x="803" y="232" width="32" height="32"/>
+</g>
+</svg>
+<div class="name">WoW Forever UI</div>
+<div class="tag">The game's own frames, fonts and colours, for addons that belong in it.</div>
+</body></html>

@@ -1,0 +1,15 @@
+## Interface: 16001
+## Title: Questie Profit
+## Notes: Adds the expected profit of a quest (rewards plus expected mob loot) to Questie.
+## Version: 0.1.0
+## X-License: GPL-3.0
+## Dependencies: Questie
+## OptionalDeps: TnnysMobLoot, Auctionator
+## SavedVariables: QuestieProfitDB
+
+Core.lua
+Prices.lua
+Loot.lua
+Calculator.lua
+Tooltip.lua
+Window.lua

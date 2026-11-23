@@ -1,0 +1,20 @@
+--@addons QuestieDB, OneMoreQuest, Auctionator, Leatrix_Plus, TnnysMobLoot, ForeverDungeonJournal
+-- OneMoreQuest with the other addons players run beside it: everything loads and works together without errors,
+-- and the map and quest window open as usual. (Leatrix Maps is left out: it reshapes the game's own world map and
+-- loads its battlefield map, which the simulator does not run; see config "gameWorldMap".)
+setProfile({ level = 30, race = "Scourge", class = "MAGE" })
+moveTo(1413, 0.52, 0.31)
+accept(844)
+wait(1)
+key("M")
+wait(0.5)
+expect(G.WorldMapFrame:IsShown(), "the map opens")
+expectText("My quests")
+click("Plainstrider Menace")
+wait(0.3)
+expectText("To do", "the quest page opens")
+click("Available")
+wait(0.3)
+click("My quests")
+key("ESCAPE")
+wait(0.3)

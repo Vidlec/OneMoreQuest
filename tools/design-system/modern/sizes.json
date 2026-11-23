@@ -1,0 +1,822 @@
+{
+ "Window/ui-frame-portraitmetal-cornertopleft.png": {
+  "atlas": "UI-Frame-PortraitMetal-CornerTopLeft-c60",
+  "pixels": [
+   190,
+   190
+  ],
+  "drawn": [
+   95.0,
+   95.0
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Window/ui-frame-metal-cornertopright.png": {
+  "atlas": "UI-Frame-Metal-CornerTopRight-c60",
+  "pixels": [
+   190,
+   190
+  ],
+  "drawn": [
+   95.0,
+   95.0
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Window/ui-frame-metal-cornerbottomleft.png": {
+  "atlas": "UI-Frame-Metal-CornerBottomLeft-c60",
+  "pixels": [
+   190,
+   200
+  ],
+  "drawn": [
+   95.0,
+   100.0
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Window/ui-frame-metal-cornerbottomright.png": {
+  "atlas": "UI-Frame-Metal-CornerBottomRight-c60",
+  "pixels": [
+   190,
+   200
+  ],
+  "drawn": [
+   95.0,
+   100.0
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Window/ui-frame-metal-edgetop.png": {
+  "atlas": "_UI-Frame-Metal-EdgeTop-c60",
+  "pixels": [
+   256,
+   190
+  ],
+  "drawn": [
+   128.0,
+   95.0
+  ],
+  "tilesH": true,
+  "tilesV": false
+ },
+ "Window/ui-frame-metal-edgebottom.png": {
+  "atlas": "_UI-Frame-Metal-EdgeBottom-c60",
+  "pixels": [
+   256,
+   200
+  ],
+  "drawn": [
+   128.0,
+   100.0
+  ],
+  "tilesH": true,
+  "tilesV": false
+ },
+ "Window/ui-frame-metal-edgeleft.png": {
+  "atlas": "!UI-Frame-Metal-EdgeLeft-c60",
+  "pixels": [
+   190,
+   256
+  ],
+  "drawn": [
+   95.0,
+   128.0
+  ],
+  "tilesH": false,
+  "tilesV": true
+ },
+ "Window/ui-frame-metal-edgeright.png": {
+  "atlas": "!UI-Frame-Metal-EdgeRight-c60",
+  "pixels": [
+   190,
+   256
+  ],
+  "drawn": [
+   95.0,
+   128.0
+  ],
+  "tilesH": false,
+  "tilesV": true
+ },
+ "Window/ui-frame-toptilestreaks.png": {
+  "atlas": "_UI-Frame-TopTileStreaks",
+  "pixels": [
+   256,
+   43
+  ],
+  "drawn": [
+   256,
+   43
+  ],
+  "tilesH": true,
+  "tilesV": false
+ },
+ "Window/redbutton-exit.png": {
+  "atlas": "RedButton-Exit-c60",
+  "pixels": [
+   32,
+   32
+  ],
+  "drawn": [
+   32,
+   32
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Inset/ui-frame-innertopleft.png": {
+  "atlas": "UI-Frame-InnerTopLeft",
+  "pixels": [
+   6,
+   6
+  ],
+  "drawn": [
+   6,
+   6
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Inset/ui-frame-innertopright.png": {
+  "atlas": "UI-Frame-InnerTopRight",
+  "pixels": [
+   6,
+   6
+  ],
+  "drawn": [
+   6,
+   6
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Inset/ui-frame-innerbotleftcorner.png": {
+  "atlas": "UI-Frame-InnerBotLeftCorner",
+  "pixels": [
+   6,
+   6
+  ],
+  "drawn": [
+   6,
+   6
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Inset/ui-frame-innerbotright.png": {
+  "atlas": "UI-Frame-InnerBotRight",
+  "pixels": [
+   6,
+   6
+  ],
+  "drawn": [
+   6,
+   6
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Inset/ui-frame-innertoptile.png": {
+  "atlas": "_UI-Frame-InnerTopTile",
+  "pixels": [
+   256,
+   3
+  ],
+  "drawn": [
+   256,
+   3
+  ],
+  "tilesH": true,
+  "tilesV": false
+ },
+ "Inset/ui-frame-innerbottile.png": {
+  "atlas": "_UI-Frame-InnerBotTile",
+  "pixels": [
+   256,
+   3
+  ],
+  "drawn": [
+   256,
+   3
+  ],
+  "tilesH": true,
+  "tilesV": false
+ },
+ "Inset/ui-frame-innerlefttile.png": {
+  "atlas": "!UI-Frame-InnerLeftTile",
+  "pixels": [
+   3,
+   256
+  ],
+  "drawn": [
+   3,
+   256
+  ],
+  "tilesH": false,
+  "tilesV": true
+ },
+ "Inset/ui-frame-innerrighttile.png": {
+  "atlas": "!UI-Frame-InnerRightTile",
+  "pixels": [
+   3,
+   256
+  ],
+  "drawn": [
+   3,
+   256
+  ],
+  "tilesH": false,
+  "tilesV": true
+ },
+ "Tooltip/tooltip-nineslice-cornertopleft.png": {
+  "atlas": "Tooltip-NineSlice-CornerTopLeft-c60",
+  "pixels": [
+   7,
+   7
+  ],
+  "drawn": [
+   7,
+   7
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Tooltip/tooltip-nineslice-cornertopright.png": {
+  "atlas": "Tooltip-NineSlice-CornerTopRight-c60",
+  "pixels": [
+   7,
+   7
+  ],
+  "drawn": [
+   7,
+   7
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Tooltip/tooltip-nineslice-cornerbottomleft.png": {
+  "atlas": "Tooltip-NineSlice-CornerBottomLeft-c60",
+  "pixels": [
+   7,
+   7
+  ],
+  "drawn": [
+   7,
+   7
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Tooltip/tooltip-nineslice-cornerbottomright.png": {
+  "atlas": "Tooltip-NineSlice-CornerBottomRight-c60",
+  "pixels": [
+   7,
+   7
+  ],
+  "drawn": [
+   7,
+   7
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Tooltip/tooltip-nineslice-edgetop.png": {
+  "atlas": "_Tooltip-NineSlice-EdgeTop-c60",
+  "pixels": [
+   16,
+   7
+  ],
+  "drawn": [
+   16,
+   7
+  ],
+  "tilesH": true,
+  "tilesV": false
+ },
+ "Tooltip/tooltip-nineslice-edgebottom.png": {
+  "atlas": "_Tooltip-NineSlice-EdgeBottom-c60",
+  "pixels": [
+   16,
+   7
+  ],
+  "drawn": [
+   16,
+   7
+  ],
+  "tilesH": true,
+  "tilesV": false
+ },
+ "Tooltip/tooltip-nineslice-edgeleft.png": {
+  "atlas": "!Tooltip-NineSlice-EdgeLeft-c60",
+  "pixels": [
+   7,
+   16
+  ],
+  "drawn": [
+   7,
+   16
+  ],
+  "tilesH": false,
+  "tilesV": true
+ },
+ "Tooltip/tooltip-nineslice-edgeright.png": {
+  "atlas": "!Tooltip-NineSlice-EdgeRight-c60",
+  "pixels": [
+   7,
+   16
+  ],
+  "drawn": [
+   7,
+   16
+  ],
+  "tilesH": false,
+  "tilesV": true
+ },
+ "Tooltip/tooltip-nineslice-center.png": {
+  "atlas": "Tooltip-NineSlice-Center-c60",
+  "pixels": [
+   64,
+   64
+  ],
+  "drawn": [
+   64,
+   64
+  ],
+  "tilesH": true,
+  "tilesV": true
+ },
+ "Lists/ui-character-info-title.png": {
+  "atlas": "UI-Character-Info-Title-c60",
+  "pixels": [
+   201,
+   32
+  ],
+  "drawn": [
+   201,
+   32
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Lists/ui-character-info-scrollline-long.png": {
+  "atlas": "UI-Character-Info-ScrollLine-Long-c60",
+  "pixels": [
+   384,
+   8
+  ],
+  "drawn": [
+   384,
+   8
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Lists/ui-character-info-scrollline.png": {
+  "atlas": "UI-Character-Info-ScrollLine-c60",
+  "pixels": [
+   210,
+   7
+  ],
+  "drawn": [
+   210,
+   7
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Lists/ui-character-info-gearslot.png": {
+  "atlas": "UI-Character-Info-GearSlot-c60",
+  "pixels": [
+   55,
+   55
+  ],
+  "drawn": [
+   55,
+   55
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Lists/spellbook-skilllinetab.png": {
+  "atlas": "spellbook-skilllinetab",
+  "pixels": [
+   40,
+   58
+  ],
+  "drawn": [
+   40,
+   58
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Lists/common-button-list-minus.png": {
+  "atlas": "common-button-list-minus-c60",
+  "pixels": [
+   13,
+   4
+  ],
+  "drawn": [
+   13,
+   4
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Lists/common-button-list-plus.png": {
+  "atlas": "common-button-list-plus-c60",
+  "pixels": [
+   13,
+   13
+  ],
+  "drawn": [
+   13,
+   13
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Lists/campaign_headericon_open.png": {
+  "atlas": "campaign_headericon_open",
+  "pixels": [
+   22,
+   22
+  ],
+  "drawn": [
+   22,
+   22
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Lists/campaign_headericon_closed.png": {
+  "atlas": "campaign_headericon_closed",
+  "pixels": [
+   22,
+   22
+  ],
+  "drawn": [
+   22,
+   22
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Lists/checkbox-minimal.png": {
+  "atlas": "checkbox-minimal-c60",
+  "pixels": [
+   30,
+   29
+  ],
+  "drawn": [
+   30,
+   29
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Lists/checkmark-minimal.png": {
+  "atlas": "checkmark-minimal",
+  "pixels": [
+   30,
+   29
+  ],
+  "drawn": [
+   30,
+   29
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Lists/common-dropdown-a-button.png": {
+  "atlas": "common-dropdown-a-button-c60",
+  "pixels": [
+   27,
+   27
+  ],
+  "drawn": [
+   27,
+   27
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Lists/common-search-border-left.png": {
+  "atlas": "common-search-border-left-c60",
+  "pixels": [
+   16,
+   40
+  ],
+  "drawn": [
+   16,
+   40
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Lists/common-search-border-middle.png": {
+  "atlas": "common-search-border-middle-c60",
+  "pixels": [
+   224,
+   40
+  ],
+  "drawn": [
+   224,
+   40
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Lists/common-search-border-right.png": {
+  "atlas": "common-search-border-right-c60",
+  "pixels": [
+   16,
+   40
+  ],
+  "drawn": [
+   16,
+   40
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Lists/common-search-magnifyingglass.png": {
+  "atlas": "common-search-magnifyingglass",
+  "pixels": [
+   24,
+   24
+  ],
+  "drawn": [
+   24,
+   24
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Bars/common-stat-bar-bg.png": {
+  "atlas": "common-stat-bar-BG-c60",
+  "pixels": [
+   67,
+   29
+  ],
+  "drawn": [
+   67,
+   29
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Bars/common-stat-bar-blue.png": {
+  "atlas": "common-stat-bar-blue-c60",
+  "pixels": [
+   240,
+   15
+  ],
+  "drawn": [
+   240,
+   15
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Bars/common-stat-bar-white.png": {
+  "atlas": "common-stat-bar-white-c60",
+  "pixels": [
+   240,
+   15
+  ],
+  "drawn": [
+   240,
+   15
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Buttons/128-redbutton-left.png": {
+  "atlas": "128-RedButton-Left-c60",
+  "pixels": [
+   114,
+   128
+  ],
+  "drawn": [
+   114,
+   128
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Buttons/128-redbutton-center.png": {
+  "atlas": "_128-RedButton-Center-c60",
+  "pixels": [
+   64,
+   128
+  ],
+  "drawn": [
+   64,
+   128
+  ],
+  "tilesH": true,
+  "tilesV": false
+ },
+ "Buttons/128-redbutton-right.png": {
+  "atlas": "128-RedButton-Right-c60",
+  "pixels": [
+   292,
+   128
+  ],
+  "drawn": [
+   292,
+   128
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Buttons/128-redbutton-left-pressed.png": {
+  "atlas": "128-RedButton-Left-Pressed-c60",
+  "pixels": [
+   114,
+   128
+  ],
+  "drawn": [
+   114,
+   128
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Buttons/128-redbutton-center-pressed.png": {
+  "atlas": "_128-RedButton-Center-Pressed-c60",
+  "pixels": [
+   64,
+   128
+  ],
+  "drawn": [
+   64,
+   128
+  ],
+  "tilesH": true,
+  "tilesV": false
+ },
+ "Buttons/128-redbutton-right-pressed.png": {
+  "atlas": "128-RedButton-Right-Pressed-c60",
+  "pixels": [
+   292,
+   128
+  ],
+  "drawn": [
+   292,
+   128
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Buttons/128-redbutton-left-disabled.png": {
+  "atlas": "128-RedButton-Left-Disabled-c60",
+  "pixels": [
+   114,
+   128
+  ],
+  "drawn": [
+   114,
+   128
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Buttons/128-redbutton-center-disabled.png": {
+  "atlas": "_128-RedButton-Center-Disabled-c60",
+  "pixels": [
+   64,
+   128
+  ],
+  "drawn": [
+   64,
+   128
+  ],
+  "tilesH": true,
+  "tilesV": false
+ },
+ "Buttons/128-redbutton-right-disabled.png": {
+  "atlas": "128-RedButton-Right-Disabled-c60",
+  "pixels": [
+   292,
+   128
+  ],
+  "drawn": [
+   292,
+   128
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Buttons/128-redbutton-highlight.png": {
+  "atlas": "128-RedButton-Highlight",
+  "pixels": [
+   441,
+   128
+  ],
+  "drawn": [
+   441,
+   128
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Professions/professions-slot-frame.png": {
+  "atlas": "Professions-Slot-Frame",
+  "pixels": [
+   40,
+   40
+  ],
+  "drawn": [
+   40,
+   40
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Professions/heavybronze-frame-basic.png": {
+  "atlas": "heavybronze-frame-basic-c60",
+  "pixels": [
+   80,
+   80
+  ],
+  "drawn": [
+   80,
+   80
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Spellbook/spellbook-page-left.png": {
+  "atlas": "spellbook-Page-Left-c60",
+  "pixels": [
+   810,
+   682
+  ],
+  "drawn": [
+   810,
+   682
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Spellbook/spellbook-page-right.png": {
+  "atlas": "spellbook-Page-Right-c60",
+  "pixels": [
+   810,
+   682
+  ],
+  "drawn": [
+   810,
+   682
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Spellbook/spellbook-divider.png": {
+  "atlas": "spellbook-divider",
+  "pixels": [
+   657,
+   11
+  ],
+  "drawn": [
+   657,
+   11
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Spellbook/spellbook-item-backplate.png": {
+  "atlas": "spellbook-item-backplate",
+  "pixels": [
+   256,
+   64
+  ],
+  "drawn": [
+   256,
+   64
+  ],
+  "tilesH": false,
+  "tilesV": false
+ },
+ "Window/ui-background-rock.png": {
+  "file": "Interface\\frameGeneral\\ui-background-rock",
+  "pixels": [
+   1024,
+   1024
+  ]
+ },
+ "Window/ui-background-marble.png": {
+  "file": "Interface\\frameGeneral\\ui-background-marble",
+  "pixels": [
+   256,
+   256
+  ]
+ }
+}
