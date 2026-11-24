@@ -9,6 +9,12 @@ if addon and addon.Database and addon.Database.verifyReads then
     for index = 1, math.min(#problems, 20) do
         io.write("READS changed: ", problems[index], "\n")
     end
-    expect(#problems == 0, "no caller changed a table it read from the quest database (" .. #problems .. " changed: "
-        .. table.concat(problems, ", ", 1, math.min(#problems, 5)) .. ")")
+    expect(
+        #problems == 0,
+        "no caller changed a table it read from the quest database ("
+            .. #problems
+            .. " changed: "
+            .. table.concat(problems, ", ", 1, math.min(#problems, 5))
+            .. ")"
+    )
 end

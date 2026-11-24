@@ -52,13 +52,20 @@ local STATE_STEP_PIXELS = 0.5 -- the player's moves, as the minimap shows them, 
 -- quarter whether its edge is round. Quarters as LibDBIcon and HereBeDragons number them, up positive: 1 lower
 -- right, 2 lower left, 3 upper right, 4 upper left.
 local SHAPES = {
-    ROUND = { true, true, true, true }, SQUARE = { false, false, false, false },
-    ["CORNER-TOPLEFT"] = { false, false, false, true }, ["CORNER-TOPRIGHT"] = { false, false, true, false },
-    ["CORNER-BOTTOMLEFT"] = { false, true, false, false }, ["CORNER-BOTTOMRIGHT"] = { true, false, false, false },
-    ["SIDE-LEFT"] = { false, true, false, true }, ["SIDE-RIGHT"] = { true, false, true, false },
-    ["SIDE-TOP"] = { false, false, true, true }, ["SIDE-BOTTOM"] = { true, true, false, false },
-    ["TRICORNER-TOPLEFT"] = { false, true, true, true }, ["TRICORNER-TOPRIGHT"] = { true, false, true, true },
-    ["TRICORNER-BOTTOMLEFT"] = { true, true, false, true }, ["TRICORNER-BOTTOMRIGHT"] = { true, true, true, false },
+    ROUND = { true, true, true, true },
+    SQUARE = { false, false, false, false },
+    ["CORNER-TOPLEFT"] = { false, false, false, true },
+    ["CORNER-TOPRIGHT"] = { false, false, true, false },
+    ["CORNER-BOTTOMLEFT"] = { false, true, false, false },
+    ["CORNER-BOTTOMRIGHT"] = { true, false, false, false },
+    ["SIDE-LEFT"] = { false, true, false, true },
+    ["SIDE-RIGHT"] = { true, false, true, false },
+    ["SIDE-TOP"] = { false, false, true, true },
+    ["SIDE-BOTTOM"] = { true, true, false, false },
+    ["TRICORNER-TOPLEFT"] = { false, true, true, true },
+    ["TRICORNER-TOPRIGHT"] = { true, false, true, true },
+    ["TRICORNER-BOTTOMLEFT"] = { true, true, false, true },
+    ["TRICORNER-BOTTOMRIGHT"] = { true, true, true, false },
 }
 -- The game draws party members and the player's arrow into the minimap itself, under every addon's frame: we draw
 -- them again over ours (the arrow, and each member's party icon in their class colour), so our marks need not
@@ -140,8 +147,13 @@ local function getFramePosition()
     framePositionAt, frameNorth, frameWest, frameContinentId = frameNumber, nil, nil, nil
     if unitOffsetNorth then
         local north, west, _, continentId = UnitPosition("player")
-        if type(north) == "number" and continentId == unitContinentId and not (issecretvalue and issecretvalue(north)) then
-            frameNorth, frameWest, frameContinentId = north + unitOffsetNorth, west + unitOffsetWest, lastMove.continentId
+        if
+            type(north) == "number"
+            and continentId == unitContinentId
+            and not (issecretvalue and issecretvalue(north))
+        then
+            frameNorth, frameWest, frameContinentId =
+                north + unitOffsetNorth, west + unitOffsetWest, lastMove.continentId
             return frameNorth, frameWest, frameContinentId
         end
     end
@@ -216,8 +228,12 @@ end
 ---quarters measure along the radius, square ones by the larger of across and up.
 function MinimapPins.getEdgeDistance(right, up)
     local quarter = 1
-    if right < 0 then quarter = quarter + 1 end
-    if up > 0 then quarter = quarter + 2 end
+    if right < 0 then
+        quarter = quarter + 1
+    end
+    if up > 0 then
+        quarter = quarter + 2
+    end
     if MinimapPins.getShape()[quarter] then
         return math.sqrt(right * right + up * up)
     end
@@ -280,7 +296,13 @@ local function getMapWorld(uiMapId)
     if not north or not southNorth then
         return nil
     end
-    return { continentId = continentId, north = north, west = west, width = west - eastWest, height = north - southNorth }
+    return {
+        continentId = continentId,
+        north = north,
+        west = west,
+        width = west - eastWest,
+        height = north - southNorth,
+    }
 end
 
 ---@return number? uiMapId The zone map the player is on, as the world map opens to it: a building's, a cave's or
@@ -293,7 +315,6 @@ local function getZoneMapId(uiMapId)
     end
     return uiMapId
 end
-
 
 ---A quest's areas where the player is, exactly the shapes the world map draws for the player's zone: its places
 ---put on that zone's map as the map puts them (sub-zones included), the same shapes that follow them, placed in
@@ -364,8 +385,13 @@ local function composeMapMarkPlaces(position)
     if not uiMapId then
         return placesByQuestId
     end
-    local cacheKey = uiMapId .. ":" .. tostring(ns.Focus.get()) .. ":"
-        .. tostring(ns.MapMarks.getFocusedQuestId and ns.MapMarks.getFocusedQuestId()) .. ":" .. ns.Spoilers.getKey()
+    local cacheKey = uiMapId
+        .. ":"
+        .. tostring(ns.Focus.get())
+        .. ":"
+        .. tostring(ns.MapMarks.getFocusedQuestId and ns.MapMarks.getFocusedQuestId())
+        .. ":"
+        .. ns.Spoilers.getKey()
     if mapMarkPlacesCache[cacheKey] then
         return mapMarkPlacesCache[cacheKey]
     end
@@ -386,7 +412,8 @@ end
 ---place keeps its world position from the first time it is measured.
 local function getPlaceDistance(place, player)
     if place.north == nil then
-        local continentId, north, west = ns.Geometry.getWorldPosition(ns.Database.getUiMapId(place.zoneId), place.x, place.y)
+        local continentId, north, west =
+            ns.Geometry.getWorldPosition(ns.Database.getUiMapId(place.zoneId), place.x, place.y)
         place.continentId, place.north, place.west = continentId, north or false, west
     end
     if place.north and place.continentId == player.continentId then
@@ -404,7 +431,8 @@ local function addPlaces(candidates, places, data, player, isSpawnOnly, limitYar
         local distance = getPlaceDistance(place, player)
         if distance then
             if not limitYards or distance <= limitYards then
-                candidates[#candidates + 1] = { place = place, data = data, distance = distance, isSpawnOnly = isSpawnOnly }
+                candidates[#candidates + 1] =
+                    { place = place, data = data, distance = distance, isSpawnOnly = isSpawnOnly }
             elseif distance < nearestBeyond then
                 nearestBeyond = distance
             end
@@ -416,7 +444,8 @@ end
 ---@return boolean isHandedOver A turn-in's mark whose place is near enough that the game shows its own "?" there now
 function MinimapPins.isHandedOver(shown, position)
     return shown.handoverYards ~= nil
-        and ns.Geometry.getDistance(position.north, position.west, shown.place.north, shown.place.west) <= shown.handoverYards
+        and ns.Geometry.getDistance(position.north, position.west, shown.place.north, shown.place.west)
+            <= shown.handoverYards
 end
 
 ---@return table[] marks The givers and turn-ins whose place is handed to the game's own "!" or "?" right now and
@@ -493,7 +522,9 @@ function MinimapPins.acquireGamePin(index, data)
         pin.icon:SetAllPoints(pin)
         pin:EnableMouse(true)
         pin:SetScript("OnEnter", showGamePinTooltip)
-        pin:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        pin:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+        end)
         gamePins[index] = pin
     end
     -- The size the player chose, which may have changed since it was made. (A new one too: left at the game's size
@@ -521,7 +552,14 @@ function MinimapPins.printDistance()
         return
     end
     local viewRadius = C_Minimap and C_Minimap.GetViewRadius and C_Minimap.GetViewRadius() or DEFAULT_VIEW_RADIUS
-    ns.print(string.format("%s: %d yards; the minimap sees %d yards round you.", entry.title, math.floor(entry.distance + 0.5), math.floor(viewRadius * RIM + 0.5)))
+    ns.print(
+        string.format(
+            "%s: %d yards; the minimap sees %d yards round you.",
+            entry.title,
+            math.floor(entry.distance + 0.5),
+            math.floor(viewRadius * RIM + 0.5)
+        )
+    )
 end
 
 ---Picks the places worth a mark: everything in range, nearest first, plus the highlighted quest's nearest place.
@@ -537,7 +575,8 @@ local function addPatrolAreas(composedAreas, patrols, position, base)
     for _, patrol in ipairs(patrols) do
         local edges, points, last = {}, {}, nil
         for _, point in ipairs(patrol.points) do
-            local continentId, north, west = ns.Geometry.getWorldPosition(ns.Database.getUiMapId(patrol.zoneId), point[1], point[2])
+            local continentId, north, west =
+                ns.Geometry.getWorldPosition(ns.Database.getUiMapId(patrol.zoneId), point[1], point[2])
             local here = north and continentId == position.continentId and { x = west, y = north } or nil
             if here and last then
                 edges[#edges + 1] = { last, here }
@@ -548,8 +587,15 @@ local function addPatrolAreas(composedAreas, patrols, position, base)
         if #edges > 0 then
             local name = patrol.npcId and ns.Database.getNpcField(patrol.npcId, "name")
             composedAreas[#composedAreas + 1] = {
-                questId = base.questId, number = base.number, isFocused = base.isFocused, color = base.color, isPatrol = true,
-                triangles = {}, edges = edges, points = points, note = name and ns.L("%s walks here", name) or nil,
+                questId = base.questId,
+                number = base.number,
+                isFocused = base.isFocused,
+                color = base.color,
+                isPatrol = true,
+                triangles = {},
+                edges = edges,
+                points = points,
+                note = name and ns.L("%s walks here", name) or nil,
             }
         end
     end
@@ -560,7 +606,11 @@ end
 -- drawn whatever the areas' outline is set to (it is all there is of its quest), at these strengths.
 -- (One table: the file's main chunk is near Lua's limit of local names.)
 local Rough = {
-    LEGS = 40, RIM_ALPHA = 0.3, FOCUSED_RIM_ALPHA = 0.6, EDGE_ALPHA = 0.6, FOCUSED_EDGE_ALPHA = 0.95,
+    LEGS = 40,
+    RIM_ALPHA = 0.3,
+    FOCUSED_RIM_ALPHA = 0.6,
+    EDGE_ALPHA = 0.6,
+    FOCUSED_EDGE_ALPHA = 0.95,
     areas = setmetatable({}, { __mode = "k" }), -- [a circle] = its area, or false off any map
 }
 
@@ -571,7 +621,8 @@ function Rough.getArea(circle)
     local area = roughAreas[circle]
     if area == nil then
         local place = circle.place
-        local continentId, north, west = ns.Geometry.getWorldPosition(ns.Database.getUiMapId(place.zoneId), place.x, place.y)
+        local continentId, north, west =
+            ns.Geometry.getWorldPosition(ns.Database.getUiMapId(place.zoneId), place.x, place.y)
         area = false
         if north then
             local radius, edges, previous = circle.radiusYards, {}, nil
@@ -583,7 +634,13 @@ function Rough.getArea(circle)
                 end
                 previous = point
             end
-            area = { triangles = {}, edges = edges, points = { { x = west, y = north } }, continentId = continentId, hoverYards = radius }
+            area = {
+                triangles = {},
+                edges = edges,
+                points = { { x = west, y = north } },
+                continentId = continentId,
+                hoverYards = radius,
+            }
         end
         roughAreas[circle] = area
     end
@@ -593,8 +650,19 @@ end
 ---One tracked quest's marks, spawns and areas on the minimap: as on the world map, or, while something is held back
 ---(Spoilers), only what may show of it (shownStep: MapMarks.getShownStep).
 ---@return number nearestLeftOut How near the nearest of its places left out is (math.huge when none was)
-local function addQuestPlaces(candidates, composed, composedAreas, entry, shownStep, mapMarkPlaces, position, numbers,
-                              isActive, regionYards, gatherYards)
+local function addQuestPlaces(
+    candidates,
+    composed,
+    composedAreas,
+    entry,
+    shownStep,
+    mapMarkPlaces,
+    position,
+    numbers,
+    isActive,
+    regionYards,
+    gatherYards
+)
     local questId = entry.questId
     local nearestLeftOut = math.huge
     -- Where its pointer and its marks may lead, and which places are its spawns: its own, or what may show of them
@@ -605,10 +673,16 @@ local function addQuestPlaces(candidates, composed, composedAreas, entry, shownS
     end
     local title = string.format("[%d] %s", entry.level, entry.title)
     local mark = {
-        kind = entry.isTurnIn and "turnIn" or "objective", questId = questId, isFocused = isActive,
+        kind = entry.isTurnIn and "turnIn" or "objective",
+        questId = questId,
+        isFocused = isActive,
         glyph = ns.MapMarks.getQuestGlyph(questId, entry.objectives),
-        number = numbers[questId], progress = entry.isTurnIn and 1 or ns.MapMarks.getProgress(entry),
-        lines = { title, entry.isTurnIn and ns.L("Turn in to %s", entry.finisherName or ns.L("the quest giver")) or nil },
+        number = numbers[questId],
+        progress = entry.isTurnIn and 1 or ns.MapMarks.getProgress(entry),
+        lines = {
+            title,
+            entry.isTurnIn and ns.L("Turn in to %s", entry.finisherName or ns.L("the quest giver")) or nil,
+        },
         counted = not entry.isTurnIn and {} or nil, -- how far along it is, read afresh as its tooltip opens (MapMarks.refreshMarkTexts)
     }
     if isActive and nearestPlace then
@@ -623,8 +697,14 @@ local function addQuestPlaces(candidates, composed, composedAreas, entry, shownS
         -- Always composed: whether its place is in view is the minimap's own shape's to say (a square one sees
         -- further in its corners than its radius), checked as it moves
         if nearestPlace and nearestPlace.continentId == position.continentId then
-            composed[#composed + 1] = { place = nearestPlace, data = mark, isKeptOnRim = false, handoverYards = TURN_IN_HANDOVER_YARDS,
-                isGameLook = true, nearestOf = nearestOf }
+            composed[#composed + 1] = {
+                place = nearestPlace,
+                data = mark,
+                isKeptOnRim = false,
+                handoverYards = TURN_IN_HANDOVER_YARDS,
+                isGameLook = true,
+                nearestOf = nearestOf,
+            }
         end
     elseif fixedPlaces then
         -- Its mark where the world map has it, every spawn an icon of its own
@@ -642,8 +722,10 @@ local function addQuestPlaces(candidates, composed, composedAreas, entry, shownS
     else
         -- Not drawn on this zone's map (a dungeon's quest, a place over the zone's edge): its mark at the
         -- nearest of its places
-        nearestLeftOut = math.min(nearestLeftOut, addPlaces(candidates, shownStep and nearestOf or entry.allPlaces, mark,
-            position, false, gatherYards))
+        nearestLeftOut = math.min(
+            nearestLeftOut,
+            addPlaces(candidates, shownStep and nearestOf or entry.allPlaces, mark, position, false, gatherYards)
+        )
     end
     if entry.isTurnIn then
         return nearestLeftOut
@@ -654,24 +736,41 @@ local function addQuestPlaces(candidates, composed, composedAreas, entry, shownS
             local area = Rough.getArea(circle)
             if area and area.continentId == position.continentId then
                 composedAreas[#composedAreas + 1] = {
-                    questId = questId, number = numbers[questId], isFocused = isActive, isRough = true, hoverYards = area.hoverYards,
-                    triangles = area.triangles, edges = area.edges, points = area.points, note = ns.L("Somewhere here"),
+                    questId = questId,
+                    number = numbers[questId],
+                    isFocused = isActive,
+                    isRough = true,
+                    hoverYards = area.hoverYards,
+                    triangles = area.triangles,
+                    edges = area.edges,
+                    points = area.points,
+                    note = ns.L("Somewhere here"),
                 }
             end
         end
         return nearestLeftOut
     end
-    for _, area in ipairs(MinimapPins.composeQuestAreas(questId, spawnPlaces or {}, position, shownStep and "found" or nil)) do
+    for _, area in
+        ipairs(MinimapPins.composeQuestAreas(questId, spawnPlaces or {}, position, shownStep and "found" or nil))
+    do
         composedAreas[#composedAreas + 1] = {
-            questId = questId, number = numbers[questId], isFocused = isActive,
-            triangles = area.triangles, edges = area.edges, points = area.points,
+            questId = questId,
+            number = numbers[questId],
+            isFocused = isActive,
+            triangles = area.triangles,
+            edges = area.edges,
+            points = area.points,
         }
     end
     -- Where its creatures walk: each patrol drawn as an area's edge with nothing inside, in every look (only with its
     -- objectives shown exactly)
     if not shownStep then
-        addPatrolAreas(composedAreas, ns.Location.getObjectivePatrols(questId), position,
-            { questId = questId, number = numbers[questId], isFocused = isActive })
+        addPatrolAreas(
+            composedAreas,
+            ns.Location.getObjectivePatrols(questId),
+            position,
+            { questId = questId, number = numbers[questId], isFocused = isActive }
+        )
     end
     return nearestLeftOut
 end
@@ -697,9 +796,14 @@ function MinimapPins.compose(viewRadius)
     -- each on its own spot, whichever map shows them. (Spawns are gathered a square past the region: which of a
     -- square's spawns is kept is then the same wherever the region's edge cuts it.)
     local minimapRadius = Minimap and Minimap.GetWidth and (Minimap:GetWidth() or 0) / 2 or 0
-    local spacing = minimapRadius > 0 and viewRadius > 0
-        and ns.MapMarks.chooseSpawnSpacing(minimapRadius / viewRadius, MinimapPins.spawnSpacing,
-            ns.MapMarks.getSpawnMarkerRoom(ns.settings.minimapSpawnMarkerScale)) or 0
+    local spacing = minimapRadius > 0
+            and viewRadius > 0
+            and ns.MapMarks.chooseSpawnSpacing(
+                minimapRadius / viewRadius,
+                MinimapPins.spawnSpacing,
+                ns.MapMarks.getSpawnMarkerRoom(ns.settings.minimapSpawnMarkerScale)
+            )
+        or 0
     MinimapPins.spawnSpacing = spacing
     local gatherYards = regionYards + spacing * 1.5
 
@@ -710,12 +814,31 @@ function MinimapPins.compose(viewRadius)
         -- While something is held back: what of its step may show (nil: all of it), nothing at all when none may
         local shownStep = spoilers and ns.MapMarks.getShownStep(entry, spoilers)
         if not (shownStep and shownStep.isHidden) then
-            nearestLeftOut = math.min(nearestLeftOut, addQuestPlaces(candidates, composed, composedAreas, entry, shownStep,
-                mapMarkPlaces, position, numbers, questId == activeQuestId, regionYards, gatherYards))
+            nearestLeftOut = math.min(
+                nearestLeftOut,
+                addQuestPlaces(
+                    candidates,
+                    composed,
+                    composedAreas,
+                    entry,
+                    shownStep,
+                    mapMarkPlaces,
+                    position,
+                    numbers,
+                    questId == activeQuestId,
+                    regionYards,
+                    gatherYards
+                )
+            )
         end
     end
 
-    if player.zoneId and ns.Availability.isReady() and ns.Availability.isShownOnMap() and not (spoilers and spoilers.get("pickup") == "none") then
+    if
+        player.zoneId
+        and ns.Availability.isReady()
+        and ns.Availability.isShownOnMap()
+        and not (spoilers and spoilers.get("pickup") == "none")
+    then
         -- A giver with several quests is one mark: its quests share the same place, and its tooltip lists them
         local markByPlace, giverPlaces = {}, {}
         -- A quest giver has the game's own "!" on the minimap, with its arrow: ours only for what the game cannot
@@ -723,9 +846,17 @@ function MinimapPins.compose(viewRadius)
         -- (kept with the quest log closed, so it shows while the player walks there)
         local selectedQuestId = ns.Log.getChosenAvailableQuestId and ns.Log.getChosenAvailableQuestId()
         local isPatrolDrawn = {}
-        for _, quest in ipairs(ns.Availability.getQuests(player.zoneId, { shouldShowLowLevel = ns.settings.shouldShowLowLevel, shouldIncludeEntrances = true })) do
+        for _, quest in
+            ipairs(
+                ns.Availability.getQuests(
+                    player.zoneId,
+                    { shouldShowLowLevel = ns.settings.shouldShowLowLevel, shouldIncludeEntrances = true }
+                )
+            )
+        do
             -- (while something is held back, only the quests the player chose to see: Spoilers)
-            local isOffered = not quest.availableAtLevel and not quest.isHandedInHere
+            local isOffered = not quest.availableAtLevel
+                and not quest.isHandedInHere
                 and (not spoilers or ns.MapMarks.isGiverQuestShown(spoilers, quest.questId))
             -- The selected quest's giver, and whom it is handed in to, when they walk about: their paths in gold
             if quest.questId == selectedQuestId and isOffered then
@@ -740,8 +871,12 @@ function MinimapPins.compose(viewRadius)
                     local key = npcId .. (isSelected and ":selected" or "")
                     if not isPatrolDrawn[key] then
                         isPatrolDrawn[key] = true
-                        addPatrolAreas(composedAreas, ns.Location.getNpcPatrols(npcId), position,
-                            { questId = quest.questId, isFocused = isSelected, color = GIVER_PATROL_COLOR })
+                        addPatrolAreas(
+                            composedAreas,
+                            ns.Location.getNpcPatrols(npcId),
+                            position,
+                            { questId = quest.questId, isFocused = isSelected, color = GIVER_PATROL_COLOR }
+                        )
                     end
                 end
             end
@@ -751,25 +886,39 @@ function MinimapPins.compose(viewRadius)
                 local itemSource = quest.startType == "item" and ns.Location.getStartItemSource(quest.questId)
                 local startPlaces = itemSource and itemSource.places or quest.places or {}
                 if #startPlaces > 1 then
-                    local spawnMark = { kind = "objective", questId = quest.questId, isFocused = true, lines = {}, color = GIVER_PATROL_COLOR }
+                    local spawnMark = {
+                        kind = "objective",
+                        questId = quest.questId,
+                        isFocused = true,
+                        lines = {},
+                        color = GIVER_PATROL_COLOR,
+                    }
                     local spawns = {}
                     for index, place in ipairs(startPlaces) do
                         local copy = {}
-                        for key, value in pairs(place) do copy[key] = value end
+                        for key, value in pairs(place) do
+                            copy[key] = value
+                        end
                         copy.glyph = copy.glyph or (quest.startType == "item" and "loot" or "talk")
                         spawns[index] = copy
                     end
-                    nearestLeftOut = math.min(nearestLeftOut, addPlaces(candidates, spawns, spawnMark, position, true, gatherYards))
+                    nearestLeftOut =
+                        math.min(nearestLeftOut, addPlaces(candidates, spawns, spawnMark, position, true, gatherYards))
                     for _, area in ipairs(MinimapPins.composeQuestAreas(quest.questId, spawns, position, "start")) do
                         composedAreas[#composedAreas + 1] = {
-                            questId = quest.questId, isFocused = true, color = GIVER_PATROL_COLOR,
-                            triangles = area.triangles, edges = area.edges, points = area.points,
+                            questId = quest.questId,
+                            isFocused = true,
+                            color = GIVER_PATROL_COLOR,
+                            triangles = area.triangles,
+                            edges = area.edges,
+                            points = area.points,
                         }
                     end
                 end
             end
             if isOffered then
-                local line = string.format("[%d] %s", quest.level, quest.title) .. (quest.starterName and (" - " .. quest.starterName) or "")
+                local line = string.format("[%d] %s", quest.level, quest.title)
+                    .. (quest.starterName and (" - " .. quest.starterName) or "")
                 -- Only the nearest place of each quest: one that starts from a dropped item would otherwise
                 -- mark every creature around (and while something is held back, one out of the map's fog, outside a
                 -- dungeon held back)
@@ -778,8 +927,15 @@ function MinimapPins.compose(viewRadius)
                     local mark = markByPlace[place]
                     if not mark then
                         mark = {
-                            kind = "giver", questId = quest.questId, isFocused = false, count = 0, questIds = {}, lines = {},
-                            itemIcon = ns.MapMarks.getStartItemIcon(quest), isLowLevel = true, isRepeatable = true,
+                            kind = "giver",
+                            questId = quest.questId,
+                            isFocused = false,
+                            count = 0,
+                            questIds = {},
+                            lines = {},
+                            itemIcon = ns.MapMarks.getStartItemIcon(quest),
+                            isLowLevel = true,
+                            isRepeatable = true,
                             isGameLook = true,
                         }
                         markByPlace[place] = mark
@@ -806,13 +962,20 @@ function MinimapPins.compose(viewRadius)
                 -- before the game's come
                 local distance = getPlaceDistance(place, position)
                 if distance and distance <= regionYards then
-                    composed[#composed + 1] = { place = place, data = mark, isKeptOnRim = false, handoverYards = TURN_IN_HANDOVER_YARDS,
-                        isGameLook = true, distance = distance }
+                    composed[#composed + 1] = {
+                        place = place,
+                        data = mark,
+                        isKeptOnRim = false,
+                        handoverYards = TURN_IN_HANDOVER_YARDS,
+                        isGameLook = true,
+                        distance = distance,
+                    }
                 elseif distance then
                     nearestLeftOut = math.min(nearestLeftOut, distance)
                 end
             else
-                nearestLeftOut = math.min(nearestLeftOut, addPlaces(candidates, { place }, mark, position, false, gatherYards))
+                nearestLeftOut =
+                    math.min(nearestLeftOut, addPlaces(candidates, { place }, mark, position, false, gatherYards))
             end
         end
     end
@@ -839,7 +1002,9 @@ function MinimapPins.compose(viewRadius)
         candidates = thinned
     end
     -- Nearest first: a quest's nearest place gets its mark, the rest of its places are squares
-    table.sort(candidates, function(first, second) return first.distance < second.distance end)
+    table.sort(candidates, function(first, second)
+        return first.distance < second.distance
+    end)
     local isMarked, composedSpots = {}, {}
     for _, candidate in ipairs(candidates) do
         if candidate.distance > regionYards then
@@ -850,13 +1015,19 @@ function MinimapPins.compose(viewRadius)
         local isSpot = candidate.isSpawnOnly or (data.kind ~= "giver" and isMarked[data])
         if not isSpot then
             isMarked[data] = true
-            composed[#composed + 1] = { place = candidate.place, data = data, isKeptOnRim = false, distance = candidate.distance }
+            composed[#composed + 1] =
+                { place = candidate.place, data = data, isKeptOnRim = false, distance = candidate.distance }
         end
         -- (a mark does not take its place's spawn icon: the spawn keeps it, and the mark steps beside it)
         if isSpot or data.kind == "objective" then
             if #composedSpots < MAX_SPOTS then
-                composedSpots[#composedSpots + 1] = { place = candidate.place, isFocused = data.isFocused == true, number = data.number,
-                    questId = data.questId, color = candidate.isSpawnOnly and data.color or nil }
+                composedSpots[#composedSpots + 1] = {
+                    place = candidate.place,
+                    isFocused = data.isFocused == true,
+                    number = data.number,
+                    questId = data.questId,
+                    color = candidate.isSpawnOnly and data.color or nil,
+                }
             else
                 nearestLeftOut = math.min(nearestLeftOut, candidate.distance)
             end
@@ -882,7 +1053,8 @@ function MinimapPins.compose(viewRadius)
         end
         composed = kept
     end
-    local validYards = nearestLeftOut == math.huge and math.huge or math.max(MIN_VALID_YARDS, nearestLeftOut - reach - VALID_SLACK_YARDS)
+    local validYards = nearestLeftOut == math.huge and math.huge
+        or math.max(MIN_VALID_YARDS, nearestLeftOut - reach - VALID_SLACK_YARDS)
     return composed, composedSpots, composedAreas, validYards
 end
 
@@ -896,7 +1068,9 @@ function MinimapPins.applyBuiltInAreas()
     if not Minimap or not Minimap.SetQuestBlobInsideAlpha then
         return
     end
-    local shouldHide = ns.settings.shouldShowMapPins and ns.settings.shouldHideBuiltInMapPins and ns.settings.shouldShowMinimapPins
+    local shouldHide = ns.settings.shouldShowMapPins
+        and ns.settings.shouldHideBuiltInMapPins
+        and ns.settings.shouldShowMinimapPins
     if shouldHide and not isBuiltInAreaHidden then
         isBuiltInAreaHidden = true
         Minimap:SetQuestBlobInsideAlpha(0)
@@ -927,7 +1101,13 @@ local areMarksShown = true -- the minimap's marks are switched on (as last chose
 ---the quests standing where they did keeps the minimap as it is laid out: a kill or a loot counted changes nothing
 ---on it, and its marks' words are read afresh as a tooltip opens (MapMarks.refreshMarkTexts).
 function MinimapPins.refreshAfterChange(isQuiet)
-    if isQuiet and frame and composedAt and not ns.MapPins.isKeepingOff and composedAt.dataKey == ns.MapPins.getDataKey() then
+    if
+        isQuiet
+        and frame
+        and composedAt
+        and not ns.MapPins.isKeepingOff
+        and composedAt.dataKey == ns.MapPins.getDataKey()
+    then
         MinimapPins.keptCount = (MinimapPins.keptCount or 0) + 1 -- (how often: read by the simulator's audits)
         return
     end
@@ -942,8 +1122,12 @@ end
 ---@return boolean isOnCanvas The spawn icons ride their canvas (see the areas' drawing): the player's place is known,
 ---the minimap does not turn with them, and it has a size and a zoom to scale the canvas by
 local function isSpotCanvasUsed(position, facing)
-    return position ~= nil and spotCanvas ~= nil and not facing and MinimapPins.isCanvasOff ~= true
-        and (Minimap:GetWidth() or 0) > 0 and getViewRadius() > 0
+    return position ~= nil
+        and spotCanvas ~= nil
+        and not facing
+        and MinimapPins.isCanvasOff ~= true
+        and (Minimap:GetWidth() or 0) > 0
+        and getViewRadius() > 0
 end
 
 ---@return string choices What the marks follow that changes with no redraw of its own: the quest in focus, the
@@ -952,7 +1136,13 @@ local function getShownChoices()
     local chosenAvailable = ns.Log and ns.Log.getChosenAvailableQuestId and ns.Log.getChosenAvailableQuestId()
     -- The quest in focus as the maps take it: the one selected in the quest window while it is open, else the followed one
     local focused = ns.MapMarks.getFocusedQuestId and ns.MapMarks.getFocusedQuestId()
-    return tostring(ns.Focus.get()) .. ":" .. tostring(focused) .. ":" .. tostring(chosenAvailable) .. ":" .. tostring(ns.Availability.isReady())
+    return tostring(ns.Focus.get())
+        .. ":"
+        .. tostring(focused)
+        .. ":"
+        .. tostring(chosenAvailable)
+        .. ":"
+        .. tostring(ns.Availability.isReady())
 end
 
 ---@return boolean isStale The zoom, the zone's map or the minimap's size changed since the minimap was laid out, or
@@ -965,8 +1155,11 @@ function MinimapPins.isCompositionStale(position, viewRadius, width)
     if not position then
         return composedAt.zoneMapId ~= nil
     end
-    return getZoneMapId(position.uiMapId) ~= composedAt.zoneMapId or viewRadius ~= composedAt.viewRadius or width ~= composedAt.width
-        or ns.Geometry.getDistance(position.north, position.west, composedAt.north, composedAt.west) >= composedAt.validYards
+    return getZoneMapId(position.uiMapId) ~= composedAt.zoneMapId
+        or viewRadius ~= composedAt.viewRadius
+        or width ~= composedAt.width
+        or ns.Geometry.getDistance(position.north, position.west, composedAt.north, composedAt.west)
+            >= composedAt.validYards
 end
 
 local partitionedAt -- where the player was when what is near was last told from what is far (partitionNear)
@@ -1003,8 +1196,10 @@ function MinimapPins.tick()
         return
     end
     local position = ns.Geometry.getPlayerPosition()
-    if MinimapPins.isCompositionStale(position, getViewRadius(), Minimap:GetWidth() or 0)
-        or getShownChoices() ~= (composedAt and composedAt.choices) then
+    if
+        MinimapPins.isCompositionStale(position, getViewRadius(), Minimap:GetWidth() or 0)
+        or getShownChoices() ~= (composedAt and composedAt.choices)
+    then
         ns.MapPins.withoutView(refreshNow)
     elseif position and MinimapPins.followNearest(position) then
         partitionedAt = nil
@@ -1097,14 +1292,18 @@ local function chooseAndDress(isShown)
             -- No areas; patrols in every look
             local patrols = {}
             for _, area in ipairs(shownAreas) do
-                if area.isPatrol then patrols[#patrols + 1] = area end
+                if area.isPatrol then
+                    patrols[#patrols + 1] = area
+                end
             end
             shownAreas = patrols
         elseif ns.settings.shouldShowFocusedAreasOnly then
             -- As on the world map: only the quest in focus has its areas; patrols stay
             local kept = {}
             for _, area in ipairs(shownAreas) do
-                if area.isPatrol or area.isFocused then kept[#kept + 1] = area end
+                if area.isPatrol or area.isFocused then
+                    kept[#kept + 1] = area
+                end
             end
             shownAreas = kept
         end
@@ -1118,11 +1317,14 @@ local function chooseAndDress(isShown)
                 table.insert(shown.isFocused and focused or others, shown)
             end
         end
-        for _, shown in ipairs(others) do focused[#focused + 1] = shown end
+        for _, shown in ipairs(others) do
+            focused[#focused + 1] = shown
+        end
         shownSpots = focused
     end
     local kind = ns.MapMarks.getSpawnMarker()
-    local iconScale = MinimapPins.getIconScale(getViewRadius()) * math.max(0.5, math.min(2, tonumber(ns.settings.minimapSpawnMarkerScale) or 1))
+    local iconScale = MinimapPins.getIconScale(getViewRadius())
+        * math.max(0.5, math.min(2, tonumber(ns.settings.minimapSpawnMarkerScale) or 1))
     -- Where the icons ride their canvas they are its own, and their sizes are in its units, yards: as many as make
     -- their pixels at this zoom. (A change of the zoom, or of the way they are placed, chooses the marks again.)
     local spotParent, unit = frame, 1
@@ -1137,8 +1339,11 @@ local function chooseAndDress(isShown)
             -- Two textures, one under and one over (a glow and a glyph, a plate and a glyph, a square and its
             -- edge), moved together. Each remembers what it was last given: the same spot chosen again as it was
             -- asks nothing of the game.
-            spot = { under = remember(glide(spotParent:CreateTexture(nil, "ARTWORK"))), over = remember(glide(spotParent:CreateTexture(nil, "ARTWORK"))),
-                parent = spotParent }
+            spot = {
+                under = remember(glide(spotParent:CreateTexture(nil, "ARTWORK"))),
+                over = remember(glide(spotParent:CreateTexture(nil, "ARTWORK"))),
+                parent = spotParent,
+            }
             spot.bothTextures, spot.overTextures = { spot.under, spot.over }, { spot.over }
             spots[spotIndex] = spot
         end
@@ -1155,8 +1360,16 @@ local function chooseAndDress(isShown)
         local _, isStrong = ns.MapMarks.getSpawnMarkerStrength(shown.isFocused == true)
         -- The focused quest's spawns a little larger, and over the others'
         local size = (ICON_SIZE + (shown.isFocused and 2 or 0)) * iconScale * unit
-        local hasUnder = ns.MapMarks.dressSpawnMarker(spot.under, spot.over, kind, shown.place.glyph or "use", color, isStrong,
-            size, ICON_GLOW_SIZE * iconScale * unit)
+        local hasUnder = ns.MapMarks.dressSpawnMarker(
+            spot.under,
+            spot.over,
+            kind,
+            shown.place.glyph or "use",
+            color,
+            isStrong,
+            size,
+            ICON_GLOW_SIZE * iconScale * unit
+        )
         spot.under:SetDrawLayer("ARTWORK", shown.isFocused and 3 or 1)
         spot.over:SetDrawLayer("ARTWORK", shown.isFocused and 4 or 2)
         if not hasUnder then
@@ -1189,7 +1402,8 @@ local function chooseAndDress(isShown)
         -- The focused quest's glow lies under every mark, never over a neighbour; on the full-size layer it is
         -- drawn at the marks' smaller scale
         pin.glowScale = MARK_SCALE
-        local drawnWidth, drawnHeight, raise = ns.MapMarks.applyMarkLook(pin, shown.data, (Minimap:GetFrameLevel() or 1) + 6)
+        local drawnWidth, drawnHeight, raise =
+            ns.MapMarks.applyMarkLook(pin, shown.data, (Minimap:GetFrameLevel() or 1) + 6)
         pin.raise = raise or 0 -- a pin stands on its tip, so its middle sits above the spot
         pin.drawnSize = math.max(drawnWidth or 0, drawnHeight or 0)
         if pin.glow and pin.glowLayer ~= frame then
@@ -1229,9 +1443,15 @@ refreshNow = function()
     readRotating()
     local position = ns.Geometry.getPlayerPosition()
     composedAt = {
-        zoneMapId = position and getZoneMapId(position.uiMapId) or nil, north = position and position.north, west = position and position.west,
-        viewRadius = getViewRadius(), width = Minimap:GetWidth() or 0, choices = getShownChoices(),
-        isOnCanvas = isSpotCanvasUsed(position, getFacing()), validYards = math.huge, dataKey = ns.MapPins.getDataKey(),
+        zoneMapId = position and getZoneMapId(position.uiMapId) or nil,
+        north = position and position.north,
+        west = position and position.west,
+        viewRadius = getViewRadius(),
+        width = Minimap:GetWidth() or 0,
+        choices = getShownChoices(),
+        isOnCanvas = isSpotCanvasUsed(position, getFacing()),
+        validYards = math.huge,
+        dataKey = ns.MapPins.getDataKey(),
     }
     local isShown = ns.settings.shouldShowMapPins == true and ns.settings.shouldShowMinimapPins == true
     -- With the marks off nothing of ours is on the minimap: not the player's arrow and the party's dots either, drawn
@@ -1269,7 +1489,14 @@ local memberPlace = {} -- a party member's place in the world, while it is put o
 local function addForeignPins(scale, centerX, centerY, ...)
     for index = 1, select("#", ...) do
         local child = select(index, ...)
-        if child and child ~= frame and child ~= ringFrame and not child.mark and not child.isOurs and child:IsShown() then
+        if
+            child
+            and child ~= frame
+            and child ~= ringFrame
+            and not child.mark
+            and not child.isOurs
+            and child:IsShown()
+        then
             -- Only what can be seen: a frame shown but see-through (an empty holder) takes no room
             local alpha = child.GetEffectiveAlpha and child:GetEffectiveAlpha() or child:GetAlpha() or 1
             if alpha > 0.05 then
@@ -1283,7 +1510,8 @@ local function addForeignPins(scale, centerX, centerY, ...)
                         pin = { isPin = true }
                         foreignPins[foreignCount] = pin
                     end
-                    pin.x, pin.y, pin.radius = childX * childScale / scale - centerX, childY * childScale / scale - centerY, size / 2 + 1
+                    pin.x, pin.y, pin.radius =
+                        childX * childScale / scale - centerX, childY * childScale / scale - centerY, size / 2 + 1
                 end
             end
         end
@@ -1336,8 +1564,14 @@ function MinimapPins.getClearPoints(position, viewRadius, radius, facing)
     -- Other addons' pins: small frames on the minimap that are not ours
     local pixelsPerYard = viewRadius > 0 and radius / viewRadius or 0
     local now = GetTime and GetTime() or 0
-    local isKept = ns.frameNumber > 0 and not facing and position ~= nil and pixelsPerYard > 0 and foreignScannedAt ~= nil
-        and foreignScannedFor == pixelsPerYard and now >= foreignScannedAt and now - foreignScannedAt < FOREIGN_SCAN_SECONDS
+    local isKept = ns.frameNumber > 0
+        and not facing
+        and position ~= nil
+        and pixelsPerYard > 0
+        and foreignScannedAt ~= nil
+        and foreignScannedFor == pixelsPerYard
+        and now >= foreignScannedAt
+        and now - foreignScannedAt < FOREIGN_SCAN_SECONDS
     if isKept then
         for index = 1, foreignCount do
             local pin = foreignPins[index]
@@ -1470,7 +1704,11 @@ function MinimapPins.drawParty(clear)
             end
             local red, green, blue = 1, 1, 1
             local _, classFile = UnitClass(point.unit)
-            local color = classFile and (C_ClassColor and C_ClassColor.GetClassColor(classFile) or RAID_CLASS_COLORS and RAID_CLASS_COLORS[classFile])
+            local color = classFile
+                and (
+                    C_ClassColor and C_ClassColor.GetClassColor(classFile)
+                    or RAID_CLASS_COLORS and RAID_CLASS_COLORS[classFile]
+                )
             if color then
                 red, green, blue = color.r, color.g, color.b
             end
@@ -1489,8 +1727,12 @@ end
 ---a shape looked up once: asked for every spawn icon at every move
 local function getEdgeDistanceIn(quarters, right, up)
     local quarter = 1
-    if right < 0 then quarter = quarter + 1 end
-    if up > 0 then quarter = quarter + 2 end
+    if right < 0 then
+        quarter = quarter + 1
+    end
+    if up > 0 then
+        quarter = quarter + 2
+    end
     if quarters[quarter] then
         return math.sqrt(right * right + up * up)
     end
@@ -1540,7 +1782,8 @@ local function layOutSpots(position, viewRadius, radius, foreignPins, markCircle
             -- Inside the minimap's edge or not by its cell, as when each was placed move by move; drawn where it
             -- stands after stepping aside
             spot.cellNorth, spot.cellWest = (row + 0.5) * cellYards, (column + 0.5) * cellYards
-            local x, y = (position.west - spot.cellWest) * pixelsPerYard, (spot.cellNorth - position.north) * pixelsPerYard
+            local x, y =
+                (position.west - spot.cellWest) * pixelsPerYard, (spot.cellNorth - position.north) * pixelsPerYard
             x, y = MinimapPins.stepClear(x, y, half, foreignPins)
             laid[#laid + 1] = { spot = spot, x = x, y = y }
         end
@@ -1601,7 +1844,8 @@ local function updateSpots(position, viewRadius, radius, rimCircles, half)
         local spot = spots[nearSpots[nearIndex]]
         local isIn, alpha = false, 1
         if spot.isLaid then
-            local right, up = (position.west - spot.cellWest) / viewRadius, (spot.cellNorth - position.north) / viewRadius
+            local right, up =
+                (position.west - spot.cellWest) / viewRadius, (spot.cellNorth - position.north) / viewRadius
             isIn = getEdgeDistanceIn(quarters, right, up) <= RIM
             if isIn then
                 local x, y = (position.west - spot.west) * pixelsPerYard, (spot.north - position.north) * pixelsPerYard
@@ -1704,7 +1948,8 @@ isIconOnNode = function(holder, north, west, yardsPerPixel, half)
     end
     if holder.nodeGeneration ~= nodeGeneration or holder.nodeYardsPerPixel ~= yardsPerPixel then
         holder.nodeGeneration, holder.nodeYardsPerPixel = nodeGeneration, yardsPerPixel
-        holder.isOnNode = ns.GatheringSpots.isNear(nearNodes, nearNodeCount, north, west, (half + NODE_RADIUS) * yardsPerPixel)
+        holder.isOnNode =
+            ns.GatheringSpots.isNear(nearNodes, nearNodeCount, north, west, (half + NODE_RADIUS) * yardsPerPixel)
     end
     return holder.isOnNode
 end
@@ -1777,7 +2022,12 @@ local function getCrowdKey(x, y, markRadius, clear)
         local awayX, awayY = point.x - x, point.y - y
         local near = reach + point.radius
         if awayX > -near and awayX < near and awayY > -near and awayY < near then
-            key = (key * 31 + math.floor(awayX * 8 + 0.5) * 7 + math.floor(awayY * 8 + 0.5) * 13 + math.floor(point.radius * 8 + 0.5)) % 2147483647
+            key = (
+                key * 31
+                + math.floor(awayX * 8 + 0.5) * 7
+                + math.floor(awayY * 8 + 0.5) * 13
+                + math.floor(point.radius * 8 + 0.5)
+            ) % 2147483647
         end
     end
     return key
@@ -1814,11 +2064,19 @@ local function checkUnitPosition(position)
         return
     end
     local isFine, north, west, _, continentId = pcall(UnitPosition, "player")
-    if not isFine or type(north) ~= "number" or type(west) ~= "number" or (issecretvalue and (issecretvalue(north) or issecretvalue(west))) then
+    if
+        not isFine
+        or type(north) ~= "number"
+        or type(west) ~= "number"
+        or (issecretvalue and (issecretvalue(north) or issecretvalue(west)))
+    then
         return -- (not told here: inside an instance)
     end
     local offsetNorth, offsetWest = position.north - north, position.west - west
-    if math.abs(offsetNorth) > UNIT_POSITION_TOLERANCE_YARDS or math.abs(offsetWest) > UNIT_POSITION_TOLERANCE_YARDS then
+    if
+        math.abs(offsetNorth) > UNIT_POSITION_TOLERANCE_YARDS
+        or math.abs(offsetWest) > UNIT_POSITION_TOLERANCE_YARDS
+    then
         unitMismatchCount = unitMismatchCount + 1 -- (once may be a moment between two maps; every time, another reckoning)
         return
     end
@@ -1839,8 +2097,16 @@ function MinimapPins.move()
     local isOnCanvas = isSpotCanvasUsed(position, facing)
     -- The marks were chosen, and the spawn icons sized, for a zoom, a size of the minimap and a way of placing them:
     -- when one of these has changed since, they are chosen again at once (which ends by placing them)
-    if composedAt and not isComposing and frame
-        and (viewRadius ~= composedAt.viewRadius or (width or 0) ~= composedAt.width or isOnCanvas ~= composedAt.isOnCanvas) then
+    if
+        composedAt
+        and not isComposing
+        and frame
+        and (
+            viewRadius ~= composedAt.viewRadius
+            or (width or 0) ~= composedAt.width
+            or isOnCanvas ~= composedAt.isOnCanvas
+        )
+    then
         ns.MapPins.withoutView(refreshNow)
         return
     end
@@ -1851,10 +2117,20 @@ function MinimapPins.move()
     checkUnitPosition(position)
     -- What is near told from what is far, again once the player has walked on a little
     local told = partitionedAt
-    if not told or told.hasPosition ~= (position ~= nil) or told.viewRadius ~= viewRadius
+    if
+        not told
+        or told.hasPosition ~= (position ~= nil)
+        or told.viewRadius ~= viewRadius
         or told.trackedKey ~= ns.GatheringSpots.getTrackedKey()
-        or (position and (told.continentId ~= position.continentId or math.abs(told.north - position.north) > NEAR_STEP_YARDS
-            or math.abs(told.west - position.west) > NEAR_STEP_YARDS)) then
+        or (
+            position
+            and (
+                told.continentId ~= position.continentId
+                or math.abs(told.north - position.north) > NEAR_STEP_YARDS
+                or math.abs(told.west - position.west) > NEAR_STEP_YARDS
+            )
+        )
+    then
         partitionNear(position, viewRadius)
     end
     local clear = MinimapPins.getClearPoints(position, viewRadius, radius, facing)
@@ -1886,7 +2162,8 @@ function MinimapPins.move()
                 -- As on the world map (MapMarks.IS_LAYOUT_ON, off): every spawn's icon on its own spot, none moved
                 local right, up = MinimapPins.getOffset(position, shown.place, viewRadius, facing, false)
                 if right then
-                    spotPlaces[spotIndex] = { x = right * radius, y = up * radius, north = shown.place.north, west = shown.place.west }
+                    spotPlaces[spotIndex] =
+                        { x = right * radius, y = up * radius, north = shown.place.north, west = shown.place.west }
                 end
             else
                 -- With the laying out on: each on a cell of a grid laid in world yards, its cells as far apart on
@@ -1896,7 +2173,8 @@ function MinimapPins.move()
                 local key = math.floor(north / cellYards) .. ":" .. math.floor(west / cellYards)
                 if not isTaken[key] then
                     isTaken[key] = true
-                    local right, up = MinimapPins.getOffset(position, { north = north, west = west }, viewRadius, facing, false)
+                    local right, up =
+                        MinimapPins.getOffset(position, { north = north, west = west }, viewRadius, facing, false)
                     if right then
                         -- Under another addon's pin, the spawn steps beside it rather than going missing
                         local x, y = MinimapPins.stepClear(right * radius, up * radius, half, foreignList)
@@ -1973,14 +2251,26 @@ function MinimapPins.move()
                 local aside = math.floor((x - right * radius) * 16 + 0.5) / 16
                 local above = math.floor((y - (up * radius + raise)) * 16 + 0.5) / 16
                 local pixelsPerYard = radius / viewRadius
-                ns.Widgets.place(pin, "CENTER", spotCanvas, "TOPLEFT",
+                ns.Widgets.place(
+                    pin,
+                    "CENTER",
+                    spotCanvas,
+                    "TOPLEFT",
                     ((worldOrigin.west - shown.place.west) * pixelsPerYard + aside) / MARK_SCALE,
-                    ((shown.place.north - worldOrigin.north) * pixelsPerYard + above) / MARK_SCALE + (pin.raise or 0))
+                    ((shown.place.north - worldOrigin.north) * pixelsPerYard + above) / MARK_SCALE + (pin.raise or 0)
+                )
             else
                 -- On the rim (it points the way to a place out of view), or on a minimap that turns: placed from
                 -- the minimap's middle at every move. Drawn smaller than on the world map, so its offsets are in
                 -- its own, smaller units.
-                ns.Widgets.place(pin, "CENTER", Minimap, "CENTER", x / MARK_SCALE, (y - (pin.raise or 0) * MARK_SCALE) / MARK_SCALE + (pin.raise or 0))
+                ns.Widgets.place(
+                    pin,
+                    "CENTER",
+                    Minimap,
+                    "CENTER",
+                    x / MARK_SCALE,
+                    (y - (pin.raise or 0) * MARK_SCALE) / MARK_SCALE + (pin.raise or 0)
+                )
             end
             -- Over the player's arrow it is faded, the player's choice, so the arrow shows through; its glow too
             local nearAlpha = getNearPlayerAlpha(x, y)
@@ -2034,7 +2324,11 @@ function MinimapPins.move()
             local place = spotPlaces[spotIndex]
             if place and isUnderRimMark(place.x, place.y, half, rimCircles) then
                 spotPlaces[spotIndex], place = nil, nil -- under a mark kept on the rim: hidden while it is
-            elseif place and nearNodeCount > 0 and isIconOnNode(shownSpots[spotIndex], place.north, place.west, viewRadius / radius, half) then
+            elseif
+                place
+                and nearNodeCount > 0
+                and isIconOnNode(shownSpots[spotIndex], place.north, place.west, viewRadius / radius, half)
+            then
                 spotPlaces[spotIndex], place = nil, nil -- on a herb or ore the game may show: left out, so its icon shows
             end
             if place and ns.MapMarks.IS_LAYOUT_ON then
@@ -2069,7 +2363,13 @@ function MinimapPins.move()
                 end
             end
             if place then
-                drawnSpots[#drawnSpots + 1] = { x = place.x, y = place.y, radius = SPOT_HOVER_RADIUS, questId = shown.questId, isFocused = shown.isFocused }
+                drawnSpots[#drawnSpots + 1] = {
+                    x = place.x,
+                    y = place.y,
+                    radius = SPOT_HOVER_RADIUS,
+                    questId = shown.questId,
+                    isFocused = shown.isFocused,
+                }
             end
         end
     end
@@ -2116,7 +2416,11 @@ local function applyAreaClip()
     end
     isAreaMasked = isRound
     for _, triangle in ipairs(triangles) do
-        if isRound then triangle:AddMaskTexture(areaMask) else triangle:RemoveMaskTexture(areaMask) end
+        if isRound then
+            triangle:AddMaskTexture(areaMask)
+        else
+            triangle:RemoveMaskTexture(areaMask)
+        end
     end
     if areaFrame.SetClipsChildren then
         areaFrame:SetClipsChildren(not isRound)
@@ -2127,13 +2431,24 @@ end
 function MinimapPins.clipToSquare(from, to, half)
     local enter, leave = 0, 1
     local dx, dy = to.x - from.x, to.y - from.y
-    for _, edge in ipairs({ { -dx, from.x + half }, { dx, half - from.x }, { -dy, from.y + half }, { dy, half - from.y } }) do
+    for _, edge in ipairs({
+        { -dx, from.x + half },
+        { dx, half - from.x },
+        { -dy, from.y + half },
+        { dy, half - from.y },
+    }) do
         local p, q = edge[1], edge[2]
         if p == 0 then
-            if q < 0 then return nil, nil end
+            if q < 0 then
+                return nil, nil
+            end
         else
             local t = q / p
-            if p < 0 then enter = math.max(enter, t) else leave = math.min(leave, t) end
+            if p < 0 then
+                enter = math.max(enter, t)
+            else
+                leave = math.min(leave, t)
+            end
         end
     end
     if enter >= leave then
@@ -2171,8 +2486,10 @@ function MinimapPins.cutAround(from, to, clear)
     local lineLeft, lineRight = math.min(from.x, to.x), math.max(from.x, to.x)
     local lineBottom, lineTop = math.min(from.y, to.y), math.max(from.y, to.y)
     for _, point in ipairs(clear) do
-        local isApart = point.x + point.radius < lineLeft or point.x - point.radius > lineRight
-            or point.y + point.radius < lineBottom or point.y - point.radius > lineTop
+        local isApart = point.x + point.radius < lineLeft
+            or point.x - point.radius > lineRight
+            or point.y + point.radius < lineBottom
+            or point.y - point.radius > lineTop
         if not isApart then
             local kept = {}
             for _, piece in ipairs(pieces) do
@@ -2255,9 +2572,12 @@ end
 ---The canvases' corner: a place in the world, moved only when the player is far from it (another continent, or
 ---thousands of yards on); everything on them is then laid out again.
 function ensureOrigin(position)
-    if worldOrigin and worldOrigin.continentId == position.continentId
+    if
+        worldOrigin
+        and worldOrigin.continentId == position.continentId
         and math.abs(position.north - worldOrigin.north) <= CANVAS_SPAN_YARDS
-        and math.abs(position.west - worldOrigin.west) <= CANVAS_SPAN_YARDS then
+        and math.abs(position.west - worldOrigin.west) <= CANVAS_SPAN_YARDS
+    then
         return
     end
     releaseCanvasAreas()
@@ -2336,9 +2656,11 @@ end
 ---@return number rimAlpha, number edgeAlpha How strong an area's dark rim and its edge are drawn
 function Rough.getEdgeAlphas(area, look)
     if area.isRough then
-        return area.isFocused and Rough.FOCUSED_RIM_ALPHA or Rough.RIM_ALPHA, area.isFocused and Rough.FOCUSED_EDGE_ALPHA or Rough.EDGE_ALPHA
+        return area.isFocused and Rough.FOCUSED_RIM_ALPHA or Rough.RIM_ALPHA,
+            area.isFocused and Rough.FOCUSED_EDGE_ALPHA or Rough.EDGE_ALPHA
     end
-    return area.isFocused and look.focusedRimAlpha or look.rimAlpha, area.isFocused and look.focusedEdgeAlpha or look.edgeAlpha
+    return area.isFocused and look.focusedRimAlpha or look.rimAlpha,
+        area.isFocused and look.focusedEdgeAlpha or look.edgeAlpha
 end
 
 ---@return boolean isNear An area with a spawn near enough to reach onto the minimap
@@ -2357,8 +2679,12 @@ local function isAreaNear(area, position, viewRadius, reachYards)
         end
         points.bounds = bounds
     end
-    if position.north > bounds.north + limit or position.north < bounds.south - limit
-        or position.west > bounds.west + limit or position.west < bounds.east - limit then
+    if
+        position.north > bounds.north + limit
+        or position.north < bounds.south - limit
+        or position.west > bounds.west + limit
+        or position.west < bounds.east - limit
+    then
         return false
     end
     for index = 1, #points do
@@ -2374,7 +2700,21 @@ local NO_PIECES = {}
 
 ---An edge, or a dash of a walk, placed on the minimap itself: cut at its rim (lines take no mask in the game) and
 ---round every circle kept clear, each piece a dark rim line under the line in its colour.
-local function drawPieces(fromX, fromY, toX, toY, radius, clear, clip, underColor, underAlpha, underWidth, color, alpha, width)
+local function drawPieces(
+    fromX,
+    fromY,
+    toX,
+    toY,
+    radius,
+    clear,
+    clip,
+    underColor,
+    underAlpha,
+    underWidth,
+    color,
+    alpha,
+    width
+)
     local from, to = clip({ x = fromX, y = fromY }, { x = toX, y = toY }, radius - 1)
     for _, piece in ipairs(from and MinimapPins.cutAround(from, to, clear or NO_PIECES) or NO_PIECES) do
         local under = acquireLine(underColor, underAlpha, underWidth, 2)
@@ -2399,10 +2739,24 @@ local function drawPatrol(area, position, viewRadius, radius, facing, clear)
         points[#points + 1] = { x = x, y = y }
     end
     local dashAlpha = area.isFocused and look.focusedTrailAlpha or look.trailAlpha
-    local light = { color[1] + (1 - color[1]) * 0.55, color[2] + (1 - color[2]) * 0.55, color[3] + (1 - color[3]) * 0.55 }
+    local light =
+        { color[1] + (1 - color[1]) * 0.55, color[2] + (1 - color[2]) * 0.55, color[3] + (1 - color[3]) * 0.55 }
     for _, dash in ipairs(ns.MapMarks.composeDashes(points, ns.MapMarks.DASH_PIXELS, ns.MapMarks.DASH_GAP_PIXELS)) do
-        drawPieces(dash.from.x, dash.from.y, dash.to.x, dash.to.y, radius, clear, clip,
-            look.rimColor, dashAlpha * ns.MapMarks.DASH_SHADOW_ALPHA, ns.MapMarks.DASH_SHADOW_WIDTH, light, dashAlpha, ns.MapMarks.DASH_WIDTH)
+        drawPieces(
+            dash.from.x,
+            dash.from.y,
+            dash.to.x,
+            dash.to.y,
+            radius,
+            clear,
+            clip,
+            look.rimColor,
+            dashAlpha * ns.MapMarks.DASH_SHADOW_ALPHA,
+            ns.MapMarks.DASH_SHADOW_WIDTH,
+            light,
+            dashAlpha,
+            ns.MapMarks.DASH_WIDTH
+        )
     end
 end
 
@@ -2412,8 +2766,17 @@ local function getAreasKey(position, viewRadius, radius, facing, clear)
     if not position then
         return "-"
     end
-    local key = string.format("%s:%.2f:%.2f:%s:%.2f:%.2f:%s:%s", tostring(shownAreas), position.north, position.west, tostring(position.continentId),
-        viewRadius, radius, tostring(facing), tostring(isAreaMasked))
+    local key = string.format(
+        "%s:%.2f:%.2f:%s:%.2f:%.2f:%s:%s",
+        tostring(shownAreas),
+        position.north,
+        position.west,
+        tostring(position.continentId),
+        viewRadius,
+        radius,
+        tostring(facing),
+        tostring(isAreaMasked)
+    )
     for _, point in ipairs(clear or {}) do
         key = key .. string.format(":%.1f,%.1f,%.1f", point.x, point.y, point.radius)
     end
@@ -2447,9 +2810,16 @@ local function drawAreasMoveByMove(position, viewRadius, radius, facing, clear)
                 local bx, by = toMinimap(triangle[2], position, viewRadius, radius, facing)
                 local cx, cy = toMinimap(triangle[3], position, viewRadius, radius, facing)
                 -- Only pieces on the minimap; the mask (or the square frame) cuts those across its edge
-                if math.max(ax, bx, cx) > -radius and math.min(ax, bx, cx) < radius and math.max(ay, by, cy) > -radius and math.min(ay, by, cy) < radius then
+                if
+                    math.max(ax, bx, cx) > -radius
+                    and math.min(ax, bx, cx) < radius
+                    and math.max(ay, by, cy) > -radius
+                    and math.min(ay, by, cy) < radius
+                then
                     -- (remembering: walked on, a piece keeps its colour, size and corners; only its place is given again)
-                    local texture = acquire(triangles, function() return ns.Widgets.remember(glide(areaFrame:CreateTexture(nil, "ARTWORK", nil, 1))) end)
+                    local texture = acquire(triangles, function()
+                        return ns.Widgets.remember(glide(areaFrame:CreateTexture(nil, "ARTWORK", nil, 1)))
+                    end)
                     texture:SetColorTexture(color[1], color[2], color[3], alpha)
                     ns.MapMarks.setTriangle(texture, toCorner(ax, ay), toCorner(bx, by), toCorner(cx, cy), areaFrame)
                 end
@@ -2463,8 +2833,21 @@ local function drawAreasMoveByMove(position, viewRadius, radius, facing, clear)
                 for _, edge in ipairs((look.hasEdges or area.isRough) and area.edges or NO_PIECES) do
                     local fromX, fromY = toMinimap(edge[1], position, viewRadius, radius, facing)
                     local toX, toY = toMinimap(edge[2], position, viewRadius, radius, facing)
-                    drawPieces(fromX, fromY, toX, toY, radius, clear, clip, look.rimColor, rimAlpha, AREA_RIM_PIXELS + thicker,
-                        color, edgeAlpha, AREA_EDGE_PIXELS + thicker)
+                    drawPieces(
+                        fromX,
+                        fromY,
+                        toX,
+                        toY,
+                        radius,
+                        clear,
+                        clip,
+                        look.rimColor,
+                        rimAlpha,
+                        AREA_RIM_PIXELS + thicker,
+                        color,
+                        edgeAlpha,
+                        AREA_EDGE_PIXELS + thicker
+                    )
                 end
             end
         end
@@ -2527,8 +2910,16 @@ local function layOutAreas(position, viewRadius, radius)
                 if not set then
                     -- Two lines a leg; and how far the edge reaches (x west, y north), for finding the legs that
                     -- cross a circle kept clear (drawCutEdges)
-                    set = { lines = {}, isCut = {}, cutCount = 0, edges = area.edges,
-                        north = -math.huge, south = math.huge, west = -math.huge, east = math.huge }
+                    set = {
+                        lines = {},
+                        isCut = {},
+                        cutCount = 0,
+                        edges = area.edges,
+                        north = -math.huge,
+                        south = math.huge,
+                        west = -math.huge,
+                        east = math.huge,
+                    }
                     for index, edge in ipairs(area.edges) do
                         local fromX, fromY = worldOrigin.west - edge[1].x, worldOrigin.north - edge[1].y
                         local toX, toY = worldOrigin.west - edge[2].x, worldOrigin.north - edge[2].y
@@ -2556,9 +2947,15 @@ local function layOutAreas(position, viewRadius, radius)
                 local rimAlpha, edgeAlpha = Rough.getEdgeAlphas(area, look)
                 -- (the focused quest's edge thicker where the map's is: in the shapes look)
                 local thicker = area.isFocused and look.focusedEdgePixels - look.edgePixels or 0
-                if set.color ~= color or set.rimAlpha ~= rimAlpha or set.edgeAlpha ~= edgeAlpha or set.thicker ~= thicker
-                    or set.pixelsPerYard ~= pixelsPerYard then
-                    set.color, set.rimAlpha, set.edgeAlpha, set.thicker, set.pixelsPerYard = color, rimAlpha, edgeAlpha, thicker, pixelsPerYard
+                if
+                    set.color ~= color
+                    or set.rimAlpha ~= rimAlpha
+                    or set.edgeAlpha ~= edgeAlpha
+                    or set.thicker ~= thicker
+                    or set.pixelsPerYard ~= pixelsPerYard
+                then
+                    set.color, set.rimAlpha, set.edgeAlpha, set.thicker, set.pixelsPerYard =
+                        color, rimAlpha, edgeAlpha, thicker, pixelsPerYard
                     -- (a line's width is in the canvas's yards: as many as make its pixels at this zoom)
                     for index = 1, #set.lines, 2 do
                         local rim, line = set.lines[index], set.lines[index + 1]
@@ -2624,8 +3021,12 @@ local function drawCutEdges(position, viewRadius, radius, clear)
         local nearCount = 0
         for index = 1, count do
             local reach = circleReach[index]
-            if circleWest[index] + reach >= set.east and circleWest[index] - reach <= set.west
-                and circleNorth[index] + reach >= set.south and circleNorth[index] - reach <= set.north then
+            if
+                circleWest[index] + reach >= set.east
+                and circleWest[index] - reach <= set.west
+                and circleNorth[index] + reach >= set.south
+                and circleNorth[index] - reach <= set.north
+            then
                 nearCount = nearCount + 1
                 nearCircles[nearCount] = index
             end
@@ -2638,7 +3039,17 @@ local function drawCutEdges(position, viewRadius, radius, clear)
                 local isCrossing = false
                 for near = 1, nearCount do
                     local index = nearCircles[near]
-                    if isSegmentInCircle(from.x, from.y, to.x, to.y, circleWest[index], circleNorth[index], circleReach[index]) then
+                    if
+                        isSegmentInCircle(
+                            from.x,
+                            from.y,
+                            to.x,
+                            to.y,
+                            circleWest[index],
+                            circleNorth[index],
+                            circleReach[index]
+                        )
+                    then
                         isCrossing = true
                         break
                     end
@@ -2652,8 +3063,21 @@ local function drawCutEdges(position, viewRadius, radius, clear)
                 if isCrossing then
                     local fromX, fromY = toMinimap(from, position, viewRadius, radius, nil)
                     local toX, toY = toMinimap(to, position, viewRadius, radius, nil)
-                    drawPieces(fromX, fromY, toX, toY, radius, clear, MinimapPins.clipToSquare, look.rimColor, set.rimAlpha,
-                        AREA_RIM_PIXELS + set.thicker, set.color, set.edgeAlpha, AREA_EDGE_PIXELS + set.thicker)
+                    drawPieces(
+                        fromX,
+                        fromY,
+                        toX,
+                        toY,
+                        radius,
+                        clear,
+                        MinimapPins.clipToSquare,
+                        look.rimColor,
+                        set.rimAlpha,
+                        AREA_RIM_PIXELS + set.thicker,
+                        set.color,
+                        set.edgeAlpha,
+                        AREA_EDGE_PIXELS + set.thicker
+                    )
                 end
             end
         end
@@ -2670,7 +3094,11 @@ function MinimapPins.drawAreas(position, viewRadius, radius, facing, clear)
     end
     areDrawnAreasStale = true
     -- On the canvas: a square minimap (its frame cuts them) that does not turn
-    local isOnCanvas = position ~= nil and areaFrame ~= nil and fillCanvas ~= nil and not isAreaMasked and not facing
+    local isOnCanvas = position ~= nil
+        and areaFrame ~= nil
+        and fillCanvas ~= nil
+        and not isAreaMasked
+        and not facing
         and MinimapPins.isCanvasOff ~= true -- (off: every piece placed at every move, to compare the two ways)
     lastMove.isAreaCanvas = isOnCanvas
     if not isOnCanvas then
@@ -2697,8 +3125,13 @@ function MinimapPins.drawAreas(position, viewRadius, radius, facing, clear)
     placeCanvas(fillCanvas, position.north, position.west, pixelsPerYard)
     -- The areas near the player are on the canvas: laid out when they are chosen, when the zoom changes, and again
     -- once the player has walked on far enough for others to be near (those already there stay as they are)
-    if areasLaidFor ~= shownAreas or areasLaidAt ~= pixelsPerYard or not areasLaidNorth
-        or math.abs(position.north - areasLaidNorth) > AREA_STEP_YARDS or math.abs(position.west - areasLaidWest) > AREA_STEP_YARDS then
+    if
+        areasLaidFor ~= shownAreas
+        or areasLaidAt ~= pixelsPerYard
+        or not areasLaidNorth
+        or math.abs(position.north - areasLaidNorth) > AREA_STEP_YARDS
+        or math.abs(position.west - areasLaidWest) > AREA_STEP_YARDS
+    then
         areasLaidFor, areasLaidAt = shownAreas, pixelsPerYard
         areasLaidNorth, areasLaidWest = position.north, position.west
         layOutAreas(position, viewRadius, radius)
@@ -2733,8 +3166,13 @@ local function composeDrawnAreas()
                 spawns[index] = { x = x, y = y }
             end
             -- (a rough circle answers the pointer anywhere inside it)
-            local drawn = { points = spawns, reach = (area.hoverYards or reachYards) / viewRadius * radius, questId = area.questId,
-                isFocused = area.isFocused, note = area.note }
+            local drawn = {
+                points = spawns,
+                reach = (area.hoverYards or reachYards) / viewRadius * radius,
+                questId = area.questId,
+                isFocused = area.isFocused,
+                note = area.note,
+            }
             if area.isPatrol then
                 -- A patrol is a line, not an area: only the line itself answers the pointer
                 drawn.isPatrol, drawn.segments, drawn.note = true, {}, area.note
@@ -2762,8 +3200,11 @@ local function composeDrawnSpots()
         local spot = spots[spotIndex]
         if spot and spot.isIn then
             composed[#composed + 1] = {
-                x = (lastMove.west - spot.west) * pixelsPerYard, y = (spot.north - lastMove.north) * pixelsPerYard,
-                radius = SPOT_HOVER_RADIUS, questId = shown.questId, isFocused = shown.isFocused,
+                x = (lastMove.west - spot.west) * pixelsPerYard,
+                y = (spot.north - lastMove.north) * pixelsPerYard,
+                radius = SPOT_HOVER_RADIUS,
+                questId = shown.questId,
+                isFocused = shown.isFocused,
             }
         end
     end
@@ -2839,9 +3280,13 @@ function MinimapPins.hasStateChanged()
         local scale = Minimap:GetEffectiveScale() or 0
         local _, shape = MinimapPins.getShape()
         local isRotating = readRotating()
-        changed = viewRadius ~= lastState.viewRadius or width ~= lastState.width or scale ~= lastState.scale or shape ~= lastState.shape
+        changed = viewRadius ~= lastState.viewRadius
+            or width ~= lastState.width
+            or scale ~= lastState.scale
+            or shape ~= lastState.shape
             or isRotating ~= lastState.isRotating
-        lastState.viewRadius, lastState.width, lastState.scale, lastState.shape, lastState.isRotating = viewRadius, width, scale, shape, isRotating
+        lastState.viewRadius, lastState.width, lastState.scale, lastState.shape, lastState.isRotating =
+            viewRadius, width, scale, shape, isRotating
     end
     -- Where the player is, and where they face on a minimap that turns: at every look
     local width, viewRadius = lastState.width, lastState.viewRadius
@@ -2850,7 +3295,8 @@ function MinimapPins.hasStateChanged()
     local playerNorth, playerWest = getFramePosition()
     local north = playerNorth and math.floor(playerNorth / step + 0.5) or false
     local west = playerNorth and math.floor(playerWest / step + 0.5) or false
-    local facing = lastState.isRotating and GetPlayerFacing and math.floor((GetPlayerFacing() or 0) * 1000 + 0.5) or false
+    local facing = lastState.isRotating and GetPlayerFacing and math.floor((GetPlayerFacing() or 0) * 1000 + 0.5)
+        or false
     changed = changed or north ~= lastState.north or west ~= lastState.west or facing ~= lastState.facing
     lastState.north, lastState.west, lastState.facing = north, west, facing
     -- The party's places, a member at a time (alone, nothing looked up)
@@ -2886,7 +3332,11 @@ function MinimapPins.create()
     areaFrame:SetAllPoints(Minimap)
     areaFrame:SetFrameLevel((Minimap:GetFrameLevel() or 1) + 1)
     areaMask = areaFrame:CreateMaskTexture()
-    areaMask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    areaMask:SetTexture(
+        "Interface\\CharacterFrame\\TempPortraitAlphaMask",
+        "CLAMPTOBLACKADDITIVE",
+        "CLAMPTOBLACKADDITIVE"
+    )
     areaMask:SetAllPoints(Minimap)
     -- The canvas of the areas' fills and edges (drawAreas), and over it the frame of what is placed on the minimap
     -- itself (the walks' dashes, an edge cut round the player): both the area frame's own, so its see-through look
@@ -2915,38 +3365,46 @@ function MinimapPins.create()
     playerArrow:SetSize(PLAYER_ARROW_SIZE, PLAYER_ARROW_SIZE)
     playerArrow:SetPoint("CENTER", Minimap, "CENTER", 0, 0)
     local sinceFullMove, lastHandover = 0, nil
-    frame:SetScript("OnUpdate", function(_, elapsed)
-        if not areMarksShown then
-            return -- (switched off: nothing of ours to turn, slide or place)
-        end
-        MinimapPins.turnArrow()
-        MinimapPins.slide()
-        -- A turn-in handed to the game's own "?", or taken back, in the same frame the distance crosses: no flash
-        local handover = MinimapPins.getHandoverBits()
-        if handover ~= lastHandover then
-            lastHandover = handover
-            ns.Timing.measure("minimap marks placed", MinimapPins.move)
-        end
-        elapsedSeconds = elapsedSeconds + elapsed
-        sinceFullMove = sinceFullMove + elapsed
-        if elapsedSeconds >= MOVE_SECONDS then
-            elapsedSeconds = 0
-            -- Placed again only when something it shows changed, as HereBeDragons does, and once a second anyway
-            if MinimapPins.hasStateChanged() or sinceFullMove >= FULL_MOVE_SECONDS then
-                sinceFullMove = 0
+    frame:SetScript(
+        "OnUpdate",
+        ns.Timing.timed("minimap follows the player (each frame)", function(_, elapsed)
+            if not areMarksShown then
+                return -- (switched off: nothing of ours to turn, slide or place)
+            end
+            MinimapPins.turnArrow()
+            MinimapPins.slide()
+            -- A turn-in handed to the game's own "?", or taken back, in the same frame the distance crosses: no flash
+            local handover = MinimapPins.getHandoverBits()
+            if handover ~= lastHandover then
+                lastHandover = handover
                 ns.Timing.measure("minimap marks placed", MinimapPins.move)
             end
-        end
-    end)
+            elapsedSeconds = elapsedSeconds + elapsed
+            sinceFullMove = sinceFullMove + elapsed
+            if elapsedSeconds >= MOVE_SECONDS then
+                elapsedSeconds = 0
+                -- Placed again only when something it shows changed, as HereBeDragons does, and once a second anyway
+                if MinimapPins.hasStateChanged() or sinceFullMove >= FULL_MOVE_SECONDS then
+                    sinceFullMove = 0
+                    ns.Timing.measure("minimap marks placed", MinimapPins.move)
+                end
+            end
+        end)
+    )
     MinimapPins.refresh()
     -- The quest givers come once the database is read (a moment after login): the marks are chosen again then, also
     -- for a player standing still (moving is what chooses them again otherwise)
     ns.Availability.prepare(MinimapPins.refresh)
 end
 
-ns.on("FOCUS_CHANGED", function() MinimapPins.refresh() end) -- the quest in focus stands out at once, its areas and spawns
+ns.on("FOCUS_CHANGED", function()
+    MinimapPins.refresh()
+end) -- the quest in focus stands out at once, its areas and spawns
 ns.registerModule({
-    name = "MinimapPins", create = MinimapPins.create, refresh = MinimapPins.refreshAfterChange, tick = MinimapPins.tick,
+    name = "MinimapPins",
+    create = MinimapPins.create,
+    refresh = MinimapPins.refreshAfterChange,
+    tick = MinimapPins.tick,
     events = {
         -- The minimap zoomed (the wheel, its buttons, going indoors): everything follows at the next frame
         MINIMAP_UPDATE_ZOOM = function()

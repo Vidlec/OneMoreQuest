@@ -191,7 +191,12 @@ function QuestHiding.hide(questId)
     end
     ns.settings.hiddenQuestIds[questId] = true
     applyHiding()
-    ns.print(ns.L("%s hidden. Settings, Quests to pick up, Hidden quests brings it back.", ns.QuestText.getQuestName(questId) or tostring(questId)))
+    ns.print(
+        ns.L(
+            "%s hidden. Settings, Quests to pick up, Hidden quests brings it back.",
+            ns.QuestText.getQuestName(questId) or tostring(questId)
+        )
+    )
 end
 
 function QuestHiding.unhide(questId)
@@ -208,10 +213,13 @@ function QuestHiding.getHidden()
         local places = ns.Location.getStarterPlaces(questId)
         local zoneId = places and places[1] and places[1].zoneId
         quests[#quests + 1] = {
-            questId = questId, title = ns.QuestText.getQuestName(questId) or ("Quest " .. questId),
+            questId = questId,
+            title = ns.QuestText.getQuestName(questId) or ("Quest " .. questId),
             zoneName = zoneId and ns.Database.getZoneName(zoneId) or nil,
         }
     end
-    table.sort(quests, function(first, second) return first.title < second.title end)
+    table.sort(quests, function(first, second)
+        return first.title < second.title
+    end)
     return quests
 end

@@ -37,7 +37,9 @@ test("the spoiler choice is kept per character", function()
     ns.Spoilers.create()
     ns.Spoilers.setPreset("purist")
     local savedName = UnitName
-    UnitName = function(unit) return unit == "player" and "Alt" or nil end
+    UnitName = function(unit)
+        return unit == "player" and "Alt" or nil
+    end
     ns.Spoilers.create()
     expectEqual(ns.Spoilers.getPreset(), "guide", "another character starts in Guide")
     UnitName = savedName

@@ -42,11 +42,19 @@ function MapUtils.getStatus()
 end
 
 function MapUtils.ask()
-    if ns.settings.hasAnsweredMapUtils or not MapUtils.areQuestPinsShown() or not StaticPopupDialogs or not StaticPopup_Show then
+    if
+        ns.settings.hasAnsweredMapUtils
+        or not MapUtils.areQuestPinsShown()
+        or not StaticPopupDialogs
+        or not StaticPopup_Show
+    then
         return
     end
     StaticPopupDialogs[POPUP] = {
-        text = ns.L("%s: MapUtils draws quest givers and turn-ins on the map too, so you would see them twice.\n\nTurn off MapUtils' quest givers and turn-ins? Its other icons stay.", ns.ADDON_TITLE),
+        text = ns.L(
+            "%s: MapUtils draws quest givers and turn-ins on the map too, so you would see them twice.\n\nTurn off MapUtils' quest givers and turn-ins? Its other icons stay.",
+            ns.ADDON_TITLE
+        ),
         button1 = ns.L("Turn them off"),
         button2 = ns.L("Keep both"),
         OnAccept = function()
@@ -106,7 +114,14 @@ local function getZoneMapIds(mapId, bounds)
         return mapIds
     end
     local topId, info, steps = mapId, ns.Database.getMapInfo(mapId), 0
-    while info and info.mapType and info.mapType > WORLD_MAP_TYPE and info.parentMapID and info.parentMapID > 0 and steps < 10 do
+    while
+        info
+        and info.mapType
+        and info.mapType > WORLD_MAP_TYPE
+        and info.parentMapID
+        and info.parentMapID > 0
+        and steps < 10
+    do
         topId, info, steps = info.parentMapID, ns.Database.getMapInfo(info.parentMapID), steps + 1
     end
     if not zoneMapIdsByTop[topId] then
@@ -119,7 +134,14 @@ local function getZoneMapIds(mapId, bounds)
     for _, zoneMapId in ipairs(zoneMapIdsByTop[topId]) do
         local left, top = project(zoneMapId, 0, 0, mapId)
         local right, bottom = project(zoneMapId, 1, 1, mapId)
-        if left and right and left <= bounds.right and right >= bounds.left and top <= bounds.bottom and bottom >= bounds.top then
+        if
+            left
+            and right
+            and left <= bounds.right
+            and right >= bounds.left
+            and top <= bounds.bottom
+            and bottom >= bounds.top
+        then
             mapIds[#mapIds + 1] = zoneMapId
         end
     end

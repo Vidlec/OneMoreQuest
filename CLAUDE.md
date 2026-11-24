@@ -44,6 +44,10 @@ bun addonsim docs [step]           # every scenario step
 
 - OMQ unit tests (their own fake game, no simulator): `cd addons/OneMoreQuest && luajit tests/run.lua`.
 - Everything: `bun run test` (the unit tests, then `addonsim test`). `bun run typecheck` checks the TypeScript here.
+- The Lua's format and lint: `bun run lint:lua` (StyLua, then luacheck; run it before you finish), `bun run format:lua`
+  to format. The tools come from AddonSim (`bun run tools:lua` there). luacheck knows every global the Forever
+  client has (`.luacheck/forever-globals.lua`, made by the simulator: `bun run luacheck:globals` after a client
+  update), so a misspelled or missing API name is caught.
 - The release zip: `python tools/build-zip.py` (to ~/Desktop/OneMoreQuest-CurseForge).
 - `bun tools/make-crafted-items.ts [build]` regenerates OMQ's CraftedItems.lua from the client's tables (AddonSim's
   SDK); `bun addonsim test sim/tools/gathering-nodes.lua` regenerates GatheringNodes.lua.
@@ -72,6 +76,12 @@ Tools: `run`, `test`, `eval`, `ui`, `screenshot`, `click`, `key`, `event`, `slas
 
 - Arrow functions only, never `function`, in JavaScript and TypeScript. That rule is for JS/TS only: Lua uses
   `function` as each file already does.
+- Lua is formatted by StyLua (`stylua.toml`: 120 columns, 4 spaces, double quotes). OneMoreQuest and QuestieProfit
+  are for Forever only: use the C_ API (C_Item.GetItemInfo), never an older client's global alone (GetItemInfo does
+  not exist on Forever; behind `GetItemInfo and ...` the feature silently never runs). A fallback to one after the
+  C_ function is excused on its line: `-- luacheck: ignore 113 (an older client's fallback)`.
+- `local a, b = x and f()` keeps only f's first value: b is always nil (luacheck says "never set").
+- `sim/plugins/questie/` is Questie's own code, copied unchanged: neither formatted nor linted.
 - OneMoreQuest's rules come from data: never hardcode quest ids in the addon (scenarios may name the quests they
   test).
 - Don't commit: leave changes for the user to review.

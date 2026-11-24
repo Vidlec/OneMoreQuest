@@ -8,7 +8,6 @@ local ChroniclePage = ns.ChroniclePage
 local COLORS = ns.Widgets.COLORS
 local DOT = ns.Widgets.MIDDLE_DOT
 local WHITE = "Interface\\Buttons\\WHITE8X8"
-local ICONS = "Interface\\Icons\\"
 
 ---------------------------------------------------------------------------------------------------------------
 -- The Days chapter's month
@@ -24,13 +23,18 @@ end
 local function shiftMonth(monthKey, delta)
     local year, month = monthKey:match("^(%d+)-(%d+)$")
     year, month = tonumber(year), tonumber(month) + delta
-    while month < 1 do month, year = month + 12, year - 1 end
-    while month > 12 do month, year = month - 12, year + 1 end
+    while month < 1 do
+        month, year = month + 12, year - 1
+    end
+    while month > 12 do
+        month, year = month - 12, year + 1
+    end
     return string.format("%04d-%02d", year, month)
 end
 
 local turnMonth = function(delta)
-    ChroniclePage.calendarMonth = shiftMonth(ChroniclePage.calendarMonth or getMonthKey(ChroniclePage.selectedDayKey), delta)
+    ChroniclePage.calendarMonth =
+        shiftMonth(ChroniclePage.calendarMonth or getMonthKey(ChroniclePage.selectedDayKey), delta)
     ns.Log.refresh()
 end
 
@@ -45,9 +49,19 @@ function ChroniclePage.addCalendar(page, y, selectedKey)
     y = ChroniclePage.addHeading(page, y, ns.Chronicle.formatShownDate("%B %Y", firstStamp))
     -- The arrows to the months before and after, at the heading's right
     local arrowTop = y - 30
-    page:addText("<", page.width - padding - 44, arrowTop, { font = "GameFontNormal", color = COLORS.brown, width = 16, justify = "CENTER", isSingleLine = true })
+    page:addText(
+        "<",
+        page.width - padding - 44,
+        arrowTop,
+        { font = "GameFontNormal", color = COLORS.brown, width = 16, justify = "CENTER", isSingleLine = true }
+    )
     page:addButton(page.width - padding - 48, arrowTop - 4, 24, 22, turnMonth, -1)
-    page:addText(">", page.width - padding - 18, arrowTop, { font = "GameFontNormal", color = COLORS.brown, width = 16, justify = "CENTER", isSingleLine = true })
+    page:addText(
+        ">",
+        page.width - padding - 18,
+        arrowTop,
+        { font = "GameFontNormal", color = COLORS.brown, width = 16, justify = "CENTER", isSingleLine = true }
+    )
     page:addButton(page.width - padding - 22, arrowTop - 4, 24, 22, turnMonth, 1)
 
     local gap = 4
@@ -55,8 +69,15 @@ function ChroniclePage.addCalendar(page, y, selectedKey)
     local cellHeight = math.floor(cellWidth * 0.7)
     -- The days of the week, Monday first, in the player's language (from a week known to start on a Monday)
     for weekday = 0, 6 do
-        local name = ns.Chronicle.formatShownDate("%a", ns.Ledger.getDayStamp(string.format("2024-01-%02d", 1 + weekday)))
-        page:addText(name, padding + weekday * (cellWidth + gap), y, { font = "GameFontHighlightSmall", color = COLORS.softInk, width = cellWidth, justify = "CENTER", isSingleLine = true })
+        local name =
+            ns.Chronicle.formatShownDate("%a", ns.Ledger.getDayStamp(string.format("2024-01-%02d", 1 + weekday)))
+        page:addText(name, padding + weekday * (cellWidth + gap), y, {
+            font = "GameFontHighlightSmall",
+            color = COLORS.softInk,
+            width = cellWidth,
+            justify = "CENTER",
+            isSingleLine = true,
+        })
     end
     y = y + 16
     -- The busiest day of the month sets the shades
@@ -87,12 +108,27 @@ function ChroniclePage.addCalendar(page, y, selectedKey)
         if day and quests > 0 then
             fill = CALENDAR_SHADES[math.min(4, 1 + math.floor(3 * quests / most))]
         end
-        page:addRect(x + 1, top + 1, cellWidth - 2, cellHeight - 2, { fill[1], fill[2], fill[3], day and 1 or (key > todayKey and 0.25 or 0.5) }, 2)
+        page:addRect(
+            x + 1,
+            top + 1,
+            cellWidth - 2,
+            cellHeight - 2,
+            { fill[1], fill[2], fill[3], day and 1 or (key > todayKey and 0.25 or 0.5) },
+            2
+        )
         local isDark = day and quests > 0 and fill ~= CALENDAR_SHADES[1]
-        page:addText(tostring(dayNumber), x + 3, top + 2, { font = "GameFontHighlightSmall", color = isDark and { 0.95, 0.88, 0.7 } or COLORS.softInk, isSingleLine = true })
+        page:addText(tostring(dayNumber), x + 3, top + 2, {
+            font = "GameFontHighlightSmall",
+            color = isDark and { 0.95, 0.88, 0.7 } or COLORS.softInk,
+            isSingleLine = true,
+        })
         if quests > 0 then
             page:addText(tostring(quests), x, top + cellHeight - 16, {
-                font = "GameFontNormal", color = isDark and COLORS.white or COLORS.ink, width = cellWidth - 4, justify = "RIGHT", isSingleLine = true,
+                font = "GameFontNormal",
+                color = isDark and COLORS.white or COLORS.ink,
+                width = cellWidth - 4,
+                justify = "RIGHT",
+                isSingleLine = true,
             })
         end
         if day then
@@ -101,15 +137,29 @@ function ChroniclePage.addCalendar(page, y, selectedKey)
     end
     y = y + rows * (cellHeight + gap) + 4
     -- Fewer to more, and the streak of days in a row
-    page:addText(ns.L("Fewer"), padding, y, { font = "GameFontHighlightSmall", color = COLORS.softInk, isSingleLine = true })
+    page:addText(
+        ns.L("Fewer"),
+        padding,
+        y,
+        { font = "GameFontHighlightSmall", color = COLORS.softInk, isSingleLine = true }
+    )
     for index, shade in ipairs(CALENDAR_SHADES) do
         page:addRect(padding + 36 + (index - 1) * 16, y, 12, 12, shade, 1)
     end
-    page:addText(ns.L("More quests"), padding + 36 + #CALENDAR_SHADES * 16 + 4, y, { font = "GameFontHighlightSmall", color = COLORS.softInk, isSingleLine = true })
+    page:addText(
+        ns.L("More quests"),
+        padding + 36 + #CALENDAR_SHADES * 16 + 4,
+        y,
+        { font = "GameFontHighlightSmall", color = COLORS.softInk, isSingleLine = true }
+    )
     local streak = ns.Ledger.composeOverview().streak or 0
     if streak > 1 then
         page:addText(ns.L("%d days in a row", streak), padding, y, {
-            font = "GameFontHighlightSmall", color = { 0.18, 0.42, 0.18 }, width = page.width - 2 * padding, justify = "RIGHT", isSingleLine = true,
+            font = "GameFontHighlightSmall",
+            color = { 0.18, 0.42, 0.18 },
+            width = page.width - 2 * padding,
+            justify = "RIGHT",
+            isSingleLine = true,
         })
     end
     return y + 26
@@ -119,7 +169,8 @@ end
 -- Records as plaques
 
 local PLAQUE_HEIGHT = 48
-local PLAQUE_RIM, PLAQUE_EDGE, PLAQUE_LOW, PLAQUE_HIGH = { 0.69, 0.54, 0.23 }, { 0.1, 0.06, 0.02 }, { 0.15, 0.1, 0.05 }, { 0.23, 0.16, 0.09 }
+local PLAQUE_RIM, PLAQUE_EDGE, PLAQUE_LOW, PLAQUE_HIGH =
+    { 0.69, 0.54, 0.23 }, { 0.1, 0.06, 0.02 }, { 0.15, 0.1, 0.05 }, { 0.23, 0.16, 0.09 }
 
 ---@param records { icon: string, label: string, value: string, when: string? }[]
 ---@return number y Below the plaques
@@ -138,10 +189,25 @@ function ChroniclePage.addTrophies(page, y, records)
         page:addRect(x + 3, top + 3, width - 6, (PLAQUE_HEIGHT - 6) / 2, PLAQUE_HIGH, 3)
         page:addFramedIcon(x + 9, top + 9, 30, record.icon, 1)
         local textLeft, textWidth = x + 46, width - 52
-        page:addText(record.label, textLeft, top + 6, { font = "GameFontHighlightSmall", color = COLORS.tan, width = textWidth, isSingleLine = true })
-        page:addText(record.value, textLeft, top + 19, { font = "GameFontNormal", color = COLORS.gold, width = textWidth, isSingleLine = true })
+        page:addText(
+            record.label,
+            textLeft,
+            top + 6,
+            { font = "GameFontHighlightSmall", color = COLORS.tan, width = textWidth, isSingleLine = true }
+        )
+        page:addText(
+            record.value,
+            textLeft,
+            top + 19,
+            { font = "GameFontNormal", color = COLORS.gold, width = textWidth, isSingleLine = true }
+        )
         if record.when then
-            page:addText(record.when, textLeft, top + 33, { font = "GameFontHighlightSmall", color = { 0.66, 0.6, 0.49 }, width = textWidth, isSingleLine = true })
+            page:addText(
+                record.when,
+                textLeft,
+                top + 33,
+                { font = "GameFontHighlightSmall", color = { 0.66, 0.6, 0.49 }, width = textWidth, isSingleLine = true }
+            )
         end
     end
     return y + math.ceil(#records / 2) * (PLAQUE_HEIGHT + gap) + 4
@@ -195,12 +261,32 @@ function ChroniclePage.addZoneCards(page, y, zones)
         page:addRect(x, top + CARD_HEIGHT - 3, width * share, 3, color, 5)
         page:addDot(x + width - 33, top + 5, 28, color, 1)
         page:addDot(x + width - 30, top + 8, 22, { 0.08, 0.05, 0.02, 0.85 }, 2)
-        page:addText(math.floor(share * 100) .. "%", x + width - 33, top + 13, { font = "GameFontHighlightSmall", color = COLORS.white, width = 28, justify = "CENTER", isSingleLine = true })
-        page:addText(zone.name, x + 8, top + CARD_HEIGHT - 36, { font = "GameFontNormal", color = COLORS.white, width = width - 16, isSingleLine = true })
-        local levels = zone.minLevel and (zone.minLevel == zone.maxLevel and tostring(zone.minLevel) or (zone.minLevel .. "-" .. zone.maxLevel))
-        page:addText(ns.L("%d of %d", zone.doneCount, zone.totalCount) .. (levels and (DOT .. ns.L("levels %s", levels)) or ""), x + 8, top + CARD_HEIGHT - 19, {
-            font = "GameFontHighlightSmall", color = { 0.92, 0.85, 0.69 }, width = width - 16, isSingleLine = true,
+        page:addText(math.floor(share * 100) .. "%", x + width - 33, top + 13, {
+            font = "GameFontHighlightSmall",
+            color = COLORS.white,
+            width = 28,
+            justify = "CENTER",
+            isSingleLine = true,
         })
+        page:addText(
+            zone.name,
+            x + 8,
+            top + CARD_HEIGHT - 36,
+            { font = "GameFontNormal", color = COLORS.white, width = width - 16, isSingleLine = true }
+        )
+        local levels = zone.minLevel
+            and (zone.minLevel == zone.maxLevel and tostring(zone.minLevel) or (zone.minLevel .. "-" .. zone.maxLevel))
+        page:addText(
+            ns.L("%d of %d", zone.doneCount, zone.totalCount) .. (levels and (DOT .. ns.L("levels %s", levels)) or ""),
+            x + 8,
+            top + CARD_HEIGHT - 19,
+            {
+                font = "GameFontHighlightSmall",
+                color = { 0.92, 0.85, 0.69 },
+                width = width - 16,
+                isSingleLine = true,
+            }
+        )
         page:addButton(x, top, width, CARD_HEIGHT, ChroniclePage.selectZone, zone.zoneId, function(button)
             ChroniclePage.showZoneNote(button, zone)
         end)
@@ -233,7 +319,15 @@ function ChroniclePage.addQuestCard(page, y, entry, title, when)
     local slices = 24
     local sliceWidth = width / slices
     for index = 1, slices do
-        local shade = page:addImage(padding + (index - 1) * sliceWidth, y, sliceWidth, BANNER_HEIGHT, WHITE, nil, { 0.04, 0.02, 0 })
+        local shade = page:addImage(
+            padding + (index - 1) * sliceWidth,
+            y,
+            sliceWidth,
+            BANNER_HEIGHT,
+            WHITE,
+            nil,
+            { 0.04, 0.02, 0 }
+        )
         shade:SetDrawLayer("BORDER", 3)
         shade:SetAlpha(0.85 - 0.75 * (index - 1) / (slices - 1))
     end
@@ -241,18 +335,42 @@ function ChroniclePage.addQuestCard(page, y, entry, title, when)
     page:addRect(padding, y, width, 2, PLAQUE_RIM, 4)
     page:addRect(padding, y + BANNER_HEIGHT - 2, width, 2, PLAQUE_RIM, 4)
     if C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo("questlog-frame-filigree") then
-        page:addImage(padding + width / 2 - 24, y + BANNER_HEIGHT - 10, 48, 19, { atlas = "questlog-frame-filigree" }, nil, nil, 5)
+        page:addImage(
+            padding + width / 2 - 24,
+            y + BANNER_HEIGHT - 10,
+            48,
+            19,
+            { atlas = "questlog-frame-filigree" },
+            nil,
+            nil,
+            5
+        )
     end
     -- The quest's name, and under it its level, place and step (the page's header says the day and time)
-    page:addText(title, padding + 12, y + 10, { font = "GameFontNormalLarge", color = COLORS.gold, width = width - 24, isSingleLine = true })
-    page:addText(when, padding + 12, y + 33, { font = "GameFontHighlightSmall", color = { 0.92, 0.85, 0.69 }, width = width - 24, isSingleLine = true })
+    page:addText(
+        title,
+        padding + 12,
+        y + 10,
+        { font = "GameFontNormalLarge", color = COLORS.gold, width = width - 24, isSingleLine = true }
+    )
+    page:addText(
+        when,
+        padding + 12,
+        y + 33,
+        { font = "GameFontHighlightSmall", color = { 0.92, 0.85, 0.69 }, width = width - 24, isSingleLine = true }
+    )
     y = y + BANNER_HEIGHT + 12
     -- What the quest asked, in its own words (the player's language when a translation addon has them)
     local english = ns.Database.getQuestField(entry.questId, "objectivesText")
     english = type(english) == "table" and table.concat(english, " "):gsub("%s+", " "):match("^%s*(.-)%s*$") or nil
     local words = english and english ~= "" and ns.QuestText.getObjectives(entry.questId, english) or nil
     if words then
-        local textHeight = page:addText(words, padding + 12, y + 6, { font = "QuestFontNormalSmall", color = COLORS.ink, width = width - 20 })
+        local textHeight = page:addText(
+            words,
+            padding + 12,
+            y + 6,
+            { font = "QuestFontNormalSmall", color = COLORS.ink, width = width - 20 }
+        )
         local height = (tonumber(textHeight) or 14) + 12
         page:addRect(padding, y, 3, height, { 0.63, 0.48, 0.25 }, 1)
         page:addRect(padding + 3, y, width - 3, height, { 1, 0.94, 0.78, 0.4 }, 0)
@@ -299,7 +417,12 @@ local function getChainSeconds(entry, questIds)
     end
     local seconds = 0
     for _, other in ipairs(ns.Chronicle.getEntries()) do
-        if isInChain[other.questId] and other.turnedInAt and entry.turnedInAt and other.turnedInAt <= entry.turnedInAt then
+        if
+            isInChain[other.questId]
+            and other.turnedInAt
+            and entry.turnedInAt
+            and other.turnedInAt <= entry.turnedInAt
+        then
             seconds = seconds + (other.duration or 0)
         end
     end
@@ -320,7 +443,8 @@ function ChroniclePage.addChain(page, y, entry)
     y = ChroniclePage.addHeading(page, y, ns.L("The chain"), ns.L("step %d of %d", step, total))
     local width = page.width - 2 * padding
     if total <= MAX_STONES then
-        local spacing = math.max(STONE_SIZE + STONE_GAP_MIN, math.min((width - STONE_SIZE) / math.max(total - 1, 1), 46))
+        local spacing =
+            math.max(STONE_SIZE + STONE_GAP_MIN, math.min((width - STONE_SIZE) / math.max(total - 1, 1), 46))
         local left = padding + 2
         if total > 1 then
             page:addRect(left + STONE_SIZE / 2, y + STONE_SIZE / 2 - 1, spacing * (total - 1), 2, STONE_LINE, 1)
@@ -331,7 +455,11 @@ function ChroniclePage.addChain(page, y, entry)
             page:addDot(x - 1, y - 1, STONE_SIZE + 2, STONE_EDGE, 2)
             page:addDot(x, y, STONE_SIZE, color, 3)
             page:addText(tostring(index), x, y + 4, {
-                font = "GameFontHighlightSmall", color = index > step and STONE_EDGE or COLORS.white, width = STONE_SIZE, justify = "CENTER", isSingleLine = true,
+                font = "GameFontHighlightSmall",
+                color = index > step and STONE_EDGE or COLORS.white,
+                width = STONE_SIZE,
+                justify = "CENTER",
+                isSingleLine = true,
             })
         end
         y = y + STONE_SIZE + 6
@@ -352,7 +480,12 @@ function ChroniclePage.addChain(page, y, entry)
     if firstName and step > 1 then
         parts[#parts + 1] = ns.L("began with %s", firstName)
     end
-    local height = page:addText(table.concat(parts, DOT), padding, y, { font = "GameFontHighlightSmall", color = COLORS.softInk, width = width })
+    local height = page:addText(
+        table.concat(parts, DOT),
+        padding,
+        y,
+        { font = "GameFontHighlightSmall", color = COLORS.softInk, width = width }
+    )
     return y + (tonumber(height) or 12) + 12
 end
 
@@ -370,7 +503,13 @@ function ChroniclePage.addLevelShare(page, y, entry)
     y = ChroniclePage.addHeading(page, y, ns.L("Level progress")) -- the experience itself is on its tile above
     page:addStatBar(padding, y - 2, width, 14, { { share = share, color = LEVEL_PURPLE } })
     local level = entry.playerLevel
-    local text = level and ns.L("%d%% of level %d", math.floor(share * 100 + 0.5), level) or ns.L("%d%% of a level", math.floor(share * 100 + 0.5))
-    page:addText(text, padding, y + 15, { font = "GameFontHighlightSmall", color = COLORS.softInk, width = width, isSingleLine = true })
+    local text = level and ns.L("%d%% of level %d", math.floor(share * 100 + 0.5), level)
+        or ns.L("%d%% of a level", math.floor(share * 100 + 0.5))
+    page:addText(
+        text,
+        padding,
+        y + 15,
+        { font = "GameFontHighlightSmall", color = COLORS.softInk, width = width, isSingleLine = true }
+    )
     return y + 34
 end

@@ -6,11 +6,13 @@ setProfile({ level = 36 })
 moveTo(1416, 0.58, 0.67) -- Alterac Mountains
 wait(1)
 local addon = require("addons").byName["onemorequest"].private
-local W, S = require("widgets"), require("widgets").state
+local S = require("widgets").state
 local questId
 local zoneId = addon.Database.getParentZoneId(addon.Database.getAreaId(1416))
 for _, quest in ipairs(addon.Availability.getQuests(zoneId, { shouldShowLowLevel = true })) do
-    if quest.title == "Strahnbrad Mystery" then questId = quest.questId end
+    if quest.title == "Strahnbrad Mystery" then
+        questId = quest.questId
+    end
 end
 expect(questId ~= nil, "Strahnbrad Mystery is offered in Alterac Mountains")
 key("M")
@@ -28,7 +30,9 @@ local function countIcons(look)
     for _, frame in ipairs({ G.WorldMapFrame.ScrollContainer.Child:GetChildren() }) do
         for _, region in ipairs({ frame:GetRegions() }) do
             local texture = S[region].texture
-            if region:IsVisible() and type(texture) == "string" and texture:find("IconLoot", 1, true) then icons = icons + 1 end
+            if region:IsVisible() and type(texture) == "string" and texture:find("IconLoot", 1, true) then
+                icons = icons + 1
+            end
             if region:IsVisible() and type(texture) == "string" and texture:find("SoftDot", 1, true) then
                 local r, g, b = region:GetVertexColor()
                 colours[string.format("%.2f,%.2f,%.2f", r, g, b)] = true
@@ -36,7 +40,9 @@ local function countIcons(look)
         end
     end
     local colourCount = 0
-    for _ in pairs(colours) do colourCount = colourCount + 1 end
+    for _ in pairs(colours) do
+        colourCount = colourCount + 1
+    end
     return icons, colourCount
 end
 local icons, colours = countIcons("filled")
@@ -50,7 +56,9 @@ saveScene("strahnbrad-mystery")
 -- Selected, it shows where it starts, not where it is handed in; "Show turn-in" marks that
 local function hasTurnInMark(mapId)
     for _, mapMark in ipairs(addon.MapMarks.compose(mapId)) do
-        if mapMark.isPreview and mapMark.questId == questId then return true end
+        if mapMark.isPreview and mapMark.questId == questId then
+            return true
+        end
     end
     return false
 end

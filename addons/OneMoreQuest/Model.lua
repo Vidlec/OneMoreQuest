@@ -108,7 +108,9 @@ end
 local function getStepKey(entry, zoneId)
     local parts = { tostring(zoneId), entry.isComplete and "c" or "o", entry.isFailed and "f" or "" }
     for _, objective in ipairs(entry.objectives or {}) do
-        parts[#parts + 1] = tostring(objective.type) .. (objective.isFinished and "+" or "-") .. tostring(objective.label)
+        parts[#parts + 1] = tostring(objective.type)
+            .. (objective.isFinished and "+" or "-")
+            .. tostring(objective.label)
     end
     return table.concat(parts, ":")
 end
@@ -132,8 +134,11 @@ local function isMeasuredHere(player)
     if (at.north == nil) ~= (position == nil) then
         return false
     end
-    return position == nil or (at.continentId == position.continentId
-        and ns.Geometry.getDistance(at.north, at.west, position.north, position.west) <= ENTRY_REUSE_YARDS)
+    return position == nil
+        or (
+            at.continentId == position.continentId
+            and ns.Geometry.getDistance(at.north, at.west, position.north, position.west) <= ENTRY_REUSE_YARDS
+        )
 end
 
 ---@return TrackerEntry entry Shared with everyone who asks: to read, not to change
@@ -146,14 +151,19 @@ function Model.composeEntry(questId, player)
         if not entryCacheAt or not isMeasuredHere(player) then
             -- (a new table each time the player has walked on: each entry kept says which one it was measured from)
             local position = player.position
-            entryCacheAt = { zoneId = player.zoneId, continentId = position and position.continentId, north = position and position.north,
-                west = position and position.west }
+            entryCacheAt = {
+                zoneId = player.zoneId,
+                continentId = position and position.continentId,
+                north = position and position.north,
+                west = position and position.west,
+            }
         end
         local kept = entryCache[questId]
         if kept then
             if kept.measuredAt ~= entryCacheAt then
                 kept.measuredAt = entryCacheAt
-                kept.distance, kept.direction, kept.nearestPlace = ns.Geometry.getNearest(kept.places, player.position, ns.Database.getUiMapId)
+                kept.distance, kept.direction, kept.nearestPlace =
+                    ns.Geometry.getNearest(kept.places, player.position, ns.Database.getUiMapId)
             end
             return kept
         end
@@ -169,7 +179,8 @@ function Model.composeEntry(questId, player)
         -- In the player's language when a translation addon has the whole text, else its first line as the game wrote it
         local whole = type(texts) == "table" and table.concat(texts, " ")
         local translated = whole and ns.QuestText.getObjectives(questId, whole)
-        entry.eventText = translated ~= whole and translated or type(texts) == "table" and texts[1]
+        entry.eventText = translated ~= whole and translated
+            or type(texts) == "table" and texts[1]
             or ns.L("Speak with %s", entry.finisherName or ns.L("the quest giver"))
     end
     entry.places, entry.allPlaces = step.places, step.allPlaces or step.places
@@ -194,7 +205,8 @@ function Model.composeEntry(questId, player)
             entry.zoneIds = #zoneIds > 1 and zoneIds or nil
         end
     end
-    entry.distance, entry.direction, entry.nearestPlace = ns.Geometry.getNearest(step.places, player.position, ns.Database.getUiMapId)
+    entry.distance, entry.direction, entry.nearestPlace =
+        ns.Geometry.getNearest(step.places, player.position, ns.Database.getUiMapId)
     entry.chainIndex, entry.chainTotal = ns.Chain.getStep(questId)
     local item = ns.QuestState.getItem(questId)
     if item and (not entry.isComplete or item.shouldShowWhenComplete) then
@@ -232,8 +244,15 @@ function Model.getStructureKey(extraQuestId)
     local watchKey = ns.QuestState.getWatchKey()
     -- (and what the spoiler choices let show: a choice, a hint or something found changes what is drawn)
     local spoilerKey = ns.Spoilers.getKey()
-    if ns.frameNumber > 0 and kept and kept.generation == dataGeneration and kept.zoneId == player.zoneId and kept.extraQuestId == extraQuestId
-        and kept.watchKey == watchKey and kept.spoilerKey == spoilerKey then
+    if
+        ns.frameNumber > 0
+        and kept
+        and kept.generation == dataGeneration
+        and kept.zoneId == player.zoneId
+        and kept.extraQuestId == extraQuestId
+        and kept.watchKey == watchKey
+        and kept.spoilerKey == spoilerKey
+    then
         return kept.key
     end
     local numbers = ns.QuestState.getWatchNumbers()
@@ -245,12 +264,30 @@ function Model.getStructureKey(extraQuestId)
     local parts = {}
     for index, questId in ipairs(questIds) do
         local entry = Model.composeEntry(questId, player)
-        parts[index] = table.concat({ questId, tostring(numbers[questId]), tostring(entry.stepKey or getStepKey(entry, player.zoneId)),
-            tostring(entry.title), tostring(entry.level), tostring(entry.eventText or "") }, "=")
+        parts[index] = table.concat({
+            questId,
+            tostring(numbers[questId]),
+            tostring(entry.stepKey or getStepKey(entry, player.zoneId)),
+            tostring(entry.title),
+            tostring(entry.level),
+            tostring(entry.eventText or ""),
+        }, "=")
     end
-    local key = table.concat(parts, ";") .. "@" .. tostring(player.zoneId) .. "~" .. wordsGeneration .. "~" .. spoilerKey
-    structureKeyCache = { generation = dataGeneration, zoneId = player.zoneId, extraQuestId = extraQuestId, watchKey = watchKey,
-        spoilerKey = spoilerKey, key = key }
+    local key = table.concat(parts, ";")
+        .. "@"
+        .. tostring(player.zoneId)
+        .. "~"
+        .. wordsGeneration
+        .. "~"
+        .. spoilerKey
+    structureKeyCache = {
+        generation = dataGeneration,
+        zoneId = player.zoneId,
+        extraQuestId = extraQuestId,
+        watchKey = watchKey,
+        spoilerKey = spoilerKey,
+        key = key,
+    }
     return key
 end
 
@@ -389,7 +426,9 @@ function Model.compose(activeQuestId, options)
         if ns.settings.logGrouping == "pickup" or isWhereHidden then
             -- (where the next step is held back, its zone's heading would tell it: under where it was picked up, or
             -- under no zone)
-            groupZoneId = Model.getPickupZoneId(questId) or (isWhereHidden and ns.Location.UNKNOWN_ZONE_ID) or entry.zoneId
+            groupZoneId = Model.getPickupZoneId(questId)
+                or (isWhereHidden and ns.Location.UNKNOWN_ZONE_ID)
+                or entry.zoneId
         end
         local groupId = entry.categoryId or groupZoneId
         local group = groupsByZoneId[groupId]
@@ -404,8 +443,11 @@ function Model.compose(activeQuestId, options)
                 isCategory = entry.categoryId ~= nil,
                 -- The zone the player is in: by its number, or by its name as the game names where the player is (a
                 -- city's map and its quests can name it by different area numbers)
-                isCurrent = not entry.categoryId and (groupZoneId == player.zoneId
-                    or (zoneName ~= nil and (zoneName == player.zoneName or zoneName == player.parentZoneName))),
+                isCurrent = not entry.categoryId
+                    and (
+                        groupZoneId == player.zoneId
+                        or (zoneName ~= nil and (zoneName == player.zoneName or zoneName == player.parentZoneName))
+                    ),
                 hasTurnIn = false,
                 entries = {},
             }
@@ -424,7 +466,10 @@ function Model.compose(activeQuestId, options)
 
     for _, group in ipairs(groups) do
         -- The quest log's list by level; the tracker's by number, or in the order the player chose
-        table.sort(group.entries, options.questIds and isBeforeByLevel or TRACKER_ORDERS[ns.settings.trackerOrder] or isBeforeByNumber)
+        table.sort(
+            group.entries,
+            options.questIds and isBeforeByLevel or TRACKER_ORDERS[ns.settings.trackerOrder] or isBeforeByNumber
+        )
     end
     table.sort(groups, function(first, second)
         if first.isCurrent ~= second.isCurrent then
@@ -451,7 +496,12 @@ function Model.compose(activeQuestId, options)
         end
         local chosen = collapsedZones[group.zoneId]
         if chosen == nil then
-            group.isCollapsed = not (options.isExpandedByDefault or group.isCurrent or group.hasTurnIn or hasActiveQuest)
+            group.isCollapsed = not (
+                options.isExpandedByDefault
+                or group.isCurrent
+                or group.hasTurnIn
+                or hasActiveQuest
+            )
         else
             group.isCollapsed = chosen
         end

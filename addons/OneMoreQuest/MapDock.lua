@@ -110,9 +110,16 @@ local function placePanels(map)
     for _, child in ipairs({ map:GetChildren() }) do
         local childTop, childBottom = child:GetTop(), child:GetBottom()
         local childLeft, childRight = child:GetLeft(), child:GetRight()
-        local isBar = child ~= container and child:IsShown() and (child:GetAlpha() or 1) > 0
-            and childTop and childBottom and childLeft and childRight
-            and childLeft < right and childRight > left and childRight - childLeft >= width / 2
+        local isBar = child ~= container
+            and child:IsShown()
+            and (child:GetAlpha() or 1) > 0
+            and childTop
+            and childBottom
+            and childLeft
+            and childRight
+            and childLeft < right
+            and childRight > left
+            and childRight - childLeft >= width / 2
             and isDrawn(child, 0)
         if isBar and math.abs(childBottom - top) <= EDGE_TOLERANCE and childTop - top > topExtra then
             topExtra, topBar = childTop - top, child
@@ -121,7 +128,8 @@ local function placePanels(map)
         end
     end
     -- What the map's own frame looks like, for the border that copies it
-    local mapLook = { hasNativeBorder = false, barHeight = topBar and topExtra or nil, barColor = topBar and getBarColor(topBar) }
+    local mapLook =
+        { hasNativeBorder = false, barHeight = topBar and topExtra or nil, barColor = topBar and getBarColor(topBar) }
     ns.Log.setMapEdge(container, 2, topExtra, bottomExtra, mapLook)
 end
 
@@ -248,7 +256,9 @@ function MapDock.apply()
     if giverToggle then
         -- Only while there are givers of ours to hide: the map marks and the quests to pick up both on
         -- (and not while the spoiler choice shows no quests to pick up at all)
-        local isGiverToggleShown = map:IsShown() == true and ns.settings.shouldShowMapPins == true and ns.Availability.isShownOnMap()
+        local isGiverToggleShown = map:IsShown() == true
+            and ns.settings.shouldShowMapPins == true
+            and ns.Availability.isShownOnMap()
             and ns.Spoilers.getChoice("pickup") ~= "none"
         giverToggle:SetShown(isGiverToggleShown)
         if isGiverToggleShown then
@@ -338,12 +348,17 @@ function MapDock.updatePanelToggle()
         return
     end
     local isHidden = ns.settings.arePanelsHidden == true
-    local normal, pushed = isHidden and "QuestCollapse-Show-Up" or "QuestCollapse-Hide-Up", isHidden and "QuestCollapse-Show-Down" or "QuestCollapse-Hide-Down"
+    local normal, pushed =
+        isHidden and "QuestCollapse-Show-Up" or "QuestCollapse-Hide-Up",
+        isHidden and "QuestCollapse-Show-Down" or "QuestCollapse-Hide-Down"
     if panelToggle.SetNormalAtlas and C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(normal) then
         panelToggle:SetNormalAtlas(normal)
         panelToggle:SetPushedAtlas(pushed)
     else
-        panelToggle:SetNormalTexture(isHidden and "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up" or "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up")
+        panelToggle:SetNormalTexture(
+            isHidden and "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up"
+                or "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up"
+        )
     end
 end
 
@@ -387,10 +402,17 @@ local function createPanelToggle(map)
     end)
     button:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        GameTooltip:AddLine(ns.L(ns.settings.arePanelsHidden and "Show the quest panels" or "Hide the quest panels"), 1, 1, 1)
+        GameTooltip:AddLine(
+            ns.L(ns.settings.arePanelsHidden and "Show the quest panels" or "Hide the quest panels"),
+            1,
+            1,
+            1
+        )
         GameTooltip:Show()
     end)
-    button:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    button:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
     button:Hide()
     return button
 end
@@ -420,8 +442,14 @@ local function isCovered(frames, left, bottom, right, top)
             local frameLeft, frameBottom, width, height = frame:GetRect()
             local scale = frame:GetEffectiveScale() or 1
             if frameLeft and width and width > 0 and width <= MAX_BUTTON_SIZE and height <= MAX_BUTTON_SIZE then
-                frameLeft, frameBottom, width, height = frameLeft * scale, frameBottom * scale, width * scale, height * scale
-                if frameLeft < right and frameLeft + width > left and frameBottom < top and frameBottom + height > bottom then
+                frameLeft, frameBottom, width, height =
+                    frameLeft * scale, frameBottom * scale, width * scale, height * scale
+                if
+                    frameLeft < right
+                    and frameLeft + width > left
+                    and frameBottom < top
+                    and frameBottom + height > bottom
+                then
                     return true
                 end
             end
@@ -446,7 +474,10 @@ function placeGiverToggle(map, isAfterLayout)
     local scale = giverToggle:GetEffectiveScale() or 1
     for _ = 1, 8 do
         local left, bottom, width, height = giverToggle:GetRect()
-        if not left or not isCovered(frames, left * scale, bottom * scale, (left + width) * scale, (bottom + height) * scale) then
+        if
+            not left
+            or not isCovered(frames, left * scale, bottom * scale, (left + width) * scale, (bottom + height) * scale)
+        then
             return
         end
         offset = offset - (TOGGLE_SIZE + TOGGLE_GAP)
@@ -480,11 +511,18 @@ local function createGiverToggle(map)
     end)
     button:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        GameTooltip:AddLine(ns.L(ns.settings.areMapGiversHidden and "Show quests to pick up" or "Hide quests to pick up"), 1, 1, 1)
-        GameTooltip:AddLine(ns.L("The \"!\" of quest givers on this map; the minimap keeps them."), 0.6, 0.6, 0.6, true)
+        GameTooltip:AddLine(
+            ns.L(ns.settings.areMapGiversHidden and "Show quests to pick up" or "Hide quests to pick up"),
+            1,
+            1,
+            1
+        )
+        GameTooltip:AddLine(ns.L('The "!" of quest givers on this map; the minimap keeps them.'), 0.6, 0.6, 0.6, true)
         GameTooltip:Show()
     end)
-    button:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    button:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
     button:Hide()
     return button
 end
@@ -702,7 +740,16 @@ function MapDock.addZonesToTooltip(tooltip, entry)
     tooltip:AddDoubleLine(heading, where, 1, 0.82, 0, 0.8, 0.78, 0.72)
     for index, zoneId in ipairs(zoneIds) do
         if index == shownIndex then
-            tooltip:AddDoubleLine(SHOWN_ZONE_ARROW .. ns.Database.getZoneName(zoneId), ns.L("on the map"), 1, 1, 1, 1, 0.82, 0)
+            tooltip:AddDoubleLine(
+                SHOWN_ZONE_ARROW .. ns.Database.getZoneName(zoneId),
+                ns.L("on the map"),
+                1,
+                1,
+                1,
+                1,
+                0.82,
+                0
+            )
         else
             tooltip:AddLine(ZONE_INDENT .. ns.Database.getZoneName(zoneId), 0.8, 0.78, 0.72)
         end
@@ -721,7 +768,14 @@ function MapDock.followPlayer()
     end
     local map = WorldMapFrame
     local isFollowing = ns.settings.shouldMapFollowPlayer
-    if isFollowing and playerMapId and map and map:IsShown() and map:GetMapID() == playerMapId and not MapDock.isMapHandsOff() then
+    if
+        isFollowing
+        and playerMapId
+        and map
+        and map:IsShown()
+        and map:GetMapID() == playerMapId
+        and not MapDock.isMapHandsOff()
+    then
         map:SetMapID(newMapId)
     end
     playerMapId = newMapId
@@ -734,18 +788,24 @@ function MapDock.create()
     isCreated = true
     panelToggle = createPanelToggle(WorldMapFrame)
     giverToggle = createGiverToggle(WorldMapFrame)
-    hooksecurefunc(WorldMapFrame, "SetDisplayState", function() ns.Timing.measure("map layout (display state)", MapDock.apply) end)
+    hooksecurefunc(WorldMapFrame, "SetDisplayState", function()
+        ns.Timing.measure("map layout (display state)", MapDock.apply)
+    end)
     -- The game's window layout places the map at each opening and when other windows open beside it: where the
     -- player moved it, it goes back there
     if UpdateUIPanelPositions then
-        hooksecurefunc("UpdateUIPanelPositions", function() MapDock.placeMovedMap() end)
+        hooksecurefunc("UpdateUIPanelPositions", function()
+            MapDock.placeMovedMap()
+        end)
     end
     WorldMapFrame:HookScript("OnShow", function()
         ns.Timing.startOpening()
         ns.Timing.measure("opening (quest window included)", MapDock.apply)
         -- Map addons lay out their own frame as the map opens too; look again once everything has its place
         if C_Timer then
-            C_Timer.After(0, function() ns.Timing.measure("second look", MapDock.settle) end)
+            C_Timer.After(0, function()
+                ns.Timing.measure("second look", MapDock.settle)
+            end)
         end
     end)
     WorldMapFrame:HookScript("OnHide", MapDock.apply) -- closing with Escape does not go through the map's own toggle

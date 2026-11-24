@@ -12,7 +12,10 @@ joinParty({ name = "Garra", class = "HUNTER", level = 32 }) -- runs OneMoreQuest
 joinParty({ name = "Brakka Stone", class = "WARRIOR", level = 34, addon = "none" })
 wait(1.5)
 expect(G.IsInGroup() and G.GetNumGroupMembers() == 3, "two members and the player make a group of three")
-expect(G.UnitName("party1") == "Garra" and select(2, G.UnitClass("party2")) == "WARRIOR", "the unit functions answer for members")
+expect(
+    G.UnitName("party1") == "Garra" and select(2, G.UnitClass("party2")) == "WARRIOR",
+    "the unit functions answer for members"
+)
 
 memberAccept("Garra", 1113)
 memberAccept("Brakka Stone", 1113)
@@ -53,11 +56,14 @@ leaveInstance()
 
 -- Walking and the minimap
 key("ESCAPE")
-local continentBefore, northBefore = require("game").getPlayerWorldPosition()
+local _, northBefore = require("game").getPlayerWorldPosition()
 face(0)
 walk(40)
 local _, northAfter = require("game").getPlayerWorldPosition()
-expect(northAfter and math.abs(northAfter - northBefore - 40) < 0.5, "walking 40 yards facing north goes 40 yards north")
+expect(
+    northAfter and math.abs(northAfter - northBefore - 40) < 0.5,
+    "walking 40 yards facing north goes 40 yards north"
+)
 zoomMinimap(3)
 expect(G.C_Minimap.GetViewRadius() < 200, "zooming in narrows the minimap's view")
 memberMoveTo("Garra", 1413, 0.471, 0.598)

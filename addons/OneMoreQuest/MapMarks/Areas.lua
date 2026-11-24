@@ -4,16 +4,22 @@ local CreateFrame = ns.CreateFrame -- (Core: frames made inside an open gamepad 
 -- The map's marks: drawing quest areas and spawn icons (the game's own areas, the shapes worked out a slice a frame).
 local MapMarks = ns.MapMarks
 local Style, State = ns.MapMarksStyle, ns.MapMarksState
-local Compose, Look, Layout, Shapes, Areas, Draw = ns.MapMarksCompose, ns.MapMarksLook, ns.MapMarksLayout, ns.MapMarksShapes, ns.MapMarksAreas, ns.MapMarksDraw
+local Compose, Look, Layout, Shapes, Areas, Draw =
+    ns.MapMarksCompose, ns.MapMarksLook, ns.MapMarksLayout, ns.MapMarksShapes, ns.MapMarksAreas, ns.MapMarksDraw
 local composePoints = Compose.composePoints
 local acquire, createPools = Look.acquire, Look.createPools
 local setTriangle = Shapes.setTriangle
-local AREA_EDGE_ALPHA, AREA_EDGE_PIXELS, AREA_FILL_ALPHA, AREA_MIN_POINTS, AREA_REACH, AREA_REACH_YARDS = Style.AREA_EDGE_ALPHA, Style.AREA_EDGE_PIXELS, Style.AREA_FILL_ALPHA, Style.AREA_MIN_POINTS, Style.AREA_REACH, Style.AREA_REACH_YARDS
-local AREA_RIM_ALPHA, AREA_RIM_COLOR, AREA_RIM_PIXELS, FADED_ICON_ALPHA, FADED_ICON_GLOW_ALPHA, FOCUSED_AREA_EDGE_ALPHA = Style.AREA_RIM_ALPHA, Style.AREA_RIM_COLOR, Style.AREA_RIM_PIXELS, Style.FADED_ICON_ALPHA, Style.FADED_ICON_GLOW_ALPHA, Style.FOCUSED_AREA_EDGE_ALPHA
-local FOCUSED_AREA_FILL_ALPHA, FOCUSED_AREA_RIM_ALPHA, FOCUSED_ICON_GLOW_ALPHA, ICON_CELL, ICON_GLOW_SIZE, ICON_SIZE = Style.FOCUSED_AREA_FILL_ALPHA, Style.FOCUSED_AREA_RIM_ALPHA, Style.FOCUSED_ICON_GLOW_ALPHA, Style.ICON_CELL, Style.ICON_GLOW_SIZE, Style.ICON_SIZE
-local SOFT_DOT, ZONE_MAP_TYPE = Style.SOFT_DOT, Style.ZONE_MAP_TYPE
-
-
+local AREA_EDGE_ALPHA, AREA_EDGE_PIXELS, AREA_FILL_ALPHA, AREA_MIN_POINTS, AREA_REACH, AREA_REACH_YARDS =
+    Style.AREA_EDGE_ALPHA,
+    Style.AREA_EDGE_PIXELS,
+    Style.AREA_FILL_ALPHA,
+    Style.AREA_MIN_POINTS,
+    Style.AREA_REACH,
+    Style.AREA_REACH_YARDS
+local AREA_RIM_ALPHA, AREA_RIM_COLOR, AREA_RIM_PIXELS, FOCUSED_AREA_EDGE_ALPHA =
+    Style.AREA_RIM_ALPHA, Style.AREA_RIM_COLOR, Style.AREA_RIM_PIXELS, Style.FOCUSED_AREA_EDGE_ALPHA
+local FOCUSED_AREA_FILL_ALPHA, FOCUSED_AREA_RIM_ALPHA, ICON_CELL, ICON_GLOW_SIZE, ICON_SIZE =
+    Style.FOCUSED_AREA_FILL_ALPHA, Style.FOCUSED_AREA_RIM_ALPHA, Style.ICON_CELL, Style.ICON_GLOW_SIZE, Style.ICON_SIZE
 
 -- Each map drawn on (the world map, the zone map) keeps its own layers, pools and what it drew; the module's
 -- own values are those of the map being drawn on now
@@ -37,11 +43,18 @@ switchMap = function(map)
         return
     end
     if currentMapState then
-        currentMapState.areaLayer, currentMapState.markLayer, currentMapState.pools = State.areaLayer, State.markLayer, State.pools
+        currentMapState.areaLayer, currentMapState.markLayer, currentMapState.pools =
+            State.areaLayer, State.markLayer, State.pools
         currentMapState.drawn, currentMapState.frameLevel = State.drawn, State.frameLevel
     elseif not state then
         -- The first map drawn on takes what was made at load
-        mapStates[map] = { areaLayer = State.areaLayer, markLayer = State.markLayer, pools = State.pools, drawn = State.drawn, frameLevel = State.frameLevel }
+        mapStates[map] = {
+            areaLayer = State.areaLayer,
+            markLayer = State.markLayer,
+            pools = State.pools,
+            drawn = State.drawn,
+            frameLevel = State.frameLevel,
+        }
         currentMapState = mapStates[map]
         return
     end
@@ -81,16 +94,26 @@ end
 -- stronger than the map's: the land under them is darker.
 local AREA_LOOKS = {
     filled = {
-        fillAlpha = AREA_FILL_ALPHA, focusedFillAlpha = FOCUSED_AREA_FILL_ALPHA,
-        edgeAlpha = AREA_EDGE_ALPHA, focusedEdgeAlpha = FOCUSED_AREA_EDGE_ALPHA,
-        edgePixels = AREA_EDGE_PIXELS, focusedEdgePixels = AREA_EDGE_PIXELS,
-        rimColor = AREA_RIM_COLOR, rimAlpha = AREA_RIM_ALPHA, focusedRimAlpha = FOCUSED_AREA_RIM_ALPHA,
+        fillAlpha = AREA_FILL_ALPHA,
+        focusedFillAlpha = FOCUSED_AREA_FILL_ALPHA,
+        edgeAlpha = AREA_EDGE_ALPHA,
+        focusedEdgeAlpha = FOCUSED_AREA_EDGE_ALPHA,
+        edgePixels = AREA_EDGE_PIXELS,
+        focusedEdgePixels = AREA_EDGE_PIXELS,
+        rimColor = AREA_RIM_COLOR,
+        rimAlpha = AREA_RIM_ALPHA,
+        focusedRimAlpha = FOCUSED_AREA_RIM_ALPHA,
     },
     blob = {
-        fillAlpha = 0.2, focusedFillAlpha = 0.4,
-        edgeAlpha = 0.8, focusedEdgeAlpha = 1,
-        edgePixels = AREA_EDGE_PIXELS, focusedEdgePixels = AREA_EDGE_PIXELS + 1,
-        rimColor = AREA_RIM_COLOR, rimAlpha = 0.3, focusedRimAlpha = 0.6,
+        fillAlpha = 0.2,
+        focusedFillAlpha = 0.4,
+        edgeAlpha = 0.8,
+        focusedEdgeAlpha = 1,
+        edgePixels = AREA_EDGE_PIXELS,
+        focusedEdgePixels = AREA_EDGE_PIXELS + 1,
+        rimColor = AREA_RIM_COLOR,
+        rimAlpha = 0.3,
+        focusedRimAlpha = 0.6,
     },
 }
 
@@ -115,15 +138,25 @@ function MapMarks.getAreaLook()
     local hasFill, hasEdges = settings.shouldFillAreas ~= false, settings.shouldOutlineAreas ~= false
     local fillShare, edgeShare = getStrength(settings.areaFillStrength), getStrength(settings.areaOutlineStrength)
     local from = shownFrom
-    if from.style ~= style or from.hasFill ~= hasFill or from.hasEdges ~= hasEdges or from.fillShare ~= fillShare or from.edgeShare ~= edgeShare then
-        from.style, from.hasFill, from.hasEdges, from.fillShare, from.edgeShare = style, hasFill, hasEdges, fillShare, edgeShare
+    if
+        from.style ~= style
+        or from.hasFill ~= hasFill
+        or from.hasEdges ~= hasEdges
+        or from.fillShare ~= fillShare
+        or from.edgeShare ~= edgeShare
+    then
+        from.style, from.hasFill, from.hasEdges, from.fillShare, from.edgeShare =
+            style, hasFill, hasEdges, fillShare, edgeShare
         local base = AREA_LOOKS[style] or AREA_LOOKS.filled
         local look = shownLook
         local fill, edge = hasFill and fillShare or 0, hasEdges and edgeShare or 0
         look.style, look.hasFill, look.hasEdges = style, hasFill, hasEdges
-        look.fillAlpha, look.focusedFillAlpha = math.min(1, base.fillAlpha * fill), math.min(1, base.focusedFillAlpha * fill)
-        look.edgeAlpha, look.focusedEdgeAlpha = math.min(1, base.edgeAlpha * edge), math.min(1, base.focusedEdgeAlpha * edge)
-        look.rimAlpha, look.focusedRimAlpha = math.min(1, base.rimAlpha * edge), math.min(1, base.focusedRimAlpha * edge)
+        look.fillAlpha, look.focusedFillAlpha =
+            math.min(1, base.fillAlpha * fill), math.min(1, base.focusedFillAlpha * fill)
+        look.edgeAlpha, look.focusedEdgeAlpha =
+            math.min(1, base.edgeAlpha * edge), math.min(1, base.focusedEdgeAlpha * edge)
+        look.rimAlpha, look.focusedRimAlpha =
+            math.min(1, base.rimAlpha * edge), math.min(1, base.focusedRimAlpha * edge)
         look.edgePixels, look.focusedEdgePixels, look.rimColor = base.edgePixels, base.focusedEdgePixels, base.rimColor
         -- (walks are no areas: their dashes keep the look's own strength, outline or none)
         look.trailAlpha, look.focusedTrailAlpha = base.edgeAlpha, base.focusedEdgeAlpha
@@ -134,7 +167,8 @@ end
 
 ---@return boolean hasAreas Areas are drawn: a look of ours is chosen, with its fill or its outline (or both) on
 function MapMarks.hasAreas()
-    return MapMarks.getAreaStyle() ~= "none" and (ns.settings.shouldFillAreas ~= false or ns.settings.shouldOutlineAreas ~= false)
+    return MapMarks.getAreaStyle() ~= "none"
+        and (ns.settings.shouldFillAreas ~= false or ns.settings.shouldOutlineAreas ~= false)
 end
 
 local shapeCache = {} -- [key] = a quest's area shapes on a map, in map widths (x across, y down), with their spawns
@@ -158,7 +192,9 @@ local function runShapeJobs()
             pendingShapes[job.key] = nil
             if not isRunning then
                 shapeCache[job.key] = {} -- no area rather than trying again every frame
-                if geterrorhandler then geterrorhandler()(problem) end
+                if geterrorhandler then
+                    geterrorhandler()(problem)
+                end
             end
             isAnyDone = true
         end
@@ -178,7 +214,9 @@ end
 startShapeJobs = function()
     if not shapeJobFrame then
         shapeJobFrame = CreateFrame("Frame")
-        shapeJobFrame:SetScript("OnUpdate", function() ns.Timing.measure("areas worked out", runShapeJobs) end)
+        shapeJobFrame:SetScript("OnUpdate", function()
+            ns.Timing.measure("areas worked out", runShapeJobs)
+        end)
     end
     shapeJobFrame:Show()
 end
@@ -209,8 +247,19 @@ function MapMarks.composeQuestShapes(questId, mapId, points, reach, aspect, shou
     if #points == 0 then
         return {}
     end
-    local key = table.concat({ questId or 0, mapId or 0, #points, points[1].x, points[1].y, points[#points].x, points[#points].y,
-        reach, string.format("%.3f", aspect), MapMarks.MIN_AREA_CELL, MapMarks.AREA_CELLS_PER_REACH }, ":")
+    local key = table.concat({
+        questId or 0,
+        mapId or 0,
+        #points,
+        points[1].x,
+        points[1].y,
+        points[#points].x,
+        points[#points].y,
+        reach,
+        string.format("%.3f", aspect),
+        MapMarks.MIN_AREA_CELL,
+        MapMarks.AREA_CELLS_PER_REACH,
+    }, ":")
     if shapeCache[key] then
         return shapeCache[key]
     end
@@ -223,7 +272,8 @@ function MapMarks.composeQuestShapes(questId, mapId, points, reach, aspect, shou
                     inWidths[index] = { x = point.x, y = point.y * aspect }
                 end
                 local cell = math.max(reach / MapMarks.AREA_CELLS_PER_REACH, MapMarks.MIN_AREA_CELL)
-                areas[#areas + 1] = { shape = MapMarks.composeAreaShape(inWidths, reach, cell, shouldYield), points = inWidths }
+                areas[#areas + 1] =
+                    { shape = MapMarks.composeAreaShape(inWidths, reach, cell, shouldYield), points = inWidths }
             end
         end
         shapeCache[key] = areas
@@ -235,7 +285,12 @@ function MapMarks.composeQuestShapes(questId, mapId, points, reach, aspect, shou
     -- Worked out a slice a frame, so a big zone's areas never hold the game up; drawn when ready
     if not pendingShapes[key] then
         pendingShapes[key] = true
-        table.insert(shapeJobs, { key = key, routine = coroutine.create(function() compose(true) end) })
+        table.insert(
+            shapeJobs,
+            { key = key, routine = coroutine.create(function()
+                compose(true)
+            end) }
+        )
         startShapeJobs()
     end
     return nil
@@ -272,7 +327,8 @@ function MapMarks.composeFittedShapes(questId, mapId, points, shouldWait)
         if box then
             local yards = MapMarks.getMapYards(zoneMapId)
             local reach = yards and MapMarks.AREA_REACH_YARDS / yards or AREA_REACH
-            local shapes = MapMarks.composeQuestShapes(questId, zoneMapId, byZone[zoneMapId], reach, ZONE_MAP_ASPECT, shouldWait)
+            local shapes =
+                MapMarks.composeQuestShapes(questId, zoneMapId, byZone[zoneMapId], reach, ZONE_MAP_ASPECT, shouldWait)
             if not shapes then
                 isPending = true
             else
@@ -291,7 +347,8 @@ function MapMarks.composeFittedShapes(questId, mapId, points, shouldWait)
                     for index, point in ipairs(area.points) do
                         areaPoints[index] = fit(point)
                     end
-                    fitted[#fitted + 1] = { triangles = triangles, edges = edges, points = areaPoints, reach = reach * width }
+                    fitted[#fitted + 1] =
+                        { triangles = triangles, edges = edges, points = areaPoints, reach = reach * width }
                 end
             end
         end
@@ -300,14 +357,23 @@ function MapMarks.composeFittedShapes(questId, mapId, points, shouldWait)
         -- Spawns with no zone map (inside a dungeon): worked out on the map shown, as before
         local yards = mapId and MapMarks.getMapYards(mapId)
         local reach = yards and MapMarks.AREA_REACH_YARDS / yards or AREA_REACH
-        local aspect = State.drawn.height and State.drawn.width and State.drawn.height / State.drawn.width or ZONE_MAP_ASPECT
+        local aspect = State.drawn.height and State.drawn.width and State.drawn.height / State.drawn.width
+            or ZONE_MAP_ASPECT
         local shapes = MapMarks.composeQuestShapes(questId, mapId, loose, reach, aspect)
         for _, area in ipairs(shapes or {}) do
-            local function fit(point) return { x = point.x, y = point.y / aspect } end
+            local function fit(point)
+                return { x = point.x, y = point.y / aspect }
+            end
             local triangles, edges, areaPoints = {}, {}, {}
-            for index, triangle in ipairs(area.shape.triangles) do triangles[index] = { fit(triangle[1]), fit(triangle[2]), fit(triangle[3]) } end
-            for index, edge in ipairs(area.shape.edges) do edges[index] = { fit(edge[1]), fit(edge[2]) } end
-            for index, point in ipairs(area.points) do areaPoints[index] = fit(point) end
+            for index, triangle in ipairs(area.shape.triangles) do
+                triangles[index] = { fit(triangle[1]), fit(triangle[2]), fit(triangle[3]) }
+            end
+            for index, edge in ipairs(area.shape.edges) do
+                edges[index] = { fit(edge[1]), fit(edge[2]) }
+            end
+            for index, point in ipairs(area.points) do
+                areaPoints[index] = fit(point)
+            end
             fitted[#fitted + 1] = { triangles = triangles, edges = edges, points = areaPoints, reach = reach }
         end
         isPending = isPending or shapes == nil
@@ -370,7 +436,8 @@ local function takeTriangle(store, reserve)
 end
 
 local function takeLine(store, reserve)
-    local line = takeFrom(reserve and reserve.lines, store.freeLines) or ns.Widgets.remember(State.areaLayer:CreateLine(nil, "ARTWORK"))
+    local line = takeFrom(reserve and reserve.lines, store.freeLines)
+        or ns.Widgets.remember(State.areaLayer:CreateLine(nil, "ARTWORK"))
     line:Show()
     return line
 end
@@ -466,7 +533,18 @@ local function addRims(store, set, scale, reserve)
     local look = MapMarks.getAreaLook()
     for index = 1, #ends, 4 do
         local line = takeLine(store, reserve)
-        setLine(line, ends[index], ends[index + 1], ends[index + 2], ends[index + 3], look.rimColor, look.focusedRimAlpha, AREA_RIM_PIXELS, scale, RIM_LEVEL)
+        setLine(
+            line,
+            ends[index],
+            ends[index + 1],
+            ends[index + 2],
+            ends[index + 3],
+            look.rimColor,
+            look.focusedRimAlpha,
+            AREA_RIM_PIXELS,
+            scale,
+            RIM_LEVEL
+        )
         set.rims[#set.rims + 1] = line
     end
 end
@@ -516,7 +594,18 @@ local function layOutSet(store, set, group, mapId, mapWidth, mapHeight, scale, r
             local fromX, fromY = edge[1].x * mapWidth, edge[1].y * mapHeight
             local toX, toY = edge[2].x * mapWidth, edge[2].y * mapHeight
             local line = takeLine(store, reserve)
-            setLine(line, fromX, fromY, toX, toY, color, edgeAlpha, edgePixels, scale, isFocused and FOCUSED_EDGE_LEVEL or EDGE_LEVEL)
+            setLine(
+                line,
+                fromX,
+                fromY,
+                toX,
+                toY,
+                color,
+                edgeAlpha,
+                edgePixels,
+                scale,
+                isFocused and FOCUSED_EDGE_LEVEL or EDGE_LEVEL
+            )
             edges[#edges + 1] = line
             local count = #edgeEnds
             edgeEnds[count + 1], edgeEnds[count + 2], edgeEnds[count + 3], edgeEnds[count + 4] = fromX, fromY, toX, toY
@@ -526,10 +615,12 @@ local function layOutSet(store, set, group, mapId, mapWidth, mapHeight, scale, r
         for index, point in ipairs(area.points) do
             inLayer[index] = { x = point.x * mapWidth, y = point.y * mapHeight }
         end
-        areas[#areas + 1] = { points = inLayer, reach = area.reach * mapWidth, questId = questId, isFocused = isFocused }
+        areas[#areas + 1] =
+            { points = inLayer, reach = area.reach * mapWidth, questId = questId, isFocused = isFocused }
     end
     set.triangles, set.edges, set.edgeEnds, set.areas, set.rims = triangles, edges, edgeEnds, areas, {}
-    set.red, set.green, set.blue, set.isFocused, set.scale, set.style = color[1], color[2], color[3], isFocused, scale, look.style
+    set.red, set.green, set.blue, set.isFocused, set.scale, set.style =
+        color[1], color[2], color[3], isFocused, scale, look.style
     set.lookVersion, set.hasFill, set.hasEdges = look.version, look.hasFill, look.hasEdges
     if isFocused and look.hasEdges then
         addRims(store, set, scale, reserve)
@@ -617,7 +708,8 @@ local function continueAreas(job, budget)
         local key = getSetKey(group)
         local set = { geometryKey = getGeometryKey(group, job.mapId, job.mapWidth, job.mapHeight) }
         local reserve = store.reserved and store.reserved[key]
-        local count, isPending = layOutSet(store, set, group, job.mapId, job.mapWidth, job.mapHeight, job.scale, reserve)
+        local count, isPending =
+            layOutSet(store, set, group, job.mapId, job.mapWidth, job.mapHeight, job.scale, reserve)
         freeReserve(store, key) -- (what it did not take back: to every quest's use)
         if isPending then
             set.geometryKey = nil -- laid out again once its shapes are worked out
@@ -657,7 +749,9 @@ local function drawQuestAreas(groups, mapWidth, mapHeight, scale, mapId)
     if ns.settings.shouldShowFocusedAreasOnly then
         local focused = {}
         for _, group in ipairs(groups) do
-            if group.isFocused then focused[#focused + 1] = group end
+            if group.isFocused then
+                focused[#focused + 1] = group
+            end
         end
         groups = focused
     end
@@ -676,9 +770,19 @@ local function drawQuestAreas(groups, mapWidth, mapHeight, scale, mapId)
         local key = getSetKey(group)
         isWanted[key] = true
         local set = store.areaSets[key]
-        if set and set.geometryKey == getGeometryKey(group, mapId, mapWidth, mapHeight) and set.hasFill == look.hasFill and set.hasEdges == look.hasEdges then
-            if set.red ~= group.color[1] or set.green ~= group.color[2] or set.blue ~= group.color[3] or set.isFocused ~= (group.isFocused == true)
-                or set.lookVersion ~= look.version then
+        if
+            set
+            and set.geometryKey == getGeometryKey(group, mapId, mapWidth, mapHeight)
+            and set.hasFill == look.hasFill
+            and set.hasEdges == look.hasEdges
+        then
+            if
+                set.red ~= group.color[1]
+                or set.green ~= group.color[2]
+                or set.blue ~= group.color[3]
+                or set.isFocused ~= (group.isFocused == true)
+                or set.lookVersion ~= look.version
+            then
                 restyleSet(store, set, group, scale)
                 restyledCount = restyledCount + 1
             else
@@ -703,14 +807,19 @@ local function drawQuestAreas(groups, mapWidth, mapHeight, scale, mapId)
         end
     end
     if ns.Timing.isRecording then
-        ns.Timing.noteCause("areas", string.format("%d kept, %d recoloured, %d laid out", keptCount, restyledCount, #waiting))
+        ns.Timing.noteCause(
+            "areas",
+            string.format("%d kept, %d recoloured, %d laid out", keptCount, restyledCount, #waiting)
+        )
     end
     if #waiting == 0 then
         return
     end
-    local job = { groups = waiting, index = 1, mapId = mapId, mapWidth = mapWidth, mapHeight = mapHeight, scale = scale }
+    local job =
+        { groups = waiting, index = 1, mapId = mapId, mapWidth = mapWidth, mapHeight = mapHeight, scale = scale }
     if ns.frameNumber == 0 then
-        while not continueAreas(job) do end -- (where no frames run, all at once)
+        while not continueAreas(job) do
+        end -- (where no frames run, all at once)
         return
     end
     -- With this drawing (which has laid out every mark and icon already): the quest in focus alone, or, when nothing
@@ -723,7 +832,9 @@ local function drawQuestAreas(groups, mapWidth, mapHeight, scale, mapId)
     if not areaJobFrame then
         areaJobFrame = CreateFrame("Frame")
         areaJobFrame.jobs = {}
-        areaJobFrame:SetScript("OnUpdate", function() ns.Timing.measure("areas laid out (a frame's share)", runAreaJob) end)
+        areaJobFrame:SetScript("OnUpdate", function()
+            ns.Timing.measure("areas laid out (a frame's share)", runAreaJob)
+        end)
     end
     areaJobFrame.jobs[State.drawn.map] = job
     areaJobFrame:Show()
@@ -767,8 +878,11 @@ end
 ---the map: widths and lengths in its units, pixels / scale).
 ---@param makeLine fun(sublevel: number): table A line, its draw layer set
 function MapMarks.paintDashes(points, makeLine, color, alpha, scale)
-    local light = { color[1] + (1 - color[1]) * 0.55, color[2] + (1 - color[2]) * 0.55, color[3] + (1 - color[3]) * 0.55 }
-    for _, dash in ipairs(MapMarks.composeDashes(points, MapMarks.DASH_PIXELS / scale, MapMarks.DASH_GAP_PIXELS / scale)) do
+    local light =
+        { color[1] + (1 - color[1]) * 0.55, color[2] + (1 - color[2]) * 0.55, color[3] + (1 - color[3]) * 0.55 }
+    for _, dash in
+        ipairs(MapMarks.composeDashes(points, MapMarks.DASH_PIXELS / scale, MapMarks.DASH_GAP_PIXELS / scale))
+    do
         for _, piece in ipairs({
             { 1, AREA_RIM_COLOR, alpha * MapMarks.DASH_SHADOW_ALPHA, MapMarks.DASH_SHADOW_WIDTH },
             { 2, light, alpha, MapMarks.DASH_WIDTH },
@@ -793,7 +907,9 @@ local function drawPatrols(groups, giverLines, mapWidth, mapHeight, scale, mapId
     scale = scale or 1
     State.pools.trailLines = State.pools.trailLines or { usedCount = 0 }
     local function makeLine(sublevel)
-        local line = acquire(State.pools.trailLines, function() return State.areaLayer:CreateLine(nil, "ARTWORK") end)
+        local line = acquire(State.pools.trailLines, function()
+            return State.areaLayer:CreateLine(nil, "ARTWORK")
+        end)
         line:SetDrawLayer("ARTWORK", 3 + sublevel) -- over the areas' edges (FOCUSED_EDGE_LEVEL)
         return line
     end
@@ -805,16 +921,27 @@ local function drawPatrols(groups, giverLines, mapWidth, mapHeight, scale, mapId
         end
         MapMarks.paintDashes(points, makeLine, color, alpha, scale)
         local name = patrol.npcId and ns.Database.getNpcField(patrol.npcId, "name")
-        State.drawn.patrols[#State.drawn.patrols + 1] = { points = points, questId = questId, note = name and ns.L("%s walks here", name) or nil }
+        State.drawn.patrols[#State.drawn.patrols + 1] =
+            { points = points, questId = questId, note = name and ns.L("%s walks here", name) or nil }
     end
     for _, group in ipairs(groups) do
         -- (none for a quest whose objectives are not shown exactly: Spoilers)
         for _, patrol in ipairs(not group.hasNoPatrols and MapMarks.getQuestPatrolLines(group.questId, mapId) or {}) do
-            drawTrail(patrol, group.color, group.isFocused and FOCUSED_AREA_EDGE_ALPHA or AREA_EDGE_ALPHA, group.questId)
+            drawTrail(
+                patrol,
+                group.color,
+                group.isFocused and FOCUSED_AREA_EDGE_ALPHA or AREA_EDGE_ALPHA,
+                group.questId
+            )
         end
     end
     for _, giverLine in ipairs(giverLines or {}) do
-        drawTrail(giverLine.points, Style.FOCUS_GOLD, giverLine.isFocused and FOCUSED_AREA_EDGE_ALPHA or AREA_EDGE_ALPHA, giverLine.questId)
+        drawTrail(
+            giverLine.points,
+            Style.FOCUS_GOLD,
+            giverLine.isFocused and FOCUSED_AREA_EDGE_ALPHA or AREA_EDGE_ALPHA,
+            giverLine.questId
+        )
     end
 end
 ---Places the icons: one to a cell of a grid (the quest in focus first, then the others in their order), none
@@ -834,7 +961,9 @@ for column = -2, 2 do
 end
 table.sort(NEIGHBOUR_CELLS, function(first, second)
     local firstDistance, secondDistance = first[1] ^ 2 + first[2] ^ 2, second[1] ^ 2 + second[2] ^ 2
-    if firstDistance ~= secondDistance then return firstDistance < secondDistance end
+    if firstDistance ~= secondDistance then
+        return firstDistance < secondDistance
+    end
     return first[1] * 10 + first[2] < second[1] * 10 + second[2]
 end)
 
@@ -847,8 +976,14 @@ function MapMarks.placeIcons(groups, markRects, cell, iconSize)
         for _, group in ipairs(groups) do
             for _, point in ipairs(group.points) do
                 icons[#icons + 1] = {
-                    x = point.x, y = point.y, glyph = point.glyph or "use", color = group.color, isFocused = group.isFocused,
-                    isStrong = group.isStrong, questId = point.questId, note = point.note,
+                    x = point.x,
+                    y = point.y,
+                    glyph = point.glyph or "use",
+                    color = group.color,
+                    isFocused = group.isFocused,
+                    isStrong = group.isStrong,
+                    questId = point.questId,
+                    note = point.note,
                 }
             end
         end
@@ -872,7 +1007,12 @@ function MapMarks.placeIcons(groups, markRects, cell, iconSize)
                 local x, y = (column + 0.5) * cell, (row + 0.5) * cell
                 local isCovered, isUnderOwnMark = false, false
                 for _, rect in ipairs(markRects) do
-                    if x + half > rect.left and x - half < rect.right and y + half > rect.top and y - half < rect.bottom then
+                    if
+                        x + half > rect.left
+                        and x - half < rect.right
+                        and y + half > rect.top
+                        and y - half < rect.bottom
+                    then
                         isCovered = true
                         isUnderOwnMark = isUnderOwnMark or (rect.questId ~= nil and rect.questId == point.questId)
                     end
@@ -892,8 +1032,14 @@ function MapMarks.placeIcons(groups, markRects, cell, iconSize)
                 end
                 if not isCovered then
                     icons[#icons + 1] = {
-                        x = x, y = y, glyph = point.glyph or "use", color = group.color, isFocused = group.isFocused,
-                        isStrong = group.isStrong, questId = point.questId, note = point.note,
+                        x = x,
+                        y = y,
+                        glyph = point.glyph or "use",
+                        color = group.color,
+                        isFocused = group.isFocused,
+                        isStrong = group.isStrong,
+                        questId = point.questId,
+                        note = point.note,
                     }
                 end
             end
@@ -945,12 +1091,29 @@ local function drawIcons(groups, mapWidth, mapHeight, scale, markRects)
                 local x, y = point.x * mapWidth * scale, point.y * mapHeight * scale
                 local glow = acquire(State.pools.glows, createIconGlow)
                 local glyph = acquire(State.pools.icons, createIconGlyph)
-                local hasUnder = MapMarks.dressSpawnMarker(glow, glyph, kind, point.glyph or "use", group.color, isStrong, shownSize, glowSize)
+                local hasUnder = MapMarks.dressSpawnMarker(
+                    glow,
+                    glyph,
+                    kind,
+                    point.glyph or "use",
+                    group.color,
+                    isStrong,
+                    shownSize,
+                    glowSize
+                )
                 glow:SetShown(hasUnder)
                 place(glow, "CENTER", State.markLayer, "TOPLEFT", x, -y)
                 place(glyph, "CENTER", State.markLayer, "TOPLEFT", x, -y)
-                squares[#squares + 1] = { glow = glow, glyph = glyph, x = x, y = y, questId = point.questId, note = point.note,
-                    isFocused = group.isFocused, radius = radius }
+                squares[#squares + 1] = {
+                    glow = glow,
+                    glyph = glyph,
+                    x = x,
+                    y = y,
+                    questId = point.questId,
+                    note = point.note,
+                    isFocused = group.isFocused,
+                    radius = radius,
+                }
             end
         end
         return
@@ -962,9 +1125,19 @@ local function drawIcons(groups, mapWidth, mapHeight, scale, markRects)
         local points = {}
         -- Thinned in the world to the zoom's step: never moved, only some left out (MapMarks.thinPoints)
         for index, point in ipairs(isShown and MapMarks.thinPoints(group.points, State.drawn.spawnSpacing) or {}) do
-            points[index] = { x = point.x * mapWidth * scale, y = point.y * mapHeight * scale, glyph = point.glyph, questId = point.questId, note = point.note }
+            points[index] = {
+                x = point.x * mapWidth * scale,
+                y = point.y * mapHeight * scale,
+                glyph = point.glyph,
+                questId = point.questId,
+                note = point.note,
+            }
         end
-        table.insert(ordered, group.isFocused and 1 or #ordered + 1, { points = points, color = group.color, isFocused = group.isFocused, isStrong = isStrong })
+        table.insert(
+            ordered,
+            group.isFocused and 1 or #ordered + 1,
+            { points = points, color = group.color, isFocused = group.isFocused, isStrong = isStrong }
+        )
     end
     State.drawn.squares = {}
     local footprint = MapMarks.getSpawnMarkerFootprint(kind, iconSize)
@@ -974,11 +1147,20 @@ local function drawIcons(groups, mapWidth, mapHeight, scale, markRects)
         local glyph = acquire(State.pools.icons, createIconGlyph)
         -- The focused quest's a little larger, so its spawns stand out from the others'
         local shownSize = icon.isFocused and iconSize + 2 or iconSize
-        local hasUnder = MapMarks.dressSpawnMarker(glow, glyph, kind, icon.glyph, icon.color, icon.isStrong, shownSize, glowSize)
+        local hasUnder =
+            MapMarks.dressSpawnMarker(glow, glyph, kind, icon.glyph, icon.color, icon.isStrong, shownSize, glowSize)
         glow:SetShown(hasUnder)
         place(glow, "CENTER", State.markLayer, "TOPLEFT", icon.x, -icon.y)
         place(glyph, "CENTER", State.markLayer, "TOPLEFT", icon.x, -icon.y)
-        State.drawn.squares[#State.drawn.squares + 1] = { textures = { glow, glyph }, x = icon.x, y = icon.y, questId = icon.questId, note = icon.note, isFocused = icon.isFocused, radius = glowSize / 2 }
+        State.drawn.squares[#State.drawn.squares + 1] = {
+            textures = { glow, glyph },
+            x = icon.x,
+            y = icon.y,
+            questId = icon.questId,
+            note = icon.note,
+            isFocused = icon.isFocused,
+            radius = glowSize / 2,
+        }
     end
 end
 

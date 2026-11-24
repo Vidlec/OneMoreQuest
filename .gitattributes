@@ -1,0 +1,2 @@
+# Lua keeps LF line endings in every checkout (StyLua writes LF; a CRLF checkout would fail its check)
+*.lua text eol=lf

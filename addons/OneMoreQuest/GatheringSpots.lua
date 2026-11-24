@@ -36,12 +36,16 @@ function GatheringSpots.readTracking()
             local info = minimap.GetTrackingInfo(index)
             if info and info.active then
                 local kind = FIND_SPELLS[info.spellID or 0] or FIND_TEXTURES[info.texture or 0]
-                if kind then tracked[kind] = true end
+                if kind then
+                    tracked[kind] = true
+                end
             end
         end
     elseif GetTrackingTexture then
         local kind = FIND_TEXTURES[GetTrackingTexture() or 0]
-        if kind then tracked[kind] = true end
+        if kind then
+            tracked[kind] = true
+        end
     end
     trackedKey = (tracked.herb and "h" or "") .. (tracked.ore and "o" or "")
 end
@@ -62,7 +66,13 @@ local function getZoneWorld(zoneId)
             local continentId, north, west = ns.Geometry.getWorldPosition(uiMapId, 0, 0)
             local _, southNorth, eastWest = ns.Geometry.getWorldPosition(uiMapId, 100, 100)
             if north and southNorth then
-                world = { continentId = continentId, north = north, west = west, height = north - southNorth, width = west - eastWest }
+                world = {
+                    continentId = continentId,
+                    north = north,
+                    west = west,
+                    height = north - southNorth,
+                    width = west - eastWest,
+                }
             end
         end
         zoneWorlds[zoneId] = world
@@ -133,7 +143,9 @@ end
 local function startBuilder()
     local hasWork = false
     for kind, isTracked in pairs(tracked) do
-        if isTracked and not (builds[kind] and builds[kind].isDone) then hasWork = true end
+        if isTracked and not (builds[kind] and builds[kind].isDone) then
+            hasWork = true
+        end
     end
     if not hasWork or not CreateFrame then
         return
@@ -145,20 +157,28 @@ local function startBuilder()
         for kind, isTracked in pairs(tracked) do
             while isTracked and not (builds[kind] and builds[kind].isDone) do
                 build(kind, 1)
-                if not ns.Database.isAvailable() or not debugprofilestop or debugprofilestop() - startedAt >= BUILD_MS_A_FRAME then
+                if
+                    not ns.Database.isAvailable()
+                    or not debugprofilestop
+                    or debugprofilestop() - startedAt >= BUILD_MS_A_FRAME
+                then
                     return
                 end
             end
         end
         stopBuilder()
-        if ns.MinimapPins and ns.MinimapPins.refresh then ns.MinimapPins.refresh() end
+        if ns.MinimapPins and ns.MinimapPins.refresh then
+            ns.MinimapPins.refresh()
+        end
     end)
 end
 
 ---Builds every tracked kind's spots at once (the tests, and anything that cannot wait a few frames).
 function GatheringSpots.finishBuilding()
     for kind, isTracked in pairs(tracked) do
-        if isTracked then build(kind, nil) end
+        if isTracked then
+            build(kind, nil)
+        end
     end
     stopBuilder()
 end
@@ -200,8 +220,10 @@ function GatheringSpots.collectNear(position, yards, out)
         end
         local cells = isTracked and builds[kind] and builds[kind].grid[position.continentId]
         if cells then
-            local firstNorth, lastNorth = math.floor((position.north - yards) / CELL_YARDS), math.floor((position.north + yards) / CELL_YARDS)
-            local firstWest, lastWest = math.floor((position.west - yards) / CELL_YARDS), math.floor((position.west + yards) / CELL_YARDS)
+            local firstNorth, lastNorth =
+                math.floor((position.north - yards) / CELL_YARDS), math.floor((position.north + yards) / CELL_YARDS)
+            local firstWest, lastWest =
+                math.floor((position.west - yards) / CELL_YARDS), math.floor((position.west + yards) / CELL_YARDS)
             for cellNorth = firstNorth, lastNorth do
                 for cellWest = firstWest, lastWest do
                     local cell = cells[cellNorth * 65536 + cellWest]
@@ -209,8 +231,10 @@ function GatheringSpots.collectNear(position, yards, out)
                         for index = 1, #cell, 2 do
                             local north, west = cell[index], cell[index + 1]
                             local awayNorth, awayWest = north - position.north, west - position.west
-                            if awayNorth * awayNorth + awayWest * awayWest <= limit
-                                and not (hasGathered and isGathered(north, west, now)) then
+                            if
+                                awayNorth * awayNorth + awayWest * awayWest <= limit
+                                and not (hasGathered and isGathered(north, west, now))
+                            then
                                 out[count * 2 + 1], out[count * 2 + 2] = north, west
                                 count = count + 1
                             end
@@ -240,7 +264,9 @@ local function getNodeKind(objectId)
     if not nodeKinds then
         nodeKinds = {}
         for kind, ids in pairs(ns.GatheringNodes or {}) do
-            for _, id in ipairs(ids) do nodeKinds[id] = kind end
+            for _, id in ipairs(ids) do
+                nodeKinds[id] = kind
+            end
         end
     end
     return nodeKinds[objectId]
@@ -269,7 +295,8 @@ function GatheringSpots.handleLootOpened()
     if not position then
         return
     end
-    gathered[#gathered + 1] = { north = position.north, west = position.west, untilTime = (GetTime and GetTime() or 0) + GROW_BACK_SECONDS }
+    gathered[#gathered + 1] =
+        { north = position.north, west = position.west, untilTime = (GetTime and GetTime() or 0) + GROW_BACK_SECONDS }
     if ns.MinimapPins and ns.MinimapPins.refresh then
         ns.MinimapPins.refresh()
     end
@@ -280,7 +307,8 @@ function GatheringSpots.create()
 end
 
 ns.registerModule({
-    name = "GatheringSpots", create = GatheringSpots.create,
+    name = "GatheringSpots",
+    create = GatheringSpots.create,
     events = {
         -- Find Herbs or Find Minerals switched on or off: the minimap's marks are placed again
         MINIMAP_UPDATE_TRACKING = function()
@@ -290,6 +318,8 @@ ns.registerModule({
                 ns.MinimapPins.refresh()
             end
         end,
-        LOOT_OPENED = function() GatheringSpots.handleLootOpened() end,
+        LOOT_OPENED = function()
+            GatheringSpots.handleLootOpened()
+        end,
     },
 })

@@ -4,7 +4,9 @@
 setProfile({ level = 30 })
 moveTo(1413, 0.52, 0.30) -- The Barrens
 local addon = require("addons").byName["onemorequest"].private
-for _, questId in ipairs({ 869, 865, 872, 891, 914, 962, 1486, 862 }) do accept(questId) end
+for _, questId in ipairs({ 869, 865, 872, 891, 914, 962, 1486, 862 }) do
+    accept(questId)
+end
 complete(869)
 wait(1.5)
 addon.Locale.setLanguage("cs")
@@ -14,14 +16,18 @@ wait(1)
 
 local cut = {}
 local function collectCut(frame, where)
-    if not frame or not frame.IsVisible or not frame:IsVisible() then return end
+    if not frame or not frame.IsVisible or not frame:IsVisible() then
+        return
+    end
     for _, region in ipairs({ frame:GetRegions() }) do
         if region.IsTruncated and region:IsVisible() and region:IsTruncated() then
             local text = region:GetText() or ""
             cut[#cut + 1] = where .. ": " .. text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
         end
     end
-    for _, child in ipairs({ frame:GetChildren() }) do collectCut(child, where) end
+    for _, child in ipairs({ frame:GetChildren() }) do
+        collectCut(child, where)
+    end
 end
 local function look(where)
     wait(0.5)
@@ -47,9 +53,15 @@ for index = 1, #addon.ChroniclePage.CHAPTERS do
 end
 
 local missing = {}
-for english in pairs(addon.Locale.missing) do missing[#missing + 1] = english end
+for english in pairs(addon.Locale.missing) do
+    missing[#missing + 1] = english
+end
 table.sort(missing)
-for _, english in ipairs(missing) do print("MISSING", english) end
-for _, text in ipairs(cut) do print("CUT", text) end
+for _, english in ipairs(missing) do
+    print("MISSING", english)
+end
+for _, text in ipairs(cut) do
+    print("CUT", text)
+end
 print("SUMMARY", #missing, "untranslated,", #cut, "cut short")
 expect(#missing == 0, "every phrase OneMoreQuest showed has its Czech (" .. #missing .. " without)")

@@ -1,5 +1,3 @@
-
-
 local addonName, ns = ... -- the addon's folder, which its pictures are read from
 
 -- The quest panels joined to the right side of the game's world map (see MapDock): a dark list, then the
@@ -21,7 +19,8 @@ ns.Log = Log
 -- part that uses it; what changes (the selected tab, the shown quest) lives in ns.LogState and is read there.
 local Style, State, Actions = {}, {}, {}
 ns.LogStyle, ns.LogState, ns.LogActions = Style, State, Actions
-ns.LogList, ns.LogQuestPage, ns.LogQuestsTab, ns.LogAvailableTab, ns.LogSettingsView, ns.LogWindow = {}, {}, {}, {}, {}, {}
+ns.LogList, ns.LogQuestPage, ns.LogQuestsTab, ns.LogAvailableTab, ns.LogSettingsView, ns.LogWindow =
+    {}, {}, {}, {}, {}, {}
 ns.LogDungeonsTab = {} -- the Dungeons tab: every dungeon with quests for the player, and a dungeon's page
 
 local LIST_WIDTH, PAGE_WIDTH = 330, 330
@@ -56,7 +55,6 @@ local RED_BUTTON_EDGE, RED_BUTTON_LIT = { 0.1, 0.04, 0.02 }, { 0.66, 0.13, 0.09 
 local BAR_BACKGROUND = { 0.13, 0.11, 0.08 }
 local SELECTED_FILL = { 0.29, 0.24, 0.09 }
 local SELECTED_EDGE = { 0.79, 0.64, 0.15 }
-local BUTTON_FILL = { 0.23, 0.08, 0.06 }
 
 -- State.frame, State.list, State.detail: shared with the other parts, set further on
 -- State.toggleButton: shared with the other parts, set further on
@@ -70,8 +68,17 @@ State.isUpcomingShown = false
 State.logFilter = "all"
 -- State.selectedLogZoneId: set while the zone page is shown in place of a quest
 State.isChainExpanded = false
-State.isNarrow = false -- with a controller: one pane, the list or a quest's page in its place (Gamepad.lua)
-State.isPageSpread = false -- in the one pane: the quest's page in the list's place (the controller's A on a quest)
+State.isNarrow = false -- quest details on a page of their own (the setting): one pane, the list or a quest's page in its place
+State.isPageSpread = false -- in the one pane: the quest's page in the list's place (opened by a click, or the controller's A)
+
+---With the quest details on a page of their own, and the mouse: what was just opened (a quest clicked in the list,
+---on the map, in the tracker) takes the one pane, in the list's place. The controller opens it with A instead
+---(Gamepad.lua): its d-pad selects the quests as it moves over them.
+function Log.spreadOpenedPage()
+    if State.isNarrow and not (ns.Gamepad and ns.Gamepad.isGamepadUI()) then
+        State.isPageSpread = true
+    end
+end
 State.isDocked = false
 State.isMapFollowPaused = false -- set while a button turns the map, so the Available list does not follow it
 -- State.selectedAvailableQuest: the quest on the Available tab's page, with its giver and turn-in places
@@ -116,9 +123,15 @@ local function selectQuest(questId)
     -- With the settings open, a click opens the quest, even the one that was selected before
     local wasShowingSettings = State.view == "settings"
     State.view = "quests"
-    local isSameQuest = not wasShowingSettings and selectedQuestIds[State.selectedTab] == questId and not (State.selectedTab == TAB_QUESTS and State.selectedLogZoneId)
-    if isSameQuest then
+    local isSameQuest = not wasShowingSettings
+        and selectedQuestIds[State.selectedTab] == questId
+        and not (State.selectedTab == TAB_QUESTS and State.selectedLogZoneId)
+    -- (in the one pane the list shows the open quest highlighted: a click opens its page again, it never closes it)
+    if isSameQuest and not State.isNarrow then
         questId = nil
+    end
+    if questId then
+        Log.spreadOpenedPage()
     end
     selectedQuestIds[State.selectedTab] = questId
     State.unfocusedSelection = nil -- (picked in the list: the map shows it again, Log.getSelectedQuestId)
@@ -135,13 +148,19 @@ local function selectQuest(questId)
         local shownZoneId = ns.MapDock.getShownZoneId()
         local isOnMap = false
         for _, place in ipairs(places) do
-            isOnMap = isOnMap or ns.Database.getParentZoneId(place.mapZoneId or 0) == shownZoneId or place.groupZoneId == shownZoneId
+            isOnMap = isOnMap
+                or ns.Database.getParentZoneId(place.mapZoneId or 0) == shownZoneId
+                or place.groupZoneId == shownZoneId
         end
         if not isOnMap and #places > 0 then
-            local _, _, nearestPlace = ns.Geometry.getNearest(places, ns.Geometry.getPlayerPosition(), ns.Database.getUiMapId)
+            local _, _, nearestPlace =
+                ns.Geometry.getNearest(places, ns.Geometry.getPlayerPosition(), ns.Database.getUiMapId)
             nearestPlace = nearestPlace or places[1]
             State.isMapFollowPaused = true
-            ns.MapDock.showQuestPlace(nearestPlace.mapZoneId or nearestPlace.groupZoneId, nearestPlace.x >= 0 and nearestPlace or nil)
+            ns.MapDock.showQuestPlace(
+                nearestPlace.mapZoneId or nearestPlace.groupZoneId,
+                nearestPlace.x >= 0 and nearestPlace or nil
+            )
             State.isMapFollowPaused = false
         end
     end
@@ -152,6 +171,7 @@ end
 local function selectZone(zoneId)
     State.view = "quests"
     State.selectedLogZoneId = zoneId
+    Log.spreadOpenedPage()
     ns.MapDock.showZoneMap(zoneId)
     Log.refresh()
 end
@@ -234,30 +254,49 @@ function Log.openQuestMenu(questId, isInLog)
         root:CreateTitle(ns.QuestText.getQuestName(questId) or ("Quest " .. questId))
         if isInLog then
             local isFocused = questId == ns.Focus.get()
-            root:CreateButton(ns.L(isFocused and "Unfocus" or "Focus"), function() focusQuest(questId) end)
-            root:CreateButton(ns.L(ns.QuestState.isWatched(questId) and "Untrack" or "Track"), function() toggleTracked(questId) end)
+            root:CreateButton(ns.L(isFocused and "Unfocus" or "Focus"), function()
+                focusQuest(questId)
+            end)
+            root:CreateButton(ns.L(ns.QuestState.isWatched(questId) and "Untrack" or "Track"), function()
+                toggleTracked(questId)
+            end)
         end
-        root:CreateButton(ns.L("Share to chat"), function() ns.QuestState.linkInChat(questId) end)
+        root:CreateButton(ns.L("Share to chat"), function()
+            ns.QuestState.linkInChat(questId)
+        end)
         ns.QuestText.addVoiceMenuItems(root, questId) -- a translation addon's narration, when the quest has one
         if isInLog then
-            local share = root:CreateButton(ns.L("Share with the party"), function() Log.shareQuest(questId) end)
-            local canShare = C_QuestLog.IsPushableQuest and C_QuestLog.IsPushableQuest(questId) and IsInGroup and IsInGroup()
+            local share = root:CreateButton(ns.L("Share with the party"), function()
+                Log.shareQuest(questId)
+            end)
+            local canShare = C_QuestLog.IsPushableQuest
+                and C_QuestLog.IsPushableQuest(questId)
+                and IsInGroup
+                and IsInGroup()
             if not canShare and share.SetEnabled then
                 share:SetEnabled(false)
             end
             root:CreateDivider()
-            root:CreateButton("|cffff5040" .. ns.L("Abandon") .. "|r", function() Log.abandonQuest(questId) end)
+            root:CreateButton("|cffff5040" .. ns.L("Abandon") .. "|r", function()
+                Log.abandonQuest(questId)
+            end)
         else
             -- One to pick up the player does not want offered (or the realm does not have): hidden till brought back
             root:CreateDivider()
-            root:CreateButton(ns.L("Hide this quest"), function() ns.QuestHiding.hide(questId) end)
+            root:CreateButton(ns.L("Hide this quest"), function()
+                ns.QuestHiding.hide(questId)
+            end)
         end
     end)
 end
 
 -- Fields, not locals: this file is near Lua's limit of locals in one chunk
-function Log.openLogQuestMenu(questId) Log.openQuestMenu(questId, true) end
-function Log.openAvailableQuestMenu(questId) Log.openQuestMenu(questId, false) end
+function Log.openLogQuestMenu(questId)
+    Log.openQuestMenu(questId, true)
+end
+function Log.openAvailableQuestMenu(questId)
+    Log.openQuestMenu(questId, false)
+end
 
 local function isMatch(...)
     if State.searchText == "" then

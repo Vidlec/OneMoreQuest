@@ -14,23 +14,40 @@ return function(steps, zone)
         if isRead and zoneOrSort == zone.areaId then
             local level = Q.Get(questId, "questLevel") or 0
             local objectives = Q.Get(questId, "objectives")
-            if level <= zone.level + 2 and level >= zone.level - 6 and type(objectives) == "table" and #accepted < 10 then
-                if game.acceptQuest(questId) ~= false then accepted[#accepted + 1] = questId end
+            if
+                level <= zone.level + 2
+                and level >= zone.level - 6
+                and type(objectives) == "table"
+                and #accepted < 10
+            then
+                if game.acceptQuest(questId) ~= false then
+                    accepted[#accepted + 1] = questId
+                end
             end
         end
     end
     steps.wait(1.5)
-    if accepted[1] then addon.Focus.set(accepted[1]) end
+    if accepted[1] then
+        addon.Focus.set(accepted[1])
+    end
     steps.wait(1)
 
     -- Where to put the party: on our marks and squares, where they are hardest to see
     local marks = addon.MapMarks.compose(zone.uiMapId)
     local focusedMark, spotPoint, giverMark
     for _, mark in ipairs(marks) do
-        if mark.isFocused and not focusedMark then focusedMark = mark end
-        if mark.kind == "giver" and not giverMark then giverMark = mark end
-        if not spotPoint and mark.points and mark.points[3] then spotPoint = mark.points[3] end
-        if not spotPoint and mark.fadedPoints and mark.fadedPoints[3] then spotPoint = mark.fadedPoints[3] end
+        if mark.isFocused and not focusedMark then
+            focusedMark = mark
+        end
+        if mark.kind == "giver" and not giverMark then
+            giverMark = mark
+        end
+        if not spotPoint and mark.points and mark.points[3] then
+            spotPoint = mark.points[3]
+        end
+        if not spotPoint and mark.fadedPoints and mark.fadedPoints[3] then
+            spotPoint = mark.fadedPoints[3]
+        end
     end
     local places = {
         { "Garra", "WARRIOR", focusedMark },
@@ -64,9 +81,19 @@ return function(steps, zone)
         -- HereBeDragons does, a pool whose frames are the game's map pins (MapCanvasPinMixin)
         local map = G.WorldMapFrame
         if G.MapCanvasPinMixin and map.pinPools and not map.pinPools.OtherAddonPinTemplate then
-            map.pinPools.OtherAddonPinTemplate = G.CreateFramePool("Button", map:GetCanvas(), nil,
-                function(_, pin) pin:Hide(); pin:ClearAllPoints() end, false,
-                function(pin) G.Mixin(pin, G.MapCanvasPinMixin) end)
+            map.pinPools.OtherAddonPinTemplate = G.CreateFramePool(
+                "Button",
+                map:GetCanvas(),
+                nil,
+                function(_, pin)
+                    pin:Hide()
+                    pin:ClearAllPoints()
+                end,
+                false,
+                function(pin)
+                    G.Mixin(pin, G.MapCanvasPinMixin)
+                end
+            )
         end
         local pin = map:AcquirePin("OtherAddonPinTemplate")
         pin:SetSize(16, 16)
@@ -103,7 +130,9 @@ return function(steps, zone)
     local container = G.WorldMapFrame.ScrollContainer
     steps.zoomMap(1)
     G.WorldMapFrame:PanTo(game.profile.x, game.profile.y)
-    for _, pin in ipairs(otherPins) do pin:SetScale(1 / G.WorldMapFrame:GetCanvasScale()) end
+    for _, pin in ipairs(otherPins) do
+        pin:SetScale(1 / G.WorldMapFrame:GetCanvasScale())
+    end
     measure("map", "world map, zoomed in on the player")
     steps.key("M")
     steps.wait(0.3)

@@ -28,7 +28,12 @@ expect(addon.Focus.get() == nil, "ctrl-click on the focused quest lets go of it"
 local function findMark(questId)
     for _, layer in ipairs({ G.WorldMapFrame:GetCanvas():GetChildren() }) do
         for _, child in ipairs({ layer:GetChildren() }) do
-            if child.mark and child.mark.questId == questId and child.mark.kind == "objective" and child:IsVisible() then
+            if
+                child.mark
+                and child.mark.questId == questId
+                and child.mark.kind == "objective"
+                and child:IsVisible()
+            then
                 return child
             end
         end
@@ -56,7 +61,10 @@ local empty = { x = (left + width * 0.08) * scale, y = require("sim").screenHeig
 hover(empty)
 wait(0.1)
 local focus = G.GetMouseFoci()[1]
-expect(focus == container or focus == G.WorldMapFrame:GetCanvas() or (focus and focus:GetParent() == container), "nothing of ours under the empty spot")
+expect(
+    focus == container or focus == G.WorldMapFrame:GetCanvas() or (focus and focus:GetParent() == container),
+    "nothing of ours under the empty spot"
+)
 drag(empty, { dx = 60, dy = 30 })
 wait(0.3)
 expect(addon.Log.getSelectedQuestId() == GUNS_OF_NORTHWATCH, "dragging the map to pan it keeps the selection")

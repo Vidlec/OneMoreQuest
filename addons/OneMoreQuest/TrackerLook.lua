@@ -14,12 +14,42 @@ local FONTS_FOLDER = "Interface\\AddOns\\" .. addonName .. "\\Media\\Fonts\\"
 -- with every Czech letter; then those other addons share (SharedMedia), as "lsm:<name>"
 TrackerLook.FONTS = {
     { value = "game", label = "The game's", note = "The font the game's own tracker uses." },
-    { value = "friz", label = "Friz Quadrata", isName = true, file = "Fonts\\FRIZQT__.TTF", note = "The game's usual font. In Czech: Marcellus, which has every Czech letter." },
-    { value = "arialn", label = "Arial Narrow", isName = true, file = "Fonts\\ARIALN.TTF", note = "Narrow and plain: long titles fit." },
-    { value = "morpheus", label = "Morpheus", isName = true, file = "Fonts\\MORPHEUS.TTF", note = "The quest book's lettering. In Czech: Metamorphous." },
+    {
+        value = "friz",
+        label = "Friz Quadrata",
+        isName = true,
+        file = "Fonts\\FRIZQT__.TTF",
+        note = "The game's usual font. In Czech: Marcellus, which has every Czech letter.",
+    },
+    {
+        value = "arialn",
+        label = "Arial Narrow",
+        isName = true,
+        file = "Fonts\\ARIALN.TTF",
+        note = "Narrow and plain: long titles fit.",
+    },
+    {
+        value = "morpheus",
+        label = "Morpheus",
+        isName = true,
+        file = "Fonts\\MORPHEUS.TTF",
+        note = "The quest book's lettering. In Czech: Metamorphous.",
+    },
     { value = "skurri", label = "Skurri", isName = true, file = "Fonts\\SKURRI.TTF", note = "Heavy and square." },
-    { value = "marcellus", label = "Marcellus", isName = true, file = FONTS_FOLDER .. "Marcellus-Regular.ttf", note = "Shipped with OneMoreQuest: every Czech letter." },
-    { value = "metamorphous", label = "Metamorphous", isName = true, file = FONTS_FOLDER .. "Metamorphous-Regular.ttf", note = "Shipped with OneMoreQuest: every Czech letter." },
+    {
+        value = "marcellus",
+        label = "Marcellus",
+        isName = true,
+        file = FONTS_FOLDER .. "Marcellus-Regular.ttf",
+        note = "Shipped with OneMoreQuest: every Czech letter.",
+    },
+    {
+        value = "metamorphous",
+        label = "Metamorphous",
+        isName = true,
+        file = FONTS_FOLDER .. "Metamorphous-Regular.ttf",
+        note = "Shipped with OneMoreQuest: every Czech letter.",
+    },
 }
 
 local OUTLINES = { ["none"] = "", ["thin"] = "OUTLINE", ["thick"] = "THICKOUTLINE" }
@@ -71,7 +101,12 @@ function TrackerLook.getFontChoices()
     if isListed and type(names) == "table" then
         for _, name in ipairs(names) do
             if type(name) == "string" and not known[name:lower()] then
-                choices[#choices + 1] = { value = "lsm:" .. name, label = name, isName = true, note = "Shared by another addon (SharedMedia)." }
+                choices[#choices + 1] = {
+                    value = "lsm:" .. name,
+                    label = name,
+                    isName = true,
+                    note = "Shared by another addon (SharedMedia).",
+                }
             end
         end
     end
@@ -80,8 +115,14 @@ end
 
 local function getKey()
     local settings = ns.settings
-    return table.concat({ tostring(settings.trackerFont), tostring(settings.trackerOutline), tostring(settings.trackerShadow),
-        tostring(settings.trackerTitleSize), tostring(settings.trackerTextSize), ns.Locale and ns.Locale.getLanguage() or "" }, ":")
+    return table.concat({
+        tostring(settings.trackerFont),
+        tostring(settings.trackerOutline),
+        tostring(settings.trackerShadow),
+        tostring(settings.trackerTitleSize),
+        tostring(settings.trackerTextSize),
+        ns.Locale and ns.Locale.getLanguage() or "",
+    }, ":")
 end
 
 ---Sets the tracker's font objects from the settings, when they changed since the last time.
@@ -143,7 +184,8 @@ function TrackerLook.tone(color)
     end
     local brighter = toned[color]
     if not brighter then
-        brighter = { color[1] + (1 - color[1]) * 0.35, color[2] + (1 - color[2]) * 0.35, color[3] + (1 - color[3]) * 0.35 }
+        brighter =
+            { color[1] + (1 - color[1]) * 0.35, color[2] + (1 - color[2]) * 0.35, color[3] + (1 - color[3]) * 0.35 }
         toned[color] = brighter
     end
     return brighter

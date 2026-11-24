@@ -136,13 +136,17 @@ end
 function Compatibility.handleDockChanged(isDocked)
     Compatibility.notify("onDockChanged", isDocked)
     if C_Timer then
-        C_Timer.After(0, function() Compatibility.notify("onDockChanged", isDocked) end)
+        C_Timer.After(0, function()
+            Compatibility.notify("onDockChanged", isDocked)
+        end)
     end
 end
 
 function Compatibility.create()
     if C_Timer then
-        C_Timer.After(SETTLE_SECONDS, function() Compatibility.notify("onLoginSettled") end)
+        C_Timer.After(SETTLE_SECONDS, function()
+            Compatibility.notify("onLoginSettled")
+        end)
     end
 end
 

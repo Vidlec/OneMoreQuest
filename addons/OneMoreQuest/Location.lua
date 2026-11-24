@@ -22,8 +22,13 @@ local function addDungeonEntrances(places, dungeonZoneId)
     end
     for _, entrance in ipairs(dungeon.entrances) do
         places[#places + 1] = {
-            zoneId = entrance.zoneId, groupZoneId = dungeon.areaId, mapZoneId = ns.Database.getParentZoneId(entrance.zoneId),
-            x = entrance.x, y = entrance.y, dungeonName = dungeon.name, dungeonZoneId = dungeon.areaId,
+            zoneId = entrance.zoneId,
+            groupZoneId = dungeon.areaId,
+            mapZoneId = ns.Database.getParentZoneId(entrance.zoneId),
+            x = entrance.x,
+            y = entrance.y,
+            dungeonName = dungeon.name,
+            dungeonZoneId = dungeon.areaId,
         }
     end
     return true
@@ -45,7 +50,8 @@ local function addSpawns(places, spawns)
                 if point[1] >= 0 then
                     -- The spot itself as well, for the dungeon's own map while the player is inside; it is
                     -- filed under the dungeon, so the maps outside never show it
-                    places[#places + 1] = { zoneId = zoneId, groupZoneId = parentZoneId, x = point[1], y = point[2], isInside = true }
+                    places[#places + 1] =
+                        { zoneId = zoneId, groupZoneId = parentZoneId, x = point[1], y = point[2], isInside = true }
                 elseif not hasEntrances then
                     places[#places + 1] = { zoneId = zoneId, groupZoneId = parentZoneId, x = point[1], y = point[2] }
                 end
@@ -344,7 +350,11 @@ function Location.getQuestDungeonId(questId, placeLists)
             if zoneId and not seenZones[zoneId] then
                 seenZones[zoneId] = true
                 counts[zoneId] = (counts[zoneId] or 0) + 1
-                if not bestZoneId or counts[zoneId] > counts[bestZoneId] or (counts[zoneId] == counts[bestZoneId] and zoneId < bestZoneId) then
+                if
+                    not bestZoneId
+                    or counts[zoneId] > counts[bestZoneId]
+                    or (counts[zoneId] == counts[bestZoneId] and zoneId < bestZoneId)
+                then
                     bestZoneId = zoneId
                 end
             end
@@ -379,7 +389,9 @@ local function isAtDungeonMouth(zoneId, points, dungeon)
         if entrance.zoneId == zoneId or entrance.zoneId == ns.Database.getParentZoneId(zoneId) then
             local isNear = true
             for _, point in ipairs(usablePoints) do
-                isNear = isNear and math.abs(point[1] - entrance.x) <= DUNGEON_MOUTH and math.abs(point[2] - entrance.y) <= DUNGEON_MOUTH
+                isNear = isNear
+                    and math.abs(point[1] - entrance.x) <= DUNGEON_MOUTH
+                    and math.abs(point[2] - entrance.y) <= DUNGEON_MOUTH
             end
             if isNear then
                 return true
@@ -397,7 +409,9 @@ local function isContinentArea(zoneId)
     if isContinentAreaById[zoneId] == nil then
         local uiMapId = ns.Database.getUiMapId(zoneId)
         local info = uiMapId and C_Map and C_Map.GetMapInfo and ns.Database.getMapInfo(uiMapId)
-        isContinentAreaById[zoneId] = type(info) == "table" and type(info.mapType) == "number" and info.mapType <= CONTINENT_MAP_TYPE
+        isContinentAreaById[zoneId] = type(info) == "table"
+            and type(info.mapType) == "number"
+            and info.mapType <= CONTINENT_MAP_TYPE
     end
     return isContinentAreaById[zoneId]
 end
@@ -417,7 +431,8 @@ function Location.getQuestTextHint(questId, label)
     if #sentences == 0 then
         sentences[1] = text
     end
-    local name = label and ns.QuestState.removeKillWording((label:gsub(":.*$", ""):gsub("%d+/%d+", ""))):match("^%s*(.-)%s*$")
+    local name = label
+        and ns.QuestState.removeKillWording((label:gsub(":.*$", ""):gsub("%d+/%d+", ""))):match("^%s*(.-)%s*$")
     if name and #name > 2 then
         for _, sentence in ipairs(sentences) do
             if sentence:lower():find(name:lower(), 1, true) then
@@ -615,7 +630,6 @@ function Location.getInsideDungeonId(questId)
     return Location.getInsideDungeonIds(questId)[1]
 end
 
-
 ---The zone to list under: the player's zone when part of the step is there, else the zone with the most
 ---objectives left, then the most places, then the lowest ID so the result is stable. A dungeon quest lists
 ---under its dungeon while anything is left to do in there, unless more of it waits where the player stands.
@@ -635,8 +649,11 @@ local function getStepZoneId(placeLists, playerZoneId, dungeonZoneId, homeZoneId
         end
     end
     local hasDungeonWork = dungeonZoneId ~= nil and objectiveCounts[dungeonZoneId] ~= nil
-    if playerZoneId and placeCounts[playerZoneId]
-        and not (hasDungeonWork and objectiveCounts[dungeonZoneId] >= objectiveCounts[playerZoneId]) then
+    if
+        playerZoneId
+        and placeCounts[playerZoneId]
+        and not (hasDungeonWork and objectiveCounts[dungeonZoneId] >= objectiveCounts[playerZoneId])
+    then
         return playerZoneId
     end
     if hasDungeonWork then
@@ -648,9 +665,11 @@ local function getStepZoneId(placeLists, playerZoneId, dungeonZoneId, homeZoneId
     local bestZoneId
     for zoneId, objectiveCount in pairs(objectiveCounts) do
         local bestObjectiveCount, bestPlaceCount = objectiveCounts[bestZoneId] or -1, placeCounts[bestZoneId] or -1
-        if objectiveCount > bestObjectiveCount
+        if
+            objectiveCount > bestObjectiveCount
             or (objectiveCount == bestObjectiveCount and placeCounts[zoneId] > bestPlaceCount)
-            or (objectiveCount == bestObjectiveCount and placeCounts[zoneId] == bestPlaceCount and zoneId < bestZoneId) then
+            or (objectiveCount == bestObjectiveCount and placeCounts[zoneId] == bestPlaceCount and zoneId < bestZoneId)
+        then
             bestZoneId = zoneId
         end
     end
@@ -700,8 +719,12 @@ function Location.composeStep(quest, playerZoneId)
         -- the transponder in Booty Bay does, though the quest belongs to Gnomeregan
         local zoneId = getStepZoneId({ finisherPlaces }, playerZoneId)
         return {
-            zoneId = zoneId or UNKNOWN_ZONE_ID, places = Location.getPlacesInZone(finisherPlaces, zoneId), isTurnIn = false,
-            finisherName = finisherName, unlocatedCount = 0, isEvent = true,
+            zoneId = zoneId or UNKNOWN_ZONE_ID,
+            places = Location.getPlacesInZone(finisherPlaces, zoneId),
+            isTurnIn = false,
+            finisherName = finisherName,
+            unlocatedCount = 0,
+            isEvent = true,
         }
     end
     if #placeLists == 0 then
@@ -709,18 +732,36 @@ function Location.composeStep(quest, playerZoneId)
         local dungeonPlaces = {}
         if not isTurnIn and addDungeonEntrances(dungeonPlaces, questZoneId) then
             -- A dungeon quest whose objectives have no recorded place: they are inside, so the way in is the place
-            return { zoneId = dungeonPlaces[1].groupZoneId, places = dungeonPlaces, isTurnIn = false, finisherName = finisherName, unlocatedCount = 0 }
+            return {
+                zoneId = dungeonPlaces[1].groupZoneId,
+                places = dungeonPlaces,
+                isTurnIn = false,
+                finisherName = finisherName,
+                unlocatedCount = 0,
+            }
         end
         if not isTurnIn and questZoneId > 0 then
             -- An unfinished quest whose objectives have no known place stays in its own zone
             -- (a learned dungeon whose way in is not known yet has no zone above it: it is the group itself)
-            return { zoneId = ns.Database.getParentZoneId(questZoneId) or questZoneId, places = {}, isTurnIn = false, finisherName = finisherName, unlocatedCount = unlocatedCount }
+            return {
+                zoneId = ns.Database.getParentZoneId(questZoneId) or questZoneId,
+                places = {},
+                isTurnIn = false,
+                finisherName = finisherName,
+                unlocatedCount = unlocatedCount,
+            }
         end
         if not isTurnIn then
             -- One filed under a category (a profession, a class), its objectives nowhere to go (items to make or buy):
             -- listed under the zone of whom it is handed in to, but marked nowhere until it is ready to hand in
             local zoneId = getStepZoneId({ finisherPlaces }, playerZoneId)
-            return { zoneId = zoneId or UNKNOWN_ZONE_ID, places = {}, isTurnIn = false, finisherName = finisherName, unlocatedCount = unlocatedCount }
+            return {
+                zoneId = zoneId or UNKNOWN_ZONE_ID,
+                places = {},
+                isTurnIn = false,
+                finisherName = finisherName,
+                unlocatedCount = unlocatedCount,
+            }
         end
         placeLists[1] = finisherPlaces
     end
@@ -750,8 +791,13 @@ function Location.composeStep(quest, playerZoneId)
         return ns.Database.getZoneName(first) < ns.Database.getZoneName(second)
     end)
     return {
-        zoneId = zoneId or UNKNOWN_ZONE_ID, places = places, isTurnIn = isTurnIn, finisherName = finisherName,
-        unlocatedCount = unlocatedCount, allPlaces = allPlaces, otherZoneIds = otherZoneIds,
+        zoneId = zoneId or UNKNOWN_ZONE_ID,
+        places = places,
+        isTurnIn = isTurnIn,
+        finisherName = finisherName,
+        unlocatedCount = unlocatedCount,
+        allPlaces = allPlaces,
+        otherZoneIds = otherZoneIds,
     }
 end
 
@@ -790,14 +836,17 @@ function Location.getStartItemSource(questId)
         return nil
     end
     local itemName = ns.Database.getItemField(itemId, "name") or ns.L("an item")
-    local npcIds, objectIds = ns.Database.getItemField(itemId, "npcDrops") or {}, ns.Database.getItemField(itemId, "objectDrops") or {}
+    local npcIds, objectIds =
+        ns.Database.getItemField(itemId, "npcDrops") or {}, ns.Database.getItemField(itemId, "objectDrops") or {}
     if #npcIds + #objectIds > MAX_ITEM_SOURCES then
         return { itemId = itemId, itemName = itemName, places = {}, isWorldDrop = true }
     end
     local places = {}
     addItemPlaces(places, itemId)
     local npcId, objectId = npcIds[1], objectIds[1]
-    local sourceName = npcId and ns.Database.getNpcField(npcId, "name") or objectId and ns.Database.getObjectField(objectId, "name") or nil
+    local sourceName = npcId and ns.Database.getNpcField(npcId, "name")
+        or objectId and ns.Database.getObjectField(objectId, "name")
+        or nil
     return { itemId = itemId, itemName = itemName, sourceName = sourceName, places = places, isWorldDrop = false }
 end
 

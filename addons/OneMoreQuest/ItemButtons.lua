@@ -49,7 +49,9 @@ local function createButton(index)
     button.cooldown = CreateFrame("Cooldown", nil, button, "CooldownFrameTemplate")
     button.cooldown:SetAllPoints(button.icon)
     button:SetScript("OnEnter", showTooltip)
-    button:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    button:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
     button:Hide()
     return button
 end

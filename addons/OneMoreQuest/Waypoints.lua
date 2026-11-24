@@ -61,8 +61,11 @@ local function isGameWaypointStillOurs()
     if type(x) ~= "number" and position.GetXY then
         x, y = position:GetXY()
     end
-    return point.uiMapID == ourGameWaypoint.uiMapId and type(x) == "number" and type(y) == "number"
-        and math.abs(x - ourGameWaypoint.x) <= SAME_SPOT and math.abs(y - ourGameWaypoint.y) <= SAME_SPOT
+    return point.uiMapID == ourGameWaypoint.uiMapId
+        and type(x) == "number"
+        and type(y) == "number"
+        and math.abs(x - ourGameWaypoint.x) <= SAME_SPOT
+        and math.abs(y - ourGameWaypoint.y) <= SAME_SPOT
 end
 
 ---Takes away the waypoint this addon set, and only that one: a pin the player put down since is left alone.
@@ -93,11 +96,18 @@ function Waypoints.set(entry, place)
     Waypoints.clear()
     if Waypoints.hasTomTom() then
         tomTomWaypoint = TomTom:AddWaypoint(uiMapId, x, y, {
-            title = entry.title, from = ns.ADDON_TITLE, persistent = false, minimap = true, world = true, crazy = true,
+            title = entry.title,
+            from = ns.ADDON_TITLE,
+            persistent = false,
+            minimap = true,
+            world = true,
+            crazy = true,
         })
         return tomTomWaypoint ~= nil
     end
-    local canSet = C_Map.SetUserWaypoint and UiMapPoint and UiMapPoint.CreateFromCoordinates
+    local canSet = C_Map.SetUserWaypoint
+        and UiMapPoint
+        and UiMapPoint.CreateFromCoordinates
         and (not C_Map.CanSetUserWaypointOnMap or C_Map.CanSetUserWaypointOnMap(uiMapId))
     if not canSet then
         return false
@@ -122,8 +132,14 @@ function Waypoints.followFocusedQuest(entry)
         return
     end
     local place = Waypoints.getQuestPlace(entry)
-    local key = place and string.format("%s:%s:%s:%s", tostring(entry.questId), tostring(place.zoneId or place.groupZoneId),
-        tostring(place.x), tostring(place.y))
+    local key = place
+        and string.format(
+            "%s:%s:%s:%s",
+            tostring(entry.questId),
+            tostring(place.zoneId or place.groupZoneId),
+            tostring(place.x),
+            tostring(place.y)
+        )
     if key == followedKey then
         return
     end

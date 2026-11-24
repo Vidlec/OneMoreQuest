@@ -38,12 +38,19 @@ expectChat(settings.isLocked and "tracker locked" or "tracker unlocked")
 slash("/omq lock")
 
 -- Dragged by its title while unlocked, the tracker stays where it was put; /omq reset brings it back
-if settings.isLocked then slash("/omq lock") end
-local function trackerLeft() return math.floor(G.TrailheadTracker:GetLeft() + 0.5) end
+if settings.isLocked then
+    slash("/omq lock")
+end
+local function trackerLeft()
+    return math.floor(G.TrailheadTracker:GetLeft() + 0.5)
+end
 local homeLeft = trackerLeft()
 drag("Quests", { dx = -300, dy = 100 })
 wait(0.2)
-expect(math.abs(trackerLeft() - (homeLeft - 300)) <= 8, string.format("the tracker moved with the drag (%d to %d)", homeLeft, trackerLeft()))
+expect(
+    math.abs(trackerLeft() - (homeLeft - 300)) <= 8,
+    string.format("the tracker moved with the drag (%d to %d)", homeLeft, trackerLeft())
+)
 expect(settings.position ~= nil, "and its place is kept")
 local movedLeft = trackerLeft()
 slash("/omq lock")
@@ -74,7 +81,10 @@ end
 clearChat()
 slash("/omq kills")
 wait(0.2)
-expect(#require("sim").chat > 0 or addon.Log.isShowingChronicle and addon.Log.isShowingChronicle(), "/omq kills answers")
+expect(
+    #require("sim").chat > 0 or addon.Log.isShowingChronicle and addon.Log.isShowingChronicle(),
+    "/omq kills answers"
+)
 clearChat()
 slash("/omq missing")
 expect(#require("sim").chat > 0, "/omq missing answers")

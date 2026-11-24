@@ -35,7 +35,11 @@ end
 -- that is its usual (no deaths, alone, nothing gained), the reward as its item number. Reading an entry fills the
 -- rest in; what is filled in is never written to the file.
 local ENTRY_DEFAULTS = { deaths = 0, experience = 0, money = 0, wasGrouped = false }
-local NO_DROPS = setmetatable({}, { __newindex = function() error("an entry's drops are read only") end })
+local NO_DROPS = setmetatable({}, {
+    __newindex = function()
+        error("an entry's drops are read only")
+    end,
+})
 local startZoneIds = setmetatable({}, { __mode = "k" }) -- [entry] = its quest's start zone, worked out once a session
 
 local entryMetatable = {
@@ -56,7 +60,8 @@ local entryMetatable = {
             return NO_DROPS
         elseif key == "rewardLink" then
             local itemId = rawget(entry, "rewardItemId")
-            local link = itemId and GetItemInfo and select(2, GetItemInfo(itemId))
+            local getItemInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo -- luacheck: ignore 113 (an older client's fallback)
+            local link = itemId and getItemInfo and select(2, getItemInfo(itemId))
             if itemId and not link then
                 ns.Prices.requestItem(itemId) -- the link comes once the game has the item
             end
@@ -189,21 +194,29 @@ function Chronicle.handleTurnIn(questId, experience, money)
     local open = book.open[questId] or { deaths = 0 }
     local now, played = getNow(), getPlayedSeconds()
     local title = ns.Database.getQuestField(questId, "name")
-        or (C_QuestLog and C_QuestLog.GetTitleForQuestID and C_QuestLog.GetTitleForQuestID(questId)) or ("Quest " .. questId)
+        or (C_QuestLog and C_QuestLog.GetTitleForQuestID and C_QuestLog.GetTitleForQuestID(questId))
+        or ("Quest " .. questId)
     local spoilers, isHinted = getSpoilersAtHandIn(questId)
     book.entries[#book.entries + 1] = compactEntry({
-        questId = questId, title = title,
+        questId = questId,
+        title = title,
         questLevel = ns.Database.getQuestField(questId, "questLevel"),
-        playerLevel = UnitLevel and UnitLevel("player") or nil, acceptedLevel = open.level,
+        playerLevel = UnitLevel and UnitLevel("player") or nil,
+        acceptedLevel = open.level,
         zoneId = ns.Availability.getStartZoneId(questId) or ns.Model.getPlayer().zoneId,
-        acceptedAt = open.acceptedAt, turnedInAt = now,
+        acceptedAt = open.acceptedAt,
+        turnedInAt = now,
         duration = open.acceptedPlayed and math.max(played - open.acceptedPlayed, 0) or nil,
-        experience = experience or 0, money = money or 0, rewardLink = pendingRewardLink,
+        experience = experience or 0,
+        money = money or 0,
+        rewardLink = pendingRewardLink,
         -- What the level needed, so the journal can say how much of it the quest filled
         levelXp = UnitXPMax and UnitXPMax("player") or nil,
-        deaths = open.deaths or 0, wasGrouped = open.wasGrouped or isInGroup(),
+        deaths = open.deaths or 0,
+        wasGrouped = open.wasGrouped or isInGroup(),
         drops = ns.KillCounter.composeTurnIn(questId),
-        spoilers = spoilers, hinted = isHinted, -- (both nil in Guide: nothing kept)
+        spoilers = spoilers,
+        hinted = isHinted, -- (both nil in Guide: nothing kept)
     })
     if ns.Ledger then
         ns.Ledger.handleTurnIn(experience, money, pendingRewardLink)
@@ -277,7 +290,11 @@ function Chronicle.getEarlierQuestIds()
     for _, entry in ipairs(undated) do
         local questId = entry.questId
         -- Only the character's own: the game also marks the other faction's twin of a quest done (Crest of Lordaeron)
-        if ns.Database.getQuestField(questId, "name") and not (ns.HiddenQuests[questId] and not ns.Events.getEventKey(questId)) and ns.Availability.isForRaceAndClass(questId) then
+        if
+            ns.Database.getQuestField(questId, "name")
+            and not (ns.HiddenQuests[questId] and not ns.Events.getEventKey(questId))
+            and ns.Availability.isForRaceAndClass(questId)
+        then
             questIds[#questIds + 1] = questId
         end
     end
@@ -322,10 +339,36 @@ end
 -- Day and month names in Czech, which the game's date does not give: weekdays from Sunday, as "%w" counts them
 -- (capitalised, as a date starts with them here), months in the genitive, as a date says them ("17. listopadu")
 local CZECH_WEEKDAYS = { "Neděle", "Pondělí", "Úterý", "Středa", "Čtvrtek", "Pátek", "Sobota" }
-local CZECH_MONTHS = { "ledna", "února", "března", "dubna", "května", "června", "července", "srpna", "září", "října", "listopadu", "prosince" }
+local CZECH_MONTHS = {
+    "ledna",
+    "února",
+    "března",
+    "dubna",
+    "května",
+    "června",
+    "července",
+    "srpna",
+    "září",
+    "října",
+    "listopadu",
+    "prosince",
+}
 -- A month on its own ("%B", as the calendar's heading "Listopad 2026"), in the nominative and capitalised, as it starts
 -- the heading; and the weekdays short ("%a", over the calendar's columns), from Sunday as well
-local CZECH_MONTHS_ALONE = { "Leden", "Únor", "Březen", "Duben", "Květen", "Červen", "Červenec", "Srpen", "Září", "Říjen", "Listopad", "Prosinec" }
+local CZECH_MONTHS_ALONE = {
+    "Leden",
+    "Únor",
+    "Březen",
+    "Duben",
+    "Květen",
+    "Červen",
+    "Červenec",
+    "Srpen",
+    "Září",
+    "Říjen",
+    "Listopad",
+    "Prosinec",
+}
 local CZECH_SHORT_WEEKDAYS = { "Ne", "Po", "Út", "St", "Čt", "Pá", "So" }
 
 ---A date to show, in the addon's language: as Chronicle.formatDate in English; in Czech "%A %d %B" is
@@ -340,8 +383,12 @@ function Chronicle.formatShownDate(format, stamp)
     local month = tonumber(formatDate("%m", stamp)) or 1
     local weekday = (tonumber(formatDate("%w", stamp)) or 0) + 1
     -- (a day with its month first, so a month left on its own after is the nominative one)
-    format = format:gsub("%%d %%B", day .. ". " .. CZECH_MONTHS[month]):gsub("%%d %%b", day .. ". " .. month .. ".")
-        :gsub("%%B", CZECH_MONTHS_ALONE[month]):gsub("%%A", CZECH_WEEKDAYS[weekday]):gsub("%%a", CZECH_SHORT_WEEKDAYS[weekday])
+    format = format
+        :gsub("%%d %%B", day .. ". " .. CZECH_MONTHS[month])
+        :gsub("%%d %%b", day .. ". " .. month .. ".")
+        :gsub("%%B", CZECH_MONTHS_ALONE[month])
+        :gsub("%%A", CZECH_WEEKDAYS[weekday])
+        :gsub("%%a", CZECH_SHORT_WEEKDAYS[weekday])
     return formatDate(format, stamp)
 end
 
@@ -381,10 +428,21 @@ function Chronicle.composeSummary()
     local entries = Chronicle.getEntries() -- every history's, the chronicle's own and those it fills in from
     local earlierQuestIds = Chronicle.getEarlierQuestIds()
     local summary = {
-        questCount = #entries + #earlierQuestIds, chronicledCount = #entries,
-        experience = 0, money = 0, playedSeconds = getPlayedSeconds(), kills = 0, expected = 0,
-        abandonedCount = book.abandonedCount, chainCount = 0, firstKillDrops = 0, mostKilledList = {},
-        spoilerCount = 0, foundCount = 0, hintedCount = 0, peekCount = 0,
+        questCount = #entries + #earlierQuestIds,
+        chronicledCount = #entries,
+        experience = 0,
+        money = 0,
+        playedSeconds = getPlayedSeconds(),
+        kills = 0,
+        expected = 0,
+        abandonedCount = book.abandonedCount,
+        chainCount = 0,
+        firstKillDrops = 0,
+        mostKilledList = {},
+        spoilerCount = 0,
+        foundCount = 0,
+        hintedCount = 0,
+        peekCount = 0,
     }
     local killsByNpcId = {}
     local unluckiestGap, luckiestGap
@@ -488,7 +546,13 @@ local CONTINENT_MAP_TYPE = Enum and Enum.UIMapType and Enum.UIMapType.Continent 
 
 -- The quest database lists raids and battlegrounds among its dungeons; they are told apart here
 local RAID_AREA_IDS = {
-    [2717] = true, [2159] = true, [2677] = true, [1977] = true, [3429] = true, [3428] = true, [3456] = true,
+    [2717] = true,
+    [2159] = true,
+    [2677] = true,
+    [1977] = true,
+    [3429] = true,
+    [3428] = true,
+    [3456] = true,
 } -- Molten Core, Onyxia's Lair, Blackwing Lair, Zul'Gurub, Ruins and Temple of Ahn'Qiraj, Naxxramas
 local BATTLEGROUND_AREA_IDS = { [2597] = true, [3277] = true, [3358] = true } -- Alterac Valley, Warsong Gulch, Arathi Basin
 
@@ -497,7 +561,9 @@ local BATTLEGROUND_AREA_IDS = { [2597] = true, [3277] = true, [3358] = true } --
 local function getContinentName(zoneId)
     local dungeon = ns.Database.getDungeon(zoneId)
     if dungeon then
-        return (RAID_AREA_IDS[dungeon.areaId] or dungeon.isRaid) and "Raids" or BATTLEGROUND_AREA_IDS[dungeon.areaId] and "Battlegrounds" or "Dungeons"
+        return (RAID_AREA_IDS[dungeon.areaId] or dungeon.isRaid) and "Raids"
+            or BATTLEGROUND_AREA_IDS[dungeon.areaId] and "Battlegrounds"
+            or "Dungeons"
     end
     local uiMapId = ns.Database.getUiMapId(zoneId)
     local info = uiMapId and C_Map and C_Map.GetMapInfo and ns.Database.getMapInfo(uiMapId)
@@ -520,8 +586,16 @@ function Chronicle.getZones()
         local zone = zonesById[zoneId]
         if not zone then
             zone = {
-                zoneId = zoneId, name = ns.Database.getZoneName(zoneId), doneCount = 0, totalCount = 0,
-                entries = {}, earlierQuestIds = {}, experience = 0, playedSeconds = 0, kills = 0, expected = 0,
+                zoneId = zoneId,
+                name = ns.Database.getZoneName(zoneId),
+                doneCount = 0,
+                totalCount = 0,
+                entries = {},
+                earlierQuestIds = {},
+                experience = 0,
+                playedSeconds = 0,
+                kills = 0,
+                expected = 0,
             }
             zonesById[zoneId] = zone
             zones[#zones + 1] = zone
@@ -616,7 +690,9 @@ local function handleEvent(_, event, ...)
     elseif event == "QUEST_REMOVED" then
         local questId = ...
         if C_Timer and C_Timer.After then
-            C_Timer.After(1, function() Chronicle.handleRemove(questId) end)
+            C_Timer.After(1, function()
+                Chronicle.handleRemove(questId)
+            end)
         else
             Chronicle.handleRemove(questId)
         end
@@ -635,7 +711,14 @@ function Chronicle.create()
     end
     sessionStart = GetTime and GetTime() or 0
     eventFrame = CreateFrame("Frame")
-    for _, event in ipairs({ "QUEST_ACCEPTED", "QUEST_TURNED_IN", "QUEST_REMOVED", "PLAYER_DEAD", "GROUP_ROSTER_UPDATE", "PLAYER_LOGOUT" }) do
+    for _, event in ipairs({
+        "QUEST_ACCEPTED",
+        "QUEST_TURNED_IN",
+        "QUEST_REMOVED",
+        "PLAYER_DEAD",
+        "GROUP_ROSTER_UPDATE",
+        "PLAYER_LOGOUT",
+    }) do
         pcall(eventFrame.RegisterEvent, eventFrame, event)
     end
     eventFrame:SetScript("OnEvent", handleEvent)

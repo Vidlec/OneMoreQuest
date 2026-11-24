@@ -13,14 +13,17 @@ local function crop(name, frames, margin, extraTop)
     end
     margin = margin or 10
     left, top = math.max(0, math.floor(left - margin)), math.max(0, math.floor(top - margin - (extraTop or 0)))
-    right, bottom = math.min(sim.screenWidth, math.ceil(right + margin)), math.min(sim.screenHeight, math.ceil(bottom + margin))
+    right, bottom =
+        math.min(sim.screenWidth, math.ceil(right + margin)), math.min(sim.screenHeight, math.ceil(bottom + margin))
     print(string.format("CROP\t%s\t%d,%d,%d,%d", name, left, top, right - left, bottom - top))
     saveScene(name)
 end
 local addon = require("addons").byName["onemorequest"].private
 setProfile({ level = 20 })
 moveTo(1413, 0.52, 0.30) -- The Barrens, Crossroads
-for _, questId in ipairs({ 870, 869, 891 }) do accept(questId) end
+for _, questId in ipairs({ 870, 869, 891 }) do
+    accept(questId)
+end
 wait(1.5)
 key("M")
 wait(1)

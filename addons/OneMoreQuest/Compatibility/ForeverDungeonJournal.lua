@@ -25,7 +25,12 @@ local function getQuests()
     end
     questsById = {}
     for name, entry in pairs(getJournal() or {}) do
-        for _, quest in ipairs(type(name) == "string" and type(entry) == "table" and type(entry.quests) == "table" and entry.quests or {}) do
+        for _, quest in
+            ipairs(
+                type(name) == "string" and type(entry) == "table" and type(entry.quests) == "table" and entry.quests
+                    or {}
+            )
+        do
             if type(quest) == "table" and type(quest.id) == "number" and not questsById[quest.id] then
                 questsById[quest.id] = { quest = quest, dungeonName = name }
             end
@@ -40,10 +45,15 @@ local FIELDS = {
         local dungeon = ns.Database.getDungeonByName(listed.dungeonName)
         return dungeon and dungeon.areaId or nil
     end,
-    questLevel = function(listed) return tonumber(listed.quest.level) end,
-    requiredLevel = function(listed) return tonumber(listed.quest.requires) end,
+    questLevel = function(listed)
+        return tonumber(listed.quest.level)
+    end,
+    requiredLevel = function(listed)
+        return tonumber(listed.quest.requires)
+    end,
     objectivesText = function(listed)
-        return type(listed.quest.objective) == "string" and listed.quest.objective ~= "" and { listed.quest.objective } or nil
+        return type(listed.quest.objective) == "string" and listed.quest.objective ~= "" and { listed.quest.objective }
+            or nil
     end,
 }
 
@@ -104,12 +114,18 @@ ns.Database.registerProvider({
                 local way, entrances = type(entry.entrance) == "table" and entry.entrance, {}
                 local zoneId = way and type(way.mapID) == "number" and ns.Database.getAreaId(way.mapID)
                 if zoneId and type(way.x) == "number" and type(way.y) == "number" then
-                    entrances[1] = { zoneId = zoneId, x = math.floor(way.x * 1000 + 0.5) / 10, y = math.floor(way.y * 1000 + 0.5) / 10 }
+                    entrances[1] = {
+                        zoneId = zoneId,
+                        x = math.floor(way.x * 1000 + 0.5) / 10,
+                        y = math.floor(way.y * 1000 + 0.5) / 10,
+                    }
                 end
                 list[#list + 1] = { name = name, entrances = entrances, isLearned = true }
             end
         end
-        table.sort(list, function(first, second) return first.name < second.name end)
+        table.sort(list, function(first, second)
+            return first.name < second.name
+        end)
         return list
     end,
 })
@@ -146,7 +162,10 @@ ns.DungeonJournal = {
         end
         local namespace = rawget(_G, "ForeverDungeonJournal_NS")
         local frame = rawget(_G, "ForeverDungeonJournalFrame")
-        if not (type(frame) == "table" and frame.IsShown and frame:IsShown()) and type(rawget(_G, "ForeverDungeonJournal_Toggle")) == "function" then
+        if
+            not (type(frame) == "table" and frame.IsShown and frame:IsShown())
+            and type(rawget(_G, "ForeverDungeonJournal_Toggle")) == "function"
+        then
             pcall(_G.ForeverDungeonJournal_Toggle)
         end
         if type(namespace.OpenBossPage) == "function" then

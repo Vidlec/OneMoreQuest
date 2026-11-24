@@ -20,7 +20,14 @@ local state = {
 ---interface is on and the map has its cursor; nil otherwise (the mouse is what points)
 function GamepadMap.getPointer(map)
     local cursor = _G.SoftCursor
-    if not map or not ns.Gamepad.isGamepadUI() or type(cursor) ~= "table" or not cursor.IsShown or not cursor:IsShown() or not map:IsVisible() then
+    if
+        not map
+        or not ns.Gamepad.isGamepadUI()
+        or type(cursor) ~= "table"
+        or not cursor.IsShown
+        or not cursor:IsShown()
+        or not map:IsVisible()
+    then
         return nil, nil
     end
     if ns.Gamepad.hasPad() then
@@ -152,8 +159,13 @@ end
 ---@return number? questId The quest of the log a mark is of (its objectives, its turn-in): what holding A focuses
 local function getMarkQuest(mark)
     local data = mark and mark.mark
-    if data and not data.isPreview and data.questId and (data.kind == "objective" or data.kind == "turnIn")
-        and ns.QuestState.isInLog(data.questId) then
+    if
+        data
+        and not data.isPreview
+        and data.questId
+        and (data.kind == "objective" or data.kind == "turnIn")
+        and ns.QuestState.isInLog(data.questId)
+    then
         return data.questId
     end
     return nil
@@ -221,7 +233,9 @@ local function tapAt(mark)
             root:CreateTitle(ns.L("Open in the quest log"))
             for _, questId in ipairs(questIds) do
                 local quest = ns.QuestState.getQuest(questId)
-                root:CreateButton(quest and quest.title or tostring(questId), function() openInLog(questId) end)
+                root:CreateButton(quest and quest.title or tostring(questId), function()
+                    openInLog(questId)
+                end)
             end
         end)
     end
@@ -275,8 +289,16 @@ end
 ---OneMoreQuest's or a quest's area, and the quest window does not have the pad
 local function isPressWanted()
     local map = WorldMapFrame
-    if not map or not map:IsVisible() or not ns.Gamepad.isGamepadUI() or ns.Gamepad.hasPad() or map.currentFocus ~= "Map"
-        or ns.Gamepad.getGameFocus() ~= map or (ns.GamepadMenu and ns.GamepadMenu.isOpen()) or not GamepadMap.isLowestMap() then
+    if
+        not map
+        or not map:IsVisible()
+        or not ns.Gamepad.isGamepadUI()
+        or ns.Gamepad.hasPad()
+        or map.currentFocus ~= "Map"
+        or ns.Gamepad.getGameFocus() ~= map
+        or (ns.GamepadMenu and ns.GamepadMenu.isOpen())
+        or not GamepadMap.isLowestMap()
+    then
         return false
     end
     if map.GetHoveredPin and map:GetHoveredPin() then
@@ -294,13 +316,16 @@ local function watchPress()
     end
     state.padButtons = ns.Gamepad.makePadButtons("OneMoreQuestMapPad", { "PAD1" }, 2, handlePadDown, handlePadUp)
     state.pressWatcher = CreateFrame("Frame")
-    state.pressWatcher:SetScript("OnUpdate", function()
-        local isWanted = isPressWanted() or state.holdTimer ~= nil -- (kept while held: the release is A's too)
-        if isWanted ~= state.isPressBound then
-            state.isPressBound = isWanted
-            state.padButtons.setKeys(isWanted and { "PAD1" } or nil)
-        end
-    end)
+    state.pressWatcher:SetScript(
+        "OnUpdate",
+        ns.Timing.timed("pad map press watch (each frame)", function()
+            local isWanted = isPressWanted() or state.holdTimer ~= nil -- (kept while held: the release is A's too)
+            if isWanted ~= state.isPressBound then
+                state.isPressBound = isWanted
+                state.padButtons.setKeys(isWanted and { "PAD1" } or nil)
+            end
+        end)
+    )
 end
 
 ---A on the map through the game's own binding (OneMoreQuest's not bound: in a fight): a tap, as before.

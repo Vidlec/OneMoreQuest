@@ -8,9 +8,21 @@ ns.Crafting = Crafting
 
 -- The professions by their skill line, as the game names them (secondary skills and poisons among them)
 Crafting.PROFESSION_NAMES = {
-    [40] = "Poisons", [129] = "First Aid", [164] = "Blacksmithing", [165] = "Leatherworking", [171] = "Alchemy",
-    [182] = "Herbalism", [185] = "Cooking", [186] = "Mining", [197] = "Tailoring", [202] = "Engineering",
-    [333] = "Enchanting", [356] = "Fishing", [393] = "Skinning", [755] = "Jewelcrafting", [773] = "Inscription",
+    [40] = "Poisons",
+    [129] = "First Aid",
+    [164] = "Blacksmithing",
+    [165] = "Leatherworking",
+    [171] = "Alchemy",
+    [182] = "Herbalism",
+    [185] = "Cooking",
+    [186] = "Mining",
+    [197] = "Tailoring",
+    [202] = "Engineering",
+    [333] = "Enchanting",
+    [356] = "Fishing",
+    [393] = "Skinning",
+    [755] = "Jewelcrafting",
+    [773] = "Inscription",
     [3012] = "Comprehension",
 }
 
@@ -55,7 +67,9 @@ local function readWindowItems()
             local info = ui.GetRecipeInfo(recipeId)
             if info and info.learned then
                 local schematic = ui.GetRecipeSchematic and ui.GetRecipeSchematic(recipeId, false)
-                local output = not (schematic and schematic.outputItemID) and ui.GetRecipeOutputItemData and ui.GetRecipeOutputItemData(recipeId)
+                local output = not (schematic and schematic.outputItemID)
+                    and ui.GetRecipeOutputItemData
+                    and ui.GetRecipeOutputItemData(recipeId)
                 itemIds[#itemIds + 1] = schematic and schematic.outputItemID or output and output.itemID or nil
             end
         end
@@ -93,7 +107,7 @@ end
 ---@return number count How many of an item wait in the bank: known once the bank has been opened this session, else 0.
 ---A quest counts only what is in the bags.
 function Crafting.getBankCount(itemId)
-    local getCount = (C_Item and C_Item.GetItemCount) or GetItemCount
+    local getCount = (C_Item and C_Item.GetItemCount) or GetItemCount -- luacheck: ignore 113 (an older client's fallback)
     if not getCount then
         return 0
     end
@@ -110,16 +124,21 @@ function Crafting.describe(itemId, stillNeeded)
     if not profession then
         return nil
     end
-    local parts = { recipe.rank and ns.L("Made with %s %d", profession, recipe.rank) or ns.L("Made with %s", profession) }
+    local parts =
+        { recipe.rank and ns.L("Made with %s %d", profession, recipe.rank) or ns.L("Made with %s", profession) }
     local playerRank = ns.Availability.getSkillRank(recipe.skillLineId)
     local inBank = Crafting.getBankCount(itemId)
     local toGet = math.max((stillNeeded or 1) - inBank, 0)
     local price = toGet > 0 and ns.Prices.getAuctionPrice(itemId)
-    local priceText = price and (toGet > 1 and ns.L("about %s for %d at the Auction House", ns.Widgets.formatMoney(price * toGet), toGet)
-        or ns.L("about %s at the Auction House", ns.Widgets.formatMoney(price)))
+    local priceText = price
+        and (
+            toGet > 1 and ns.L("about %s for %d at the Auction House", ns.Widgets.formatMoney(price * toGet), toGet)
+            or ns.L("about %s at the Auction House", ns.Widgets.formatMoney(price))
+        )
     if playerRank <= 0 then -- not learnt: from someone who makes it
         if toGet > 0 then
-            parts[#parts + 1] = priceText and ns.L("get it from a crafter, or %s", priceText) or ns.L("get it from a crafter or the Auction House")
+            parts[#parts + 1] = priceText and ns.L("get it from a crafter, or %s", priceText)
+                or ns.L("get it from a crafter or the Auction House")
         end
     else
         if Crafting.isRecipeKnown(itemId) then
@@ -141,8 +160,12 @@ ns.registerModule({
     name = "Crafting",
     events = {
         -- The bank seen: what waits there changes what the crafting line says
-        BANKFRAME_OPENED = function() ns.queueRefresh() end,
-        PLAYERBANKSLOTS_CHANGED = function() ns.queueRefresh() end,
+        BANKFRAME_OPENED = function()
+            ns.queueRefresh()
+        end,
+        PLAYERBANKSLOTS_CHANGED = function()
+            ns.queueRefresh()
+        end,
         TRADE_SKILL_SHOW = function()
             if Crafting.readProfessionWindow() then
                 ns.queueRefresh()

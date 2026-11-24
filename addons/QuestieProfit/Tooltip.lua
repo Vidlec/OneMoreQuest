@@ -16,7 +16,16 @@ local function addProfitLines(tooltip, questId)
     end
 
     tooltip:AddLine(" ")
-    tooltip:AddDoubleLine("Profit: " .. profit.name, "~" .. ns.formatMoney(profit.total), TITLE_COLOR[1], TITLE_COLOR[2], TITLE_COLOR[3], 1, 1, 1)
+    tooltip:AddDoubleLine(
+        "Profit: " .. profit.name,
+        "~" .. ns.formatMoney(profit.total),
+        TITLE_COLOR[1],
+        TITLE_COLOR[2],
+        TITLE_COLOR[3],
+        1,
+        1,
+        1
+    )
     addRow("  Rewards", ns.formatMoney(profit.rewardValue))
     if profit.kills > 0 then
         addRow(string.format("  Mob loot, about %d kills", math.ceil(profit.kills)), ns.formatMoney(profit.lootValue))

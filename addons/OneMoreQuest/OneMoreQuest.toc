@@ -1,7 +1,7 @@
 ## Interface: 16001
 ## Title: OneMoreQuest
 ## Notes: Just one more quest: a quest log beside the map, a tracker grouped by zone, and map marks showing where to go. Built on QuestieDB.
-## Version: 0.15.0
+## Version: 0.15.2
 ## X-License: GPL-3.0
 ## Dependencies: QuestieDB
 ## OptionalDeps: TnnysMobLoot, Auctionator, TomTom, AzerothCesky, WowfCZ, Spoken, Spoken_Quests, ForeverDungeonJournal

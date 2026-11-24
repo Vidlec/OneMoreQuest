@@ -105,16 +105,28 @@ function QuestTooltip.addTitle(tooltip, text, questId, color, isListed)
     text = questId and QuestTooltip.formatTitle(text, questId) or text
     local experience = QuestTooltip.isExperienceShown(questId) and QuestTooltip.getExperience(questId)
     if experience then
-        tooltip:AddDoubleLine(text, QuestTooltip.formatExperience(experience), color[1], color[2], color[3],
-            EXPERIENCE_COLOR[1], EXPERIENCE_COLOR[2], EXPERIENCE_COLOR[3])
+        tooltip:AddDoubleLine(
+            text,
+            QuestTooltip.formatExperience(experience),
+            color[1],
+            color[2],
+            color[3],
+            EXPERIENCE_COLOR[1],
+            EXPERIENCE_COLOR[2],
+            EXPERIENCE_COLOR[3]
+        )
     else
         tooltip:AddLine(text, color[1], color[2], color[3])
     end
     local group = questId and not isListed and ns.QuestState.getGroupInfo(questId)
     if group then
         local dungeonName = getDungeonName(questId)
-        tooltip:AddLine(dungeonName and (group.kindText .. " · " .. dungeonName) or group.kindText,
-            GROUP_COLOR[1], GROUP_COLOR[2], GROUP_COLOR[3])
+        tooltip:AddLine(
+            dungeonName and (group.kindText .. " · " .. dungeonName) or group.kindText,
+            GROUP_COLOR[1],
+            GROUP_COLOR[2],
+            GROUP_COLOR[3]
+        )
     end
 end
 
@@ -147,7 +159,11 @@ local function composeRewards(questId)
     end
     -- Money the game tells only for a quest in the log
     local isMoneyShown = not ns.Spoilers.isActive() or ns.Spoilers.get("rewards", questId) ~= "hidden"
-    local money = isMoneyShown and ns.QuestState.isInLog(questId) and GetQuestLogRewardMoney and GetQuestLogRewardMoney(questId) or 0
+    local money = isMoneyShown
+            and ns.QuestState.isInLog(questId)
+            and GetQuestLogRewardMoney
+            and GetQuestLogRewardMoney(questId)
+        or 0
     if money > 0 then
         parts[#parts + 1] = ns.Widgets.formatMoney(money)
     end
@@ -190,23 +206,40 @@ function QuestTooltip.addDetails(tooltip, questId, options)
         tooltip:AddLine(" ") -- set apart from what the tooltip says above
     end
     if sentence then
-        tooltip:AddLine(sentence, options.isBrief and SENTENCE_COLOR[1] or TEXT_COLOR[1], options.isBrief and SENTENCE_COLOR[2] or TEXT_COLOR[2],
-            options.isBrief and SENTENCE_COLOR[3] or TEXT_COLOR[3], true)
+        tooltip:AddLine(
+            sentence,
+            options.isBrief and SENTENCE_COLOR[1] or TEXT_COLOR[1],
+            options.isBrief and SENTENCE_COLOR[2] or TEXT_COLOR[2],
+            options.isBrief and SENTENCE_COLOR[3] or TEXT_COLOR[3],
+            true
+        )
     end
     local quest = isInLog and not options.hasObjectives and not options.isBrief and ns.QuestState.getQuest(questId)
     if quest and #quest.objectives > 0 then
         tooltip:AddLine(" ")
         for _, objective in ipairs(quest.objectives) do
-            local status = (objective.required or 0) > 0 and (objective.fulfilled .. "/" .. objective.required) or objective.isFinished and ns.L("done") or ""
+            local status = (objective.required or 0) > 0 and (objective.fulfilled .. "/" .. objective.required)
+                or objective.isFinished and ns.L("done")
+                or ""
             local shade = objective.isFinished and HINT_COLOR or TEXT_COLOR
-            tooltip:AddDoubleLine(objective.shownLabel or objective.label or objective.text or "", status, shade[1], shade[2], shade[3], shade[1], shade[2], shade[3])
+            tooltip:AddDoubleLine(
+                objective.shownLabel or objective.label or objective.text or "",
+                status,
+                shade[1],
+                shade[2],
+                shade[3],
+                shade[1],
+                shade[2],
+                shade[3]
+            )
         end
     end
     local rewards = composeRewards(questId)
     if not isInLog then
         local required = ns.Database.getQuestField(questId, "requiredLevel")
         if type(required) == "number" and required > 1 then
-            rewards = rewards and (ns.L("From level %d", required) .. " · " .. rewards) or ns.L("From level %d", required)
+            rewards = rewards and (ns.L("From level %d", required) .. " · " .. rewards)
+                or ns.L("From level %d", required)
         end
     end
     if rewards then

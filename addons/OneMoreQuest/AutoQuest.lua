@@ -103,7 +103,9 @@ function AutoQuest.handleGossip()
     if not (C_GossipInfo and C_GossipInfo.GetActiveQuests) then
         return
     end
-    local active, available = C_GossipInfo.GetActiveQuests() or {}, C_GossipInfo.GetAvailableQuests and C_GossipInfo.GetAvailableQuests() or {}
+    local active, available =
+        C_GossipInfo.GetActiveQuests() or {},
+        C_GossipInfo.GetAvailableQuests and C_GossipInfo.GetAvailableQuests() or {}
     local kind, index = AutoQuest.choose(active, available)
     if kind == "active" and C_GossipInfo.SelectActiveQuest then
         C_GossipInfo.SelectActiveQuest(active[index].questID)

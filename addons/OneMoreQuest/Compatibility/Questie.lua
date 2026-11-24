@@ -29,8 +29,12 @@ function Questie.ask()
         return
     end
     StaticPopupDialogs[QUESTIE_POPUP] = {
-        text = ns.L("%s: Questie is running too. Both put quest marks on the map and show a quest tracker, "
-            .. "so you would see everything twice.\n\nTurn Questie off? QuestieDB stays on; %s needs it.", ns.ADDON_TITLE, ns.ADDON_TITLE),
+        text = ns.L(
+            "%s: Questie is running too. Both put quest marks on the map and show a quest tracker, "
+                .. "so you would see everything twice.\n\nTurn Questie off? QuestieDB stays on; %s needs it.",
+            ns.ADDON_TITLE,
+            ns.ADDON_TITLE
+        ),
         button1 = ns.L("Turn off and reload"),
         button2 = ns.L("Keep both"),
         OnAccept = function()
@@ -76,7 +80,11 @@ local function readJourney()
     if not name then
         return nil
     end
-    for _, key in ipairs({ surname and surname ~= "" and name .. " " .. tostring(surname) or name, realm and name .. " - " .. realm, name }) do
+    for _, key in ipairs({
+        surname and surname ~= "" and name .. " " .. tostring(surname) or name,
+        realm and name .. " - " .. realm,
+        name,
+    }) do
         local character = key and config.char[key]
         local journey = type(character) == "table" and character.journey
         if type(journey) == "table" then
@@ -101,7 +109,8 @@ function Questie.importHistory()
                 elseif step.SubType == "Complete" then
                     local accept = accepted[step.Quest]
                     -- { quest, handed in, level then, accepted, level then }
-                    completions[#completions + 1] = { step.Quest, step.Timestamp, step.Level, accept and accept.Timestamp, accept and accept.Level }
+                    completions[#completions + 1] =
+                        { step.Quest, step.Timestamp, step.Level, accept and accept.Timestamp, accept and accept.Level }
                     accepted[step.Quest] = nil
                 end
             elseif step.Event == "Level" and type(step.NewLevel) == "number" then
@@ -126,7 +135,11 @@ ns.History.registerProvider({
         local records = {}
         for _, kept in ipairs(ns.Chronicle.getBook().imported.Questie.completions or {}) do
             records[#records + 1] = ns.Chronicle.readAsEntry({
-                questId = kept[1], turnedInAt = kept[2], playerLevel = kept[3], acceptedAt = kept[4], acceptedLevel = kept[5],
+                questId = kept[1],
+                turnedInAt = kept[2],
+                playerLevel = kept[3],
+                acceptedAt = kept[4],
+                acceptedLevel = kept[5],
             })
         end
         return records
@@ -149,7 +162,9 @@ end
 ---Questie can tell the group when an objective is done, as OneMoreQuest can: while its own announcing is on, the
 ---news is left to it, so nothing is said twice. Its "completed" is the hand-in, which OneMoreQuest does not tell.
 function Questie.announces(kind)
-    local isRead, profile = pcall(function() return _G.Questie.db.profile end)
+    local isRead, profile = pcall(function()
+        return _G.Questie.db.profile
+    end)
     if not isRead or type(profile) ~= "table" then
         return false
     end

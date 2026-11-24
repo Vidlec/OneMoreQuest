@@ -32,8 +32,18 @@ local function getQuestLogQuestIds()
 end
 
 local function composeQuestLines(profit, lines)
-    local add = function(text) lines[#lines + 1] = text end
-    add(string.format("%s[%s] %s|r   ~%s", GOLD, tostring(profit.level or "?"), profit.name, ns.formatMoney(profit.total)))
+    local add = function(text)
+        lines[#lines + 1] = text
+    end
+    add(
+        string.format(
+            "%s[%s] %s|r   ~%s",
+            GOLD,
+            tostring(profit.level or "?"),
+            profit.name,
+            ns.formatMoney(profit.total)
+        )
+    )
 
     add(GREY .. "  Rewards|r  " .. ns.formatMoney(profit.rewardValue))
     if profit.rewardMoney > 0 then
@@ -42,18 +52,45 @@ local function composeQuestLines(profit, lines)
     for _, rewardItem in ipairs(profit.rewardItems) do
         local note = ""
         if rewardItem.isChoice then
-            note = rewardItem.isCounted and (GREEN .. "  best choice, counted|r") or (GREY .. "  other choice, not counted|r")
+            note = rewardItem.isCounted and (GREEN .. "  best choice, counted|r")
+                or (GREY .. "  other choice, not counted|r")
         end
-        add(string.format("    %s  %s%s", ns.Prices.getItemName(rewardItem.itemId), ns.formatMoney(rewardItem.value), note))
+        add(
+            string.format(
+                "    %s  %s%s",
+                ns.Prices.getItemName(rewardItem.itemId),
+                ns.formatMoney(rewardItem.value),
+                note
+            )
+        )
     end
 
     for _, mob in ipairs(profit.mobs) do
-        local source = mob.source == "forever" and "Forever data" or mob.source == "classic" and "Classic estimate" or "no loot data"
-        add(string.format("%s  %s|r  %d kills x %s = %s  %s(%s)|r", GREY, mob.name, math.ceil(mob.kills), ns.formatMoney(mob.perKill),
-            ns.formatMoney(mob.lootValue), GREY, source))
+        local source = mob.source == "forever" and "Forever data"
+            or mob.source == "classic" and "Classic estimate"
+            or "no loot data"
+        add(
+            string.format(
+                "%s  %s|r  %d kills x %s = %s  %s(%s)|r",
+                GREY,
+                mob.name,
+                math.ceil(mob.kills),
+                ns.formatMoney(mob.perKill),
+                ns.formatMoney(mob.lootValue),
+                GREY,
+                source
+            )
+        )
         for _, drop in ipairs(mob.drops) do
-            add(string.format("    %s  %.1f%% x %s = %s", ns.Prices.getItemName(drop.itemId), drop.chance * 100, ns.formatMoney(drop.value),
-                ns.formatMoney(drop.expected * mob.kills)))
+            add(
+                string.format(
+                    "    %s  %.1f%% x %s = %s",
+                    ns.Prices.getItemName(drop.itemId),
+                    drop.chance * 100,
+                    ns.formatMoney(drop.value),
+                    ns.formatMoney(drop.expected * mob.kills)
+                )
+            )
         end
     end
     if profit.hasUnknownKills then
@@ -71,7 +108,9 @@ local function composeReport()
             isPending = isPending or profit.isPending
         end
     end
-    table.sort(profits, function(first, second) return first.total > second.total end)
+    table.sort(profits, function(first, second)
+        return first.total > second.total
+    end)
 
     local lines, total = {}, 0
     for _, profit in ipairs(profits) do
@@ -79,7 +118,9 @@ local function composeReport()
         total = total + profit.total
     end
     if #profits == 0 then
-        lines[#lines + 1] = GREY .. (ns.isReady and "No quests in the quest log." or "Questie is still loading.") .. "|r"
+        lines[#lines + 1] = GREY
+            .. (ns.isReady and "No quests in the quest log." or "Questie is still loading.")
+            .. "|r"
     else
         lines[#lines + 1] = "Whole quest log  " .. ns.formatMoney(total)
     end

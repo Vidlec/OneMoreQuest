@@ -102,8 +102,10 @@ function Ledger.handleMoney(amount)
         return -- a quest's money comes with its hand-in (handleTurnIn)
     end
     if amount > 0 then
-        local source = openWindows.loot and "looted" or openWindows.merchant and "vendor"
-            or openWindows.mail and (pendingMailKind or "mail") or "other"
+        local source = openWindows.loot and "looted"
+            or openWindows.merchant and "vendor"
+            or openWindows.mail and (pendingMailKind or "mail")
+            or "other"
         add("gold", source, amount)
         return
     end
@@ -153,7 +155,8 @@ local function readExperience()
     local level = UnitLevel and UnitLevel("player") or 0
     local rested = GetXPExhaustion and GetXPExhaustion() or 0
     if lastExperience then
-        local gained = level > lastLevel and (lastMaxExperience - lastExperience) + experience or experience - lastExperience
+        local gained = level > lastLevel and (lastMaxExperience - lastExperience) + experience
+            or experience - lastExperience
         Ledger.handleExperience(gained, (lastRested or 0) - rested)
     end
     if lastLevel and level > lastLevel then
@@ -190,7 +193,8 @@ end
 ---@param from string|number "quest", "chest", or the creature's id
 function Ledger.noteLoot(link, from)
     local itemId = type(link) == "string" and tonumber(link:match("item:(%d+)")) or link
-    local quality = itemId and GetItemInfo and select(3, GetItemInfo(itemId))
+    local getItemInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo -- luacheck: ignore 113 (an older client's fallback)
+    local quality = itemId and getItemInfo and select(3, getItemInfo(itemId))
     if not itemId or (quality or 0) < NOTABLE_QUALITY then
         return
     end
@@ -203,10 +207,11 @@ end
 
 ---@return boolean isGathered An herb or ore, by the item's kind
 local function isGathered(itemId)
-    if not (itemId and GetItemInfoInstant) then
+    local getItemInfoInstant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant -- luacheck: ignore 113 (an older client's fallback)
+    if not (itemId and getItemInfoInstant) then
         return false
     end
-    local classId, subclassId = select(6, GetItemInfoInstant(itemId))
+    local classId, subclassId = select(6, getItemInfoInstant(itemId))
     return classId == TRADE_GOODS_CLASS and GATHERED_SUBCLASSES[subclassId] == true
 end
 
@@ -216,7 +221,8 @@ local function readLoot()
     for slot = 1, GetNumLootItems and GetNumLootItems() or 0 do
         local link = GetLootSlotLink and GetLootSlotLink(slot)
         local _, _, quantity = GetLootSlotInfo(slot)
-        lootSlots[slot] = { link = link, quantity = quantity or 1, itemId = link and tonumber(link:match("item:(%d+)")) }
+        lootSlots[slot] =
+            { link = link, quantity = quantity or 1, itemId = link and tonumber(link:match("item:(%d+)")) }
         local guid = not lootSource and GetLootSourceInfo and GetLootSourceInfo(slot)
         if type(guid) == "string" then
             -- "Creature-0-4372-0-1-3110-0000A1B2C3": the kind first, the creature's or object's id sixth
@@ -228,7 +234,10 @@ local function readLoot()
         end
     end
     -- A catch: fishing's loot comes from the bobber, a game object, and is no chest
-    if (IsFishingLoot and IsFishingLoot()) or (lootSource and lootSource.kind == "GameObject" and lootSource.id == FISHING_BOBBER_ID) then
+    if
+        (IsFishingLoot and IsFishingLoot())
+        or (lootSource and lootSource.kind == "GameObject" and lootSource.id == FISHING_BOBBER_ID)
+    then
         lootSource = { kind = "Fishing" }
         return
     end
@@ -284,19 +293,27 @@ local function takeLoot(slot)
         end
         return
     end
-    local from = isObject and "chest" or lootSource and lootSource.kind == "Fishing" and "fishing" or (lootSource and lootSource.id)
+    local from = isObject and "chest"
+        or lootSource and lootSource.kind == "Fishing" and "fishing"
+        or (lootSource and lootSource.id)
     Ledger.noteLoot(taken.itemId, from)
 end
 
 ---------------------------------------------------------------------------------------------------------------
 
 local WINDOW_EVENTS = {
-    MERCHANT_SHOW = { "merchant", true }, MERCHANT_CLOSED = { "merchant", false },
-    MAIL_SHOW = { "mail", true }, MAIL_CLOSED = { "mail", false },
-    TRAINER_SHOW = { "trainer", true }, TRAINER_CLOSED = { "trainer", false },
-    TAXIMAP_OPENED = { "taxi", true }, TAXIMAP_CLOSED = { "taxi", false },
-    AUCTION_HOUSE_SHOW = { "auction", true }, AUCTION_HOUSE_CLOSED = { "auction", false },
-    LOOT_OPENED = { "loot", true }, LOOT_CLOSED = { "loot", false },
+    MERCHANT_SHOW = { "merchant", true },
+    MERCHANT_CLOSED = { "merchant", false },
+    MAIL_SHOW = { "mail", true },
+    MAIL_CLOSED = { "mail", false },
+    TRAINER_SHOW = { "trainer", true },
+    TRAINER_CLOSED = { "trainer", false },
+    TAXIMAP_OPENED = { "taxi", true },
+    TAXIMAP_CLOSED = { "taxi", false },
+    AUCTION_HOUSE_SHOW = { "auction", true },
+    AUCTION_HOUSE_CLOSED = { "auction", false },
+    LOOT_OPENED = { "loot", true },
+    LOOT_CLOSED = { "loot", false },
 }
 
 local function handleEvent(_, event, ...)
@@ -306,7 +323,9 @@ local function handleEvent(_, event, ...)
         if window[2] then
             openWindows[window[1]] = true
         elseif C_Timer and C_Timer.After then
-            C_Timer.After(0.5, function() openWindows[window[1]] = nil end)
+            C_Timer.After(0.5, function()
+                openWindows[window[1]] = nil
+            end)
         else
             openWindows[window[1]] = nil
         end
@@ -358,9 +377,22 @@ function Ledger.create()
     lastTick = getNow()
     getToday()
     eventFrame = CreateFrame("Frame")
-    local events = { "PLAYER_MONEY", "PLAYER_XP_UPDATE", "PLAYER_LEVEL_UP", "LOOT_SLOT_CLEARED", "QUEST_COMPLETE", "QUEST_FINISHED",
-        "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "ZONE_CHANGED_INDOORS", "PLAYER_DEAD", "PLAYER_LOGOUT", "PLAYER_REGEN_ENABLED",
-        "MERCHANT_UPDATE", "UPDATE_INVENTORY_DURABILITY" }
+    local events = {
+        "PLAYER_MONEY",
+        "PLAYER_XP_UPDATE",
+        "PLAYER_LEVEL_UP",
+        "LOOT_SLOT_CLEARED",
+        "QUEST_COMPLETE",
+        "QUEST_FINISHED",
+        "ZONE_CHANGED",
+        "ZONE_CHANGED_NEW_AREA",
+        "ZONE_CHANGED_INDOORS",
+        "PLAYER_DEAD",
+        "PLAYER_LOGOUT",
+        "PLAYER_REGEN_ENABLED",
+        "MERCHANT_UPDATE",
+        "UPDATE_INVENTORY_DURABILITY",
+    }
     for event in pairs(WINDOW_EVENTS) do
         events[#events + 1] = event
     end
@@ -380,7 +412,9 @@ function Ledger.create()
     -- Flights and auction sales are told from other money by what starts them
     if hooksecurefunc then
         if TakeTaxiNode then
-            hooksecurefunc("TakeTaxiNode", function() flightAt = getNow() end)
+            hooksecurefunc("TakeTaxiNode", function()
+                flightAt = getNow()
+            end)
         end
         -- An auction sale comes as a mail with a seller's invoice; taken one by one or all at once
         local function readMail(index)
@@ -445,13 +479,16 @@ function Ledger.composeOverview()
         if key == todayKey then
             overview.today, overview.todayTotals = day, totals
         elseif totals.played >= AVERAGE_MIN_PLAYED then
-            averageSum.net, averageSum.experience = averageSum.net + totals.net, averageSum.experience + totals.experience
+            averageSum.net, averageSum.experience =
+                averageSum.net + totals.net, averageSum.experience + totals.experience
             averageSum.quests, averageCount = averageSum.quests + quests, averageCount + 1
         end
         if totals.net > 0 and (not overview.bestGold or totals.net > overview.bestGold.value) then
             overview.bestGold = { key = key, value = totals.net }
         end
-        if totals.experience > 0 and (not overview.bestExperience or totals.experience > overview.bestExperience.value) then
+        if
+            totals.experience > 0 and (not overview.bestExperience or totals.experience > overview.bestExperience.value)
+        then
             overview.bestExperience = { key = key, value = totals.experience }
         end
         if quests > 0 and (not overview.mostQuests or quests > overview.mostQuests.value) then
@@ -460,7 +497,9 @@ function Ledger.composeOverview()
     end
     if averageCount > 0 then
         overview.average = {
-            net = averageSum.net / averageCount, experience = averageSum.experience / averageCount, quests = averageSum.quests / averageCount,
+            net = averageSum.net / averageCount,
+            experience = averageSum.experience / averageCount,
+            quests = averageSum.quests / averageCount,
         }
     end
     -- Days in a row: back from today, or from yesterday while today is not played yet

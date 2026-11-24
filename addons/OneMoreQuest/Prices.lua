@@ -45,7 +45,7 @@ end
 
 ---@return string? name, number? vendorPrice, number? bindType nil while the game has not loaded the item
 local function getItemDetails(itemId)
-    local getItemInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+    local getItemInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo -- luacheck: ignore 113 (an older client's fallback)
     if not getItemInfo then
         return nil
     end

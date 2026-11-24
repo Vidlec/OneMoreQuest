@@ -207,7 +207,9 @@ local providers = {} ---@type QuestProvider[]
 ---@param provider QuestProvider
 function Database.registerProvider(provider)
     providers[#providers + 1] = provider
-    table.sort(providers, function(first, second) return first.order < second.order end)
+    table.sort(providers, function(first, second)
+        return first.order < second.order
+    end)
     Database.forgetDungeons()
 end
 
@@ -353,7 +355,8 @@ end
 
 ---@return boolean isOutOfReach The creature stands only in the other faction's capitals
 local function isOnlyInHostileCapitals(npcId, playerFaction)
-    local hostileCapitals = CAPITALS_BY_FACTION[playerFaction == "Horde" and "Alliance" or playerFaction == "Alliance" and "Horde" or ""]
+    local hostileCapitals =
+        CAPITALS_BY_FACTION[playerFaction == "Horde" and "Alliance" or playerFaction == "Alliance" and "Horde" or ""]
     local spawns = hostileCapitals and getField("Npc", npcId, "spawns")
     if type(spawns) ~= "table" or next(spawns) == nil then
         return false
@@ -488,12 +491,19 @@ local function buildDungeons()
                 end
             elseif provided then
                 local areaId = provided.areaId or getNamedAreaId(provided.name)
-                local dungeon = { areaId = areaId, name = provided.name, entrances = provided.entrances or {},
-                    isRaid = provided.isRaid == true, isLearned = provided.isLearned == true or nil }
+                local dungeon = {
+                    areaId = areaId,
+                    name = provided.name,
+                    entrances = provided.entrances or {},
+                    isRaid = provided.isRaid == true,
+                    isLearned = provided.isLearned == true or nil,
+                }
                 dungeonsByAreaId[areaId] = dungeonsByAreaId[areaId] or dungeon
                 -- Several entries can share a name (the wings of Dire Maul); the lowest ID keeps the answer stable
                 local named = dungeonsByName[provided.name]
-                if not named or areaId < named.areaId then dungeonsByName[provided.name] = dungeon end
+                if not named or areaId < named.areaId then
+                    dungeonsByName[provided.name] = dungeon
+                end
                 others[#others + 1] = { dungeon, provided.otherAreaIds }
             end
         end
@@ -579,7 +589,8 @@ Database.registerProvider({
             for _, location in ipairs(entry[4] or {}) do
                 entrances[#entrances + 1] = { zoneId = location[1], x = location[2], y = location[3] }
             end
-            list[#list + 1] = { areaId = dungeonAreaId, name = entry[1], entrances = entrances, otherAreaIds = entry[2] }
+            list[#list + 1] =
+                { areaId = dungeonAreaId, name = entry[1], entrances = entrances, otherAreaIds = entry[2] }
         end
         return list
     end,
@@ -676,7 +687,9 @@ end
 ---@return number? chance Between 0 and 1; nil when the table has no rate for the pair
 function Database.getItemDropChance(itemId, npcId)
     if not dropPercentByItemId then
-        local support = Database.isAvailable() and LibQuestieDB.Support and LibQuestieDB.Support.Get("QuestieClassicItemDrops")
+        local support = Database.isAvailable()
+            and LibQuestieDB.Support
+            and LibQuestieDB.Support.Get("QuestieClassicItemDrops")
         if not support then
             return nil
         end
@@ -852,28 +865,69 @@ end
 -- (QuestieDB's sortKeys). The game's own header names these in the player's language; this list is the
 -- fallback.
 local CATEGORY_NAMES = {
-    [-1] = "Epic", [-22] = "Seasonal", [-23] = "Undercity", [-221] = "Treasure Map", [-284] = "Special",
-    [-344] = "Legendary", [-364] = "Darkmoon Faire", [-366] = "Lunar Festival", [-367] = "Reputation",
-    [-369] = "Midsummer", [-370] = "Brewfest", [-374] = "Noblegarden", [-376] = "Love is in the Air",
-    [-378] = "Children's Week", [-21] = "Hallow's End", [-404] = "Feast of Winter Veil", [-1000] = "Special",
-    [-61] = "Warlock", [-81] = "Warrior", [-82] = "Shaman", [-141] = "Paladin", [-161] = "Mage", [-162] = "Rogue",
-    [-261] = "Hunter", [-262] = "Priest", [-263] = "Druid",
-    [-24] = "Herbalism", [-101] = "Fishing", [-121] = "Blacksmithing", [-181] = "Alchemy", [-182] = "Leatherworking",
-    [-201] = "Engineering", [-264] = "Tailoring", [-304] = "Cooking", [-324] = "First Aid", [-398] = "Riding",
+    [-1] = "Epic",
+    [-22] = "Seasonal",
+    [-23] = "Undercity",
+    [-221] = "Treasure Map",
+    [-284] = "Special",
+    [-344] = "Legendary",
+    [-364] = "Darkmoon Faire",
+    [-366] = "Lunar Festival",
+    [-367] = "Reputation",
+    [-369] = "Midsummer",
+    [-370] = "Brewfest",
+    [-374] = "Noblegarden",
+    [-376] = "Love is in the Air",
+    [-378] = "Children's Week",
+    [-21] = "Hallow's End",
+    [-404] = "Feast of Winter Veil",
+    [-1000] = "Special",
+    [-61] = "Warlock",
+    [-81] = "Warrior",
+    [-82] = "Shaman",
+    [-141] = "Paladin",
+    [-161] = "Mage",
+    [-162] = "Rogue",
+    [-261] = "Hunter",
+    [-262] = "Priest",
+    [-263] = "Druid",
+    [-24] = "Herbalism",
+    [-101] = "Fishing",
+    [-121] = "Blacksmithing",
+    [-181] = "Alchemy",
+    [-182] = "Leatherworking",
+    [-201] = "Engineering",
+    [-264] = "Tailoring",
+    [-304] = "Cooking",
+    [-324] = "First Aid",
+    [-398] = "Riding",
 }
 
 -- The game's own pictures for categories: a profession's icon, a class's round icon, and a quest scroll for
 -- the rest (holidays, reputation, special quests)
 local ICONS = "Interface\\Icons\\"
 local CATEGORY_ICONS = {
-    [-24] = ICONS .. "Trade_Herbalism", [-101] = ICONS .. "Trade_Fishing", [-121] = ICONS .. "Trade_BlackSmithing",
-    [-181] = ICONS .. "Trade_Alchemy", [-182] = ICONS .. "INV_Misc_ArmorKit_17", [-201] = ICONS .. "Trade_Engineering",
-    [-264] = ICONS .. "Trade_Tailoring", [-304] = ICONS .. "INV_Misc_Food_15", [-324] = ICONS .. "Spell_Holy_SealOfSacrifice",
+    [-24] = ICONS .. "Trade_Herbalism",
+    [-101] = ICONS .. "Trade_Fishing",
+    [-121] = ICONS .. "Trade_BlackSmithing",
+    [-181] = ICONS .. "Trade_Alchemy",
+    [-182] = ICONS .. "INV_Misc_ArmorKit_17",
+    [-201] = ICONS .. "Trade_Engineering",
+    [-264] = ICONS .. "Trade_Tailoring",
+    [-304] = ICONS .. "INV_Misc_Food_15",
+    [-324] = ICONS .. "Spell_Holy_SealOfSacrifice",
     [-398] = ICONS .. "Ability_Mount_RidingHorse",
 }
 local CATEGORY_CLASSES = {
-    [-61] = "WARLOCK", [-81] = "WARRIOR", [-82] = "SHAMAN", [-141] = "PALADIN", [-161] = "MAGE", [-162] = "ROGUE",
-    [-261] = "HUNTER", [-262] = "PRIEST", [-263] = "DRUID",
+    [-61] = "WARLOCK",
+    [-81] = "WARRIOR",
+    [-82] = "SHAMAN",
+    [-141] = "PALADIN",
+    [-161] = "MAGE",
+    [-162] = "ROGUE",
+    [-261] = "HUNTER",
+    [-262] = "PRIEST",
+    [-263] = "DRUID",
 }
 local CLASS_CIRCLES = "Interface\\TargetingFrame\\UI-Classes-Circles"
 local OTHER_CATEGORY_ICON = ICONS .. "INV_Misc_Note_01"

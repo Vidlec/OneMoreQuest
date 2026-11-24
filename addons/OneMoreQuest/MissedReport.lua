@@ -47,7 +47,9 @@ function MissedReport.show()
         editBox:SetAutoFocus(false)
         editBox:SetFontObject(ChatFontNormal)
         editBox:SetWidth(570)
-        editBox:SetScript("OnEscapePressed", function() reportFrame:Hide() end)
+        editBox:SetScript("OnEscapePressed", function()
+            reportFrame:Hide()
+        end)
         -- The text is for copying: typing in it puts the report back as it was
         editBox:SetScript("OnTextChanged", function(self, isUserInput)
             if isUserInput then
@@ -68,7 +70,9 @@ function MissedReport.show()
         local closeButton = CreateFrame("Button", nil, reportFrame, "UIPanelButtonTemplate")
         closeButton:SetSize(100, 24)
         closeButton:SetPoint("BOTTOMRIGHT", reportFrame, "BOTTOMRIGHT", -12, 12)
-        closeButton:SetScript("OnClick", function() reportFrame:Hide() end)
+        closeButton:SetScript("OnClick", function()
+            reportFrame:Hide()
+        end)
         reportFrame.closeButton = closeButton
     end
     -- The window's own words on every showing, in the addon's language; the report stays English, for the developers
@@ -88,7 +92,11 @@ end
 ---`/omq missing`: says how many quests were missed and opens the report to copy.
 function MissedReport.printMissed()
     if isHeldBack() then
-        ns.print(ns.L("the missed-quests report names quests to pick up, which your Spoilers choice keeps back; it waits until quests to pick up are \"All\" again."))
+        ns.print(
+            ns.L(
+                'the missed-quests report names quests to pick up, which your Spoilers choice keeps back; it waits until quests to pick up are "All" again.'
+            )
+        )
         return
     end
     local _, count = ns.GameOffers.composeReport()
@@ -99,15 +107,33 @@ function MissedReport.printMissed()
         return
     end
     if count == 0 and learnedCount == 0 then
-        ns.print(ns.Lp(differenceCount, "%d place where the game's quests differ from the quest database; the report to copy is open.", "%d places where the game's quests differ from the quest database; the report to copy is open."))
+        ns.print(
+            ns.Lp(
+                differenceCount,
+                "%d place where the game's quests differ from the quest database; the report to copy is open.",
+                "%d places where the game's quests differ from the quest database; the report to copy is open."
+            )
+        )
         MissedReport.show()
         return
     end
     if count == 0 then
-        ns.print(ns.Lp(learnedCount, "%d dungeon the quest database does not know, learned from your runs; the report to copy is open.", "%d dungeons the quest database does not know, learned from your runs; the report to copy is open."))
+        ns.print(
+            ns.Lp(
+                learnedCount,
+                "%d dungeon the quest database does not know, learned from your runs; the report to copy is open.",
+                "%d dungeons the quest database does not know, learned from your runs; the report to copy is open."
+            )
+        )
         MissedReport.show()
         return
     end
-    ns.print(ns.Lp(count, "%d quest the game offered that the quest database or the addon's rules missed. It is listed anyway; the report to copy is open.", "%d quests the game offered that the quest database or the addon's rules missed. They are listed anyway; the report to copy is open."))
+    ns.print(
+        ns.Lp(
+            count,
+            "%d quest the game offered that the quest database or the addon's rules missed. It is listed anyway; the report to copy is open.",
+            "%d quests the game offered that the quest database or the addon's rules missed. They are listed anyway; the report to copy is open."
+        )
+    )
     MissedReport.show()
 end

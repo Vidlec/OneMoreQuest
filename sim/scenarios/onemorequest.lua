@@ -14,7 +14,6 @@ click("Going, Going, Guano!")
 expectText("To do", "the quest's page opens")
 saveScene("quest-page") -- the map and the quest's page, as drawn: a picture to look at, not compared (it changes with every tweak)
 
-
 click("Available")
 wait(0.5)
 expectText("Available", "the Available tab draws")
@@ -37,10 +36,17 @@ leaveInstance()
 
 -- The report's copy box has the keyboard (Escape lets go of it), and zoning and the quest dialog closed the map, as
 -- the game's own interface does: open it again
-if require("widgets").focus then key("ESCAPE"); wait(0.2) end
+if require("widgets").focus then
+    key("ESCAPE")
+    wait(0.2)
+end
 if not (G.WorldMapFrame:IsShown() and G.TrailheadLog and G.TrailheadLog:IsShown()) then
-    if G.WorldMapFrame:IsShown() then key("M"); wait(0.5) end
-    key("M"); wait(0.5)
+    if G.WorldMapFrame:IsShown() then
+        key("M")
+        wait(0.5)
+    end
+    key("M")
+    wait(0.5)
 end
 wheel("My quests", -1)
 key("ESCAPE")

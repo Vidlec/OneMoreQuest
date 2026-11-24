@@ -193,7 +193,13 @@ function Comms.parseMessage(text)
         if not (questId and state) then
             return nil
         end
-        return { kind = kind, questId = questId, state = state, shortReason = shortReason ~= "" and shortReason or nil, reason = reason ~= "" and reason or nil }
+        return {
+            kind = kind,
+            questId = questId,
+            state = state,
+            shortReason = shortReason ~= "" and shortReason or nil,
+            reason = reason ~= "" and reason or nil,
+        }
     elseif kind == "U" or kind == "L" then
         local part
         if kind == "L" then
@@ -302,7 +308,8 @@ function Comms.readPhrase(text)
         local kind, value = parts[index]:sub(1, 1), parts[index]:sub(2)
         if kind == "q" and tonumber(value) then
             local questId = tonumber(value)
-            args[#args + 1] = ns.QuestText.getTitle(questId, ns.Database.getQuestField(questId, "name") or ("quest " .. questId))
+            args[#args + 1] =
+                ns.QuestText.getTitle(questId, ns.Database.getQuestField(questId, "name") or ("quest " .. questId))
         elseif kind == "n" then
             args[#args + 1] = tonumber(value) or 0
         else
@@ -315,7 +322,14 @@ end
 
 ---@return string message The same answer, its reasons as phrases ("1|T|")
 function Comms.composePhraseMessage(questId, state, reasonPhrase, shortPhrase)
-    return string.format("%s|T|%d|%s|%s|%s", VERSION, questId, STATE_LETTERS[state], Comms.writePhrase(shortPhrase), Comms.writePhrase(reasonPhrase))
+    return string.format(
+        "%s|T|%d|%s|%s|%s",
+        VERSION,
+        questId,
+        STATE_LETTERS[state],
+        Comms.writePhrase(shortPhrase),
+        Comms.writePhrase(reasonPhrase)
+    )
 end
 
 ---@return string message The player's answer about a quest: done it, can take it, or can't and why
@@ -464,14 +478,28 @@ function Comms.handleMessage(text, sender, channel)
         -- Answered only while sharing, and not about a quest in the log: the log's counts say that already
         local state, reason, shortReason, reasonPhrase, shortPhrase = ns.Availability.getOwnStatus(message.questId)
         if isSharing() and STATE_LETTERS[state] then
-            Comms.queueMessage(PREFIX, Comms.composeStatusMessage(message.questId, state, reason, shortReason), "WHISPER", sender)
+            Comms.queueMessage(
+                PREFIX,
+                Comms.composeStatusMessage(message.questId, state, reason, shortReason),
+                "WHISPER",
+                sender
+            )
             if reasonPhrase then
                 -- Then the same in phrases, for members who read another language (older versions skip it)
-                Comms.queueMessage(PREFIX, Comms.composePhraseMessage(message.questId, state, reasonPhrase, shortPhrase), "WHISPER", sender)
+                Comms.queueMessage(
+                    PREFIX,
+                    Comms.composePhraseMessage(message.questId, state, reasonPhrase, shortPhrase),
+                    "WHISPER",
+                    sender
+                )
             end
         end
     elseif message.kind == "S" or message.kind == "T" then
-        Comms.setRemoteStatus(sender, message.questId, { state = message.state, reason = message.reason, shortReason = message.shortReason })
+        Comms.setRemoteStatus(
+            sender,
+            message.questId,
+            { state = message.state, reason = message.reason, shortReason = message.shortReason }
+        )
     else
         if message.part == 1 then
             remoteQuests[normalizeName(sender)] = nil -- a whole log begins: anything not in it has gone
@@ -551,7 +579,13 @@ function Comms.create()
         ns.QuestieBridge.create()
     end
     eventFrame = CreateFrame("Frame")
-    for _, event in ipairs({ "CHAT_MSG_ADDON", "QUEST_LOG_UPDATE", "QUEST_REMOVED", "GROUP_ROSTER_UPDATE", "PLAYER_ENTERING_WORLD" }) do
+    for _, event in ipairs({
+        "CHAT_MSG_ADDON",
+        "QUEST_LOG_UPDATE",
+        "QUEST_REMOVED",
+        "GROUP_ROSTER_UPDATE",
+        "PLAYER_ENTERING_WORLD",
+    }) do
         eventFrame:RegisterEvent(event)
     end
     eventFrame:SetScript("OnEvent", handleEvent)

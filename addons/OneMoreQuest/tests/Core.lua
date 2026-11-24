@@ -1,30 +1,39 @@
 -- Tests: the core: the module registry, redraws, tidying saved data, and the QuestieDB report.
 
-test("saved data is tidied after login: retired settings, other builds, and what was kept for quests done with", function()
-    local ns, state = createAddon()
-    setQuest(state, 301, false, { killObjective(0, 12) })
-    ns.settings.markStyle, ns.settings.minimapIcon = "metal", { hide = false }
-    local savedGetBuildInfo = GetBuildInfo
-    GetBuildInfo = function() return "1.60.1", "70009" end
-    ns.settings.questsNotInGame = { ["1"] = { [5] = true }, ["70009"] = { [6] = true } }
-    local killCounts = ns.getCharacterRecords("killCounts")
-    killCounts[301], killCounts[777] = { {} }, { {} }
-    local open = ns.Chronicle.getBook().open
-    open[301], open[778] = { deaths = 0 }, { deaths = 1 }
-    local offers = ns.getCharacterRecords("learnedOffers")
-    state.turnedInQuestIds[779] = true
-    offers[779], offers[780] = { title = "done" }, { title = "abandoned, offered again" }
-    ns.settings.cycledQuestZones = { [779] = 17, [301] = 17 }
-    ns.tidySavedData()
-    expectEqual(ns.settings.markStyle == nil and ns.settings.minimapIcon == nil, true, "retired settings gone")
-    expectEqual(ns.settings.questsNotInGame["1"], nil, "another build's answers gone")
-    expectEqual(next(ns.settings.questsNotInGame) ~= nil, true, "this build's kept")
-    expectEqual(killCounts[777] == nil and killCounts[301] ~= nil, true, "kills kept only for quests in the log")
-    expectEqual(open[778] == nil and open[301] ~= nil, true, "the chronicle's open quests likewise")
-    expectEqual(offers[779] == nil and offers[780] ~= nil, true, "offers of quests done gone, of the rest kept")
-    expectEqual(ns.settings.cycledQuestZones[779] == nil and ns.settings.cycledQuestZones[301] == 17, true, "zone choices of quests done gone")
-    GetBuildInfo = savedGetBuildInfo
-end)
+test(
+    "saved data is tidied after login: retired settings, other builds, and what was kept for quests done with",
+    function()
+        local ns, state = createAddon()
+        setQuest(state, 301, false, { killObjective(0, 12) })
+        ns.settings.markStyle, ns.settings.minimapIcon = "metal", { hide = false }
+        local savedGetBuildInfo = GetBuildInfo
+        GetBuildInfo = function()
+            return "1.60.1", "70009"
+        end
+        ns.settings.questsNotInGame = { ["1"] = { [5] = true }, ["70009"] = { [6] = true } }
+        local killCounts = ns.getCharacterRecords("killCounts")
+        killCounts[301], killCounts[777] = { {} }, { {} }
+        local open = ns.Chronicle.getBook().open
+        open[301], open[778] = { deaths = 0 }, { deaths = 1 }
+        local offers = ns.getCharacterRecords("learnedOffers")
+        state.turnedInQuestIds[779] = true
+        offers[779], offers[780] = { title = "done" }, { title = "abandoned, offered again" }
+        ns.settings.cycledQuestZones = { [779] = 17, [301] = 17 }
+        ns.tidySavedData()
+        expectEqual(ns.settings.markStyle == nil and ns.settings.minimapIcon == nil, true, "retired settings gone")
+        expectEqual(ns.settings.questsNotInGame["1"], nil, "another build's answers gone")
+        expectEqual(next(ns.settings.questsNotInGame) ~= nil, true, "this build's kept")
+        expectEqual(killCounts[777] == nil and killCounts[301] ~= nil, true, "kills kept only for quests in the log")
+        expectEqual(open[778] == nil and open[301] ~= nil, true, "the chronicle's open quests likewise")
+        expectEqual(offers[779] == nil and offers[780] ~= nil, true, "offers of quests done gone, of the rest kept")
+        expectEqual(
+            ns.settings.cycledQuestZones[779] == nil and ns.settings.cycledQuestZones[301] == 17,
+            true,
+            "zone choices of quests done gone"
+        )
+        GetBuildInfo = savedGetBuildInfo
+    end
+)
 
 test("every module registers the moments it takes part in, in the TOC's order", function()
     local ns = createAddon()
@@ -48,21 +57,62 @@ test("every module registers the moments it takes part in, in the TOC's order", 
         table.sort(names)
         moments[#moments + 1] = module.name .. "(" .. table.concat(names, ",") .. ")"
     end
-    expectEqual(table.concat(moments, " "), table.concat({
-        "Locale(invalidate)", "QuestText(create)", "Crafting(BANKFRAME_OPENED,PLAYERBANKSLOTS_CHANGED,TRADE_SKILL_LIST_UPDATE,TRADE_SKILL_SHOW,TRADE_SKILL_UPDATE,prune)", "LearnedDungeons(create)", "QuestState(QUEST_DATA_LOAD_RESULT,QUEST_TURNED_IN,changes:BAG_UPDATE_DELAYED,changes:QUEST_DATA_LOAD_RESULT,changes:QUEST_LOG_UPDATE,invalidate,prune)",
-        "Focus(QUEST_ACCEPTED,QUEST_REMOVED,QUEST_TURNED_IN,QUEST_WATCH_LIST_CHANGED,SUPER_TRACKING_CHANGED,create)", "Model(changes:ZONE_CHANGED,invalidate)", "Spoilers(GOSSIP_SHOW,LOOT_OPENED,MAP_EXPLORATION_UPDATED,PLAYER_ENTERING_WORLD,PLAYER_TARGET_CHANGED,QUEST_COMPLETE,QUEST_DETAIL,QUEST_GREETING,QUEST_PROGRESS,ZONE_CHANGED_NEW_AREA,create,invalidate,prune)", "Events(CALENDAR_UPDATE_EVENT_LIST,create,tick)", "GameOffers(create,prune)", "DataCheck(QUEST_ACCEPTED,QUEST_COMPLETE,QUEST_TURNED_IN,create)",
-        "Availability(PLAYER_ENTERING_WORLD,SKILL_LINES_CHANGED,SPELLS_CHANGED,UPDATE_FACTION,ZONE_CHANGED_NEW_AREA,invalidate)", "Prices(changes:GET_ITEM_INFO_RECEIVED)", "Profit(invalidate)", "KillCounter(create,prune)", "UnitTooltip(create,invalidate)",
-        "Chronicle(create,prune)", "Ledger(create)", "Comms(create)", "Party(changes:GROUP_ROSTER_UPDATE)", "Announce(changes:QUEST_LOG_UPDATE)", "AutoQuest(GOSSIP_SHOW,QUEST_COMPLETE,QUEST_DETAIL,QUEST_GREETING,QUEST_PROGRESS)", "Nameplates(NAME_PLATE_UNIT_ADDED,NAME_PLATE_UNIT_REMOVED,RAID_TARGET_UPDATE,UNIT_CLASSIFICATION_CHANGED,refresh)", "Widgets(create)", "QuestTooltip(MODIFIER_STATE_CHANGED)", "BlizzardTracker(afterCombat,create)",
-        "Tracker(PLAYER_ENTERING_WORLD,afterCombat,create,refresh,tick)",
-        "Log(UPDATE_BINDINGS,afterCombat,create,refresh)", "MapDock(create,prune,tick)", "Gamepad(INPUT_DEVICE_INTERFACE_TRANSITION,PLAYER_REGEN_DISABLED,afterCombat,create)", "GamepadMenu(INPUT_DEVICE_INTERFACE_TRANSITION)", "GamepadTracker(INPUT_DEVICE_INTERFACE_TRANSITION,PLAYER_REGEN_DISABLED,afterCombat,create)", "GamepadMap(INPUT_DEVICE_INTERFACE_TRANSITION,PLAYER_REGEN_DISABLED,create)", "MapPins(create,refresh)",
-        "GatheringSpots(LOOT_OPENED,MINIMAP_UPDATE_TRACKING,create)", "MinimapPins(MINIMAP_UPDATE_ZOOM,create,refresh,tick)", "MapHover(create)", "Compatibility(create)", "SettingsPage(create)",
-    }, " "), "the modules and their moments")
+    expectEqual(
+        table.concat(moments, " "),
+        table.concat({
+            "Locale(invalidate)",
+            "QuestText(create)",
+            "Crafting(BANKFRAME_OPENED,PLAYERBANKSLOTS_CHANGED,TRADE_SKILL_LIST_UPDATE,TRADE_SKILL_SHOW,TRADE_SKILL_UPDATE,prune)",
+            "LearnedDungeons(create)",
+            "QuestState(QUEST_DATA_LOAD_RESULT,QUEST_TURNED_IN,changes:BAG_UPDATE_DELAYED,changes:QUEST_DATA_LOAD_RESULT,changes:QUEST_LOG_UPDATE,invalidate,prune)",
+            "Focus(QUEST_ACCEPTED,QUEST_REMOVED,QUEST_TURNED_IN,QUEST_WATCH_LIST_CHANGED,SUPER_TRACKING_CHANGED,create)",
+            "Model(changes:ZONE_CHANGED,invalidate)",
+            "Spoilers(GOSSIP_SHOW,LOOT_OPENED,MAP_EXPLORATION_UPDATED,PLAYER_ENTERING_WORLD,PLAYER_TARGET_CHANGED,QUEST_COMPLETE,QUEST_DETAIL,QUEST_GREETING,QUEST_PROGRESS,ZONE_CHANGED_NEW_AREA,create,invalidate,prune)",
+            "Events(CALENDAR_UPDATE_EVENT_LIST,create,tick)",
+            "GameOffers(create,prune)",
+            "DataCheck(QUEST_ACCEPTED,QUEST_COMPLETE,QUEST_TURNED_IN,create)",
+            "Availability(PLAYER_ENTERING_WORLD,SKILL_LINES_CHANGED,SPELLS_CHANGED,UPDATE_FACTION,ZONE_CHANGED_NEW_AREA,invalidate)",
+            "Prices(changes:GET_ITEM_INFO_RECEIVED)",
+            "Profit(invalidate)",
+            "KillCounter(create,prune)",
+            "UnitTooltip(create,invalidate)",
+            "Chronicle(create,prune)",
+            "Ledger(create)",
+            "Comms(create)",
+            "Party(changes:GROUP_ROSTER_UPDATE)",
+            "Announce(changes:QUEST_LOG_UPDATE)",
+            "AutoQuest(GOSSIP_SHOW,QUEST_COMPLETE,QUEST_DETAIL,QUEST_GREETING,QUEST_PROGRESS)",
+            "Nameplates(NAME_PLATE_UNIT_ADDED,NAME_PLATE_UNIT_REMOVED,RAID_TARGET_UPDATE,UNIT_CLASSIFICATION_CHANGED,refresh)",
+            "Widgets(create)",
+            "QuestTooltip(MODIFIER_STATE_CHANGED)",
+            "BlizzardTracker(afterCombat,create)",
+            "Tracker(PLAYER_ENTERING_WORLD,afterCombat,create,refresh,tick)",
+            "Log(UPDATE_BINDINGS,afterCombat,create,refresh)",
+            "MapDock(create,prune,tick)",
+            "Gamepad(INPUT_DEVICE_INTERFACE_TRANSITION,PLAYER_REGEN_DISABLED,afterCombat,create)",
+            "GamepadMenu(INPUT_DEVICE_INTERFACE_TRANSITION)",
+            "GamepadTracker(INPUT_DEVICE_INTERFACE_TRANSITION,PLAYER_REGEN_DISABLED,afterCombat,create)",
+            "GamepadMap(INPUT_DEVICE_INTERFACE_TRANSITION,PLAYER_REGEN_DISABLED,create)",
+            "MapPins(create,refresh)",
+            "GatheringSpots(LOOT_OPENED,MINIMAP_UPDATE_TRACKING,create)",
+            "MinimapPins(MINIMAP_UPDATE_ZOOM,create,refresh,tick)",
+            "MapHover(create)",
+            "Compatibility(create)",
+            "SettingsPage(create)",
+        }, " "),
+        "the modules and their moments"
+    )
 end)
 
 test("a frequent event that changed nothing drawn does not redraw", function()
     local ns, state = createAddon()
     local redraws = 0
-    ns.registerModule({ name = "Counter", refresh = function() redraws = redraws + 1 end })
+    ns.registerModule({
+        name = "Counter",
+        refresh = function()
+            redraws = redraws + 1
+        end,
+    })
     local function redrawsAfter(event, ...)
         local before = redraws
         ns.handleEvent(nil, event, ...)
@@ -77,7 +127,11 @@ test("a frequent event that changed nothing drawn does not redraw", function()
     -- The bags: only a change in the number of an item something drawn depends on
     local carried = 0
     local savedItem = C_Item
-    C_Item = setmetatable({ GetItemCount = function() return carried end }, { __index = savedItem })
+    C_Item = setmetatable({
+        GetItemCount = function()
+            return carried
+        end,
+    }, { __index = savedItem })
     expectEqual(redrawsAfter("BAG_UPDATE_DELAYED"), 0, "no item counted yet: no redraw")
     ns.QuestState.getItemCount(5555)
     carried = 1
@@ -95,7 +149,11 @@ test("a frequent event that changed nothing drawn does not redraw", function()
     expectEqual(redrawsAfter("GET_ITEM_INFO_RECEIVED", 2589, true), 0, "another addon's item arrived: no redraw")
     local savedItem2 = C_Item
     local asked = 0
-    C_Item = setmetatable({ RequestLoadItemDataByID = function() asked = asked + 1 end }, { __index = savedItem2 })
+    C_Item = setmetatable({
+        RequestLoadItemDataByID = function()
+            asked = asked + 1
+        end,
+    }, { __index = savedItem2 })
     ns.Prices.requestItem(2590)
     ns.Prices.requestItem(2590)
     expectEqual(asked, 1, "an item is asked for once")
@@ -112,21 +170,29 @@ test("where the game's quests differ from the database is noted for the report",
     local ns, state = createAddon()
     local dataCheck
     for _, module in ipairs(ns.getModules()) do
-        if module.name == "DataCheck" then dataCheck = module end
+        if module.name == "DataCheck" then
+            dataCheck = module
+        end
     end
     local savedGuid, savedName, savedQuestId, savedMetadata = UnitGUID, UnitName, GetQuestID, C_AddOns.GetAddOnMetadata
     local talkingTo -- the creature in the dialog: { id, name }
     UnitGUID = function(unit)
-        if unit == "npc" and talkingTo then return "Creature-0-0-0-0-" .. talkingTo.id .. "-0" end
+        if unit == "npc" and talkingTo then
+            return "Creature-0-0-0-0-" .. talkingTo.id .. "-0"
+        end
         return savedGuid and savedGuid(unit)
     end
     UnitName = function(unit)
-        if unit == "npc" then return talkingTo and talkingTo.name end
+        if unit == "npc" then
+            return talkingTo and talkingTo.name
+        end
         return savedName(unit)
     end
     local questieVersion = "1.0"
     C_AddOns.GetAddOnMetadata = function(name, field)
-        if name == "QuestieDB" and field == "Version" then return questieVersion end
+        if name == "QuestieDB" and field == "Version" then
+            return questieVersion
+        end
         local fallback = savedMetadata or GetAddOnMetadata
         return fallback and fallback(name, field)
     end
@@ -136,25 +202,59 @@ test("where the game's quests differ from the database is noted for the report",
     -- A quest the database does not have, from a creature
     talkingTo = { id = 9003, name = "Deathguard Morris" }
     dataCheck.events.QUEST_ACCEPTED(9999)
-    expectEqual(differences():find("9999 | ? | not in the database | given by Deathguard Morris (9003)", 1, true) ~= nil, true, "a quest it lacks")
+    expectEqual(
+        differences():find("9999 | ? | not in the database | given by Deathguard Morris (9003)", 1, true) ~= nil,
+        true,
+        "a quest it lacks"
+    )
     -- One it has, from a giver it does not list; and its items under another name (renamed in Forever)
-    state.questLog[301] = { isComplete = false, objectives = { killObjective(0, 8), { type = "item", text = "Fresh Wolf Fang: 0/8", numFulfilled = 0, numRequired = 8, finished = false } } }
+    state.questLog[301] = {
+        isComplete = false,
+        objectives = {
+            killObjective(0, 8),
+            { type = "item", text = "Fresh Wolf Fang: 0/8", numFulfilled = 0, numRequired = 8, finished = false },
+        },
+    }
     dataCheck.events.QUEST_ACCEPTED(301)
     local lines = differences()
-    expectEqual(lines:find("301 | Two Fronts | giver | Deathguard Morris (9003) | none", 1, true) ~= nil, true, "a giver it does not list")
-    expectEqual(lines:find("301 | Two Fronts | objectives | items: Fresh Wolf Fang | items: Wolf Fang", 1, true) ~= nil, true, "items of another name")
+    expectEqual(
+        lines:find("301 | Two Fronts | giver | Deathguard Morris (9003) | none", 1, true) ~= nil,
+        true,
+        "a giver it does not list"
+    )
+    expectEqual(
+        lines:find("301 | Two Fronts | objectives | items: Fresh Wolf Fang | items: Wolf Fang", 1, true) ~= nil,
+        true,
+        "items of another name"
+    )
     -- Handed in to someone else than the database's turn-in, and one handed in where it says: only the first noted
     talkingTo = { id = 9001, name = "Aide Rokka" }
-    GetQuestID = function() return 301 end
+    GetQuestID = function()
+        return 301
+    end
     dataCheck.events.QUEST_COMPLETE()
     dataCheck.events.QUEST_TURNED_IN(301)
-    expectEqual(differences():find("301 | Two Fronts | turn-in | Aide Rokka (9001) | Envoy Maldrek (9002)", 1, true) ~= nil, true, "a turn-in it does not list")
-    GetQuestID = function() return 101 end
+    expectEqual(
+        differences():find("301 | Two Fronts | turn-in | Aide Rokka (9001) | Envoy Maldrek (9002)", 1, true) ~= nil,
+        true,
+        "a turn-in it does not list"
+    )
+    GetQuestID = function()
+        return 101
+    end
     dataCheck.events.QUEST_COMPLETE()
     dataCheck.events.QUEST_TURNED_IN(101)
-    expectEqual(differences():find("^101 ") == nil and differences():find("\n101 ") == nil, true, "the database's own turn-in: nothing")
+    expectEqual(
+        differences():find("^101 ") == nil and differences():find("\n101 ") == nil,
+        true,
+        "the database's own turn-in: nothing"
+    )
     -- In the report, under its own heading; Clear empties it, and so does a new QuestieDB (it may have fixed them)
-    expectEqual(ns.GameOffers.composeReport():find("Where the game differs from QuestieDB", 1, true) ~= nil, true, "in the report")
+    expectEqual(
+        ns.GameOffers.composeReport():find("Where the game differs from QuestieDB", 1, true) ~= nil,
+        true,
+        "in the report"
+    )
     questieVersion = "1.1"
     expectEqual(differences(), "", "a new QuestieDB starts afresh")
     talkingTo = { id = 9003, name = "Deathguard Morris" }
@@ -167,7 +267,6 @@ end)
 test("what is read of the quest database is kept once frames run, bounded, and checked against the database", function()
     local ns = createAddon()
     local reads = 0
-    local spawns = { [17] = { { 50, 50 } } }
     local savedGet = LibQuestieDB.Npc.Get
     LibQuestieDB.Npc.Get = function(id, field)
         reads = reads + 1
@@ -223,12 +322,40 @@ test("a module that fails is reported and the modules after it still run", funct
     local ns = createAddon()
     local reported, ran = {}, {}
     local savedGet = geterrorhandler
-    geterrorhandler = function() return function(message) reported[#reported + 1] = message end end
-    ns.registerModule({ name = "Broken", create = function() error("broken create") end, refresh = function() error("broken refresh") end,
-        changes = { QUEST_LOG_UPDATE = function() error("broken check") end } })
-    ns.registerModule({ name = "After", create = function() ran.create = true end, refresh = function() ran.refresh = (ran.refresh or 0) + 1 end })
-    ns.on("QUEST_FACTS_CHANGED", function() error("broken listener") end)
-    ns.on("QUEST_FACTS_CHANGED", function() ran.listener = true end)
+    geterrorhandler = function()
+        return function(message)
+            reported[#reported + 1] = message
+        end
+    end
+    ns.registerModule({
+        name = "Broken",
+        create = function()
+            error("broken create")
+        end,
+        refresh = function()
+            error("broken refresh")
+        end,
+        changes = {
+            QUEST_LOG_UPDATE = function()
+                error("broken check")
+            end,
+        },
+    })
+    ns.registerModule({
+        name = "After",
+        create = function()
+            ran.create = true
+        end,
+        refresh = function()
+            ran.refresh = (ran.refresh or 0) + 1
+        end,
+    })
+    ns.on("QUEST_FACTS_CHANGED", function()
+        error("broken listener")
+    end)
+    ns.on("QUEST_FACTS_CHANGED", function()
+        ran.listener = true
+    end)
     local isFine, problem = pcall(function()
         ns.handleEvent(nil, "PLAYER_LOGIN")
         expectEqual(ran.create, true, "the module after a failing create is created")
@@ -247,48 +374,75 @@ test("a module that fails is reported and the modules after it still run", funct
     assert(isFine, problem)
 end)
 
-test("a damaged saved file does not stop the addon loading: what is of the wrong kind goes back to its default", function()
-    local ns = createAddon()
-    local settings = ns.loadSettings("not a table")
-    expectEqual(settings.isShown, true, "a saved file that is no table: the defaults")
-    settings = ns.loadSettings({ isShown = false, trackerScale = "big", collapsedZones = "zones", language = 5 })
-    expectEqual(settings.isShown, false, "what is right is kept")
-    expectEqual(settings.trackerScale, 1, "a number that is words: the default")
-    expectEqual(type(settings.collapsedZones), "table", "a table that is not one: empty")
-    expectEqual(settings.language, "en", "the language too")
-    ns.settings.killCounts = 7
-    expectEqual(type(ns.getCharacterRecords("killCounts")), "table", "a character's records under something else: started afresh")
-    OneMoreQuestDB = 42
-    ns.handleEvent(nil, "ADDON_LOADED", "OneMoreQuest")
-    expectEqual(type(OneMoreQuestDB), "table", "loaded all the same")
-    OneMoreQuestDB = nil
-end)
+test(
+    "a damaged saved file does not stop the addon loading: what is of the wrong kind goes back to its default",
+    function()
+        local ns = createAddon()
+        local settings = ns.loadSettings("not a table")
+        expectEqual(settings.isShown, true, "a saved file that is no table: the defaults")
+        settings = ns.loadSettings({ isShown = false, trackerScale = "big", collapsedZones = "zones", language = 5 })
+        expectEqual(settings.isShown, false, "what is right is kept")
+        expectEqual(settings.trackerScale, 1, "a number that is words: the default")
+        expectEqual(type(settings.collapsedZones), "table", "a table that is not one: empty")
+        expectEqual(settings.language, "en", "the language too")
+        ns.settings.killCounts = 7
+        expectEqual(
+            type(ns.getCharacterRecords("killCounts")),
+            "table",
+            "a character's records under something else: started afresh"
+        )
+        OneMoreQuestDB = 42
+        ns.handleEvent(nil, "ADDON_LOADED", "OneMoreQuest")
+        expectEqual(type(OneMoreQuestDB), "table", "loaded all the same")
+        OneMoreQuestDB = nil
+    end
+)
 
-test("the holidays follow the day: a calendar read once still says what runs after midnight and in another month", function()
-    local ns = createAddon()
-    local now = { year = 2026, month = 11, monthDay = 21, hour = 23, minute = 59 }
-    local opened = 0
-    local savedTime, savedCalendar, savedDate, savedClock = C_DateAndTime, C_Calendar, date, time
-    C_DateAndTime = { GetCurrentCalendarTime = function() return now end }
-    date, time = os.date, os.time
-    -- The realm's calendar for November: Hallow's End's last days, the 1st and the 21st (made up to test by)
-    C_Calendar = {
-        OpenCalendar = function() opened = opened + 1 end,
-        GetMonthInfo = function(offset) return offset == 0 and { month = 11, year = 2026, numDays = 30 } or { month = 12, year = 2026, numDays = 31 } end,
-        GetNumDayEvents = function(offset, day) return offset == 0 and (day == 1 or day == 21) and 1 or 0 end,
-        GetDayEvent = function() return { calendarType = "HOLIDAY", title = "Hallow's End" } end,
-    }
-    ns.handleEvent(nil, "CALENDAR_UPDATE_EVENT_LIST")
-    expectEqual(ns.Events.isActive("hallowsEnd"), true, "runs on the 21st, as the calendar says")
-    now = { year = 2026, month = 11, monthDay = 22, hour = 0, minute = 1 }
-    ns.Events.update()
-    expectEqual(ns.Events.isActive("hallowsEnd"), false, "past midnight it is over, with no word from the calendar")
-    now = { year = 2026, month = 12, monthDay = 1, hour = 0, minute = 1 }
-    ns.Events.update()
-    expectEqual(ns.Events.isActive("hallowsEnd"), false, "November's holidays are not December's: the 1st of the next month is not the 1st of this one")
-    expectEqual(opened >= 2, true, "a new month asks the calendar again")
-    C_DateAndTime, C_Calendar, date, time = savedTime, savedCalendar, savedDate, savedClock
-end)
+test(
+    "the holidays follow the day: a calendar read once still says what runs after midnight and in another month",
+    function()
+        local ns = createAddon()
+        local now = { year = 2026, month = 11, monthDay = 21, hour = 23, minute = 59 }
+        local opened = 0
+        local savedTime, savedCalendar, savedDate, savedClock = C_DateAndTime, C_Calendar, date, time
+        C_DateAndTime = {
+            GetCurrentCalendarTime = function()
+                return now
+            end,
+        }
+        date, time = os.date, os.time
+        -- The realm's calendar for November: Hallow's End's last days, the 1st and the 21st (made up to test by)
+        C_Calendar = {
+            OpenCalendar = function()
+                opened = opened + 1
+            end,
+            GetMonthInfo = function(offset)
+                return offset == 0 and { month = 11, year = 2026, numDays = 30 }
+                    or { month = 12, year = 2026, numDays = 31 }
+            end,
+            GetNumDayEvents = function(offset, day)
+                return offset == 0 and (day == 1 or day == 21) and 1 or 0
+            end,
+            GetDayEvent = function()
+                return { calendarType = "HOLIDAY", title = "Hallow's End" }
+            end,
+        }
+        ns.handleEvent(nil, "CALENDAR_UPDATE_EVENT_LIST")
+        expectEqual(ns.Events.isActive("hallowsEnd"), true, "runs on the 21st, as the calendar says")
+        now = { year = 2026, month = 11, monthDay = 22, hour = 0, minute = 1 }
+        ns.Events.update()
+        expectEqual(ns.Events.isActive("hallowsEnd"), false, "past midnight it is over, with no word from the calendar")
+        now = { year = 2026, month = 12, monthDay = 1, hour = 0, minute = 1 }
+        ns.Events.update()
+        expectEqual(
+            ns.Events.isActive("hallowsEnd"),
+            false,
+            "November's holidays are not December's: the 1st of the next month is not the 1st of this one"
+        )
+        expectEqual(opened >= 2, true, "a new month asks the calendar again")
+        C_DateAndTime, C_Calendar, date, time = savedTime, savedCalendar, savedDate, savedClock
+    end
+)
 
 test("a damaged saved dungeon record does not break the dungeons", function()
     local ns = createAddon()
@@ -297,7 +451,9 @@ test("a damaged saved dungeon record does not break the dungeons", function()
     local dungeons = ns.Database.getDungeons()
     local learned
     for _, dungeon in ipairs(dungeons) do
-        if dungeon.isLearned then learned = dungeon end
+        if dungeon.isLearned then
+            learned = dungeon
+        end
     end
     expectEqual(learned and learned.name, "Instance 7", "the record that could be mended, named by its number")
     expectEqual(#ns.LearnedDungeons.getQuestIds(learned.areaId), 0, "with no quests")
@@ -305,13 +461,22 @@ test("a damaged saved dungeon record does not break the dungeons", function()
 end)
 
 test("a dungeon's way in is not learned from the graveyard or the inn the player comes out at", function()
-    local ns, state = createAddon()
-    local savedInInstance, savedInfo, savedDead, savedResting = IsInInstance, GetInstanceInfo, UnitIsDeadOrGhost, IsResting
+    local ns = createAddon()
+    local savedInInstance, savedInfo, savedDead, savedResting =
+        IsInInstance, GetInstanceInfo, UnitIsDeadOrGhost, IsResting
     local isInside, isGhost, isAtInn = true, false, false
-    IsInInstance = function() return isInside end
-    GetInstanceInfo = function() return "Alcaz Prison", "party", 1, "", 5, 0, false, 7777 end
-    UnitIsDeadOrGhost = function() return isGhost end
-    IsResting = function() return isAtInn end
+    IsInInstance = function()
+        return isInside
+    end
+    GetInstanceInfo = function()
+        return "Alcaz Prison", "party", 1, "", 5, 0, false, 7777
+    end
+    UnitIsDeadOrGhost = function()
+        return isGhost
+    end
+    IsResting = function()
+        return isAtInn
+    end
     ns.LearnedDungeons.reset()
     local function enterAndLeave()
         isInside = true
@@ -339,21 +504,36 @@ test("a creature's places show each quest what that quest does there, not what t
     local savedGet = LibQuestieDB.Quest.Get
     LibQuestieDB.Quest.Get = function(id, field)
         if id == 990 then -- the bandits' orders, from Roadside Bandits, to collect
-            if field == "name" then return "Collect Orders" end
-            if field == "objectives" then return { nil, nil, { { 7004 } } } end
-            if field == "finishedBy" then return { { 9002 } } end
+            if field == "name" then
+                return "Collect Orders"
+            end
+            if field == "objectives" then
+                return { nil, nil, { { 7004 } } }
+            end
+            if field == "finishedBy" then
+                return { { 9002 } }
+            end
             return nil
         end
         return savedGet(id, field)
     end
-    local kill = ns.Location.composeStep({ questId = 201, isComplete = false,
-        objectives = { { type = "monster", label = "Roadside Bandit slain", isFinished = false } } }, nil)
-    local loot = ns.Location.composeStep({ questId = 990, isComplete = false,
-        objectives = { { type = "item", label = "Bandit Orders", isFinished = false } } }, nil)
+    local kill = ns.Location.composeStep({
+        questId = 201,
+        isComplete = false,
+        objectives = { { type = "monster", label = "Roadside Bandit slain", isFinished = false } },
+    }, nil)
+    local loot = ns.Location.composeStep({
+        questId = 990,
+        isComplete = false,
+        objectives = { { type = "item", label = "Bandit Orders", isFinished = false } },
+    }, nil)
     expectEqual(kill.allPlaces[1].glyph, "kill", "swords where the first quest kills them")
     expectEqual(loot.allPlaces[1].glyph, "loot", "a bag where the second loots them")
-    kill = ns.Location.composeStep({ questId = 201, isComplete = false,
-        objectives = { { type = "monster", label = "Roadside Bandit slain", isFinished = false } } }, nil)
+    kill = ns.Location.composeStep({
+        questId = 201,
+        isComplete = false,
+        objectives = { { type = "monster", label = "Roadside Bandit slain", isFinished = false } },
+    }, nil)
     expectEqual(kill.allPlaces[1].glyph, "kill", "and the first keeps its own")
     LibQuestieDB.Quest.Get = savedGet
 end)
@@ -370,12 +550,20 @@ test("a chain is the same chain whichever of its quests is asked for", function(
     -- A step that names no next one: what follows it is read off the quests that need it
     local savedGet = LibQuestieDB.Quest.Get
     LibQuestieDB.Quest.Get = function(id, field)
-        if id == 102 and field == "nextQuestInChain" then return 0 end
+        if id == 102 and field == "nextQuestInChain" then
+            return 0
+        end
         return savedGet(id, field)
     end
-    ns.Availability.getFollowUps = function(questId) return ({ [101] = { 102 }, [102] = { 103 } })[questId] or {} end
+    ns.Availability.getFollowUps = function(questId)
+        return ({ [101] = { 102 }, [102] = { 103 } })[questId] or {}
+    end
     for _, questId in ipairs({ 101, 102, 103 }) do
-        expectEqual(table.concat(ns.Chain.getQuestIds(questId), ","), "101,102,103", "followed forward from " .. questId)
+        expectEqual(
+            table.concat(ns.Chain.getQuestIds(questId), ","),
+            "101,102,103",
+            "followed forward from " .. questId
+        )
     end
     LibQuestieDB.Quest.Get = savedGet
 end)

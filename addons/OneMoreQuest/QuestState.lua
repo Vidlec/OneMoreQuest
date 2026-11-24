@@ -64,7 +64,9 @@ function QuestState.getKillWords()
     local pattern = type(QUEST_MONSTERS_KILLED) == "string" and QUEST_MONSTERS_KILLED or ""
     for word in pattern:gsub("%%%d*%$?%a", " "):gmatch("[^%s%p%d]+") do
         word = word:lower()
-        if word ~= "slain" and word ~= "killed" then killWords[#killWords + 1] = word end
+        if word ~= "slain" and word ~= "killed" then
+            killWords[#killWords + 1] = word
+        end
     end
     return killWords
 end
@@ -73,7 +75,9 @@ end
 function QuestState.isKillWording(label)
     local lower = (label or ""):lower()
     for _, word in ipairs(QuestState.getKillWords()) do
-        if lower:find(word, 1, true) then return true end
+        if lower:find(word, 1, true) then
+            return true
+        end
     end
     return false
 end
@@ -193,8 +197,14 @@ local function readQuest(questId)
     local gameObjectives = C_QuestLog.GetQuestObjectives(questId) or {}
     for _, objective in ipairs(gameObjectives) do
         -- The line in the player's language, from a translation addon; the English stays for matching
-        local shownText = ns.QuestText.getObjective(questId, objective.text, objective.numFulfilled, objective.numRequired,
-            objective.type, #gameObjectives)
+        local shownText = ns.QuestText.getObjective(
+            questId,
+            objective.text,
+            objective.numFulfilled,
+            objective.numRequired,
+            objective.type,
+            #gameObjectives
+        )
         objectives[#objectives + 1] = {
             label = QuestState.getObjectiveLabel(objective.text),
             text = objective.text, -- as the game's own tooltips show it: "Kraul Guano: 3/12"
@@ -207,7 +217,9 @@ local function readQuest(questId)
         }
     end
     local level = C_QuestLog.GetQuestDifficultyLevel and C_QuestLog.GetQuestDifficultyLevel(questId)
-    local englishTitle = C_QuestLog.GetTitleForQuestID(questId) or ns.Database.getQuestField(questId, "name") or ("Quest " .. questId)
+    local englishTitle = C_QuestLog.GetTitleForQuestID(questId)
+        or ns.Database.getQuestField(questId, "name")
+        or ("Quest " .. questId)
     return {
         questId = questId,
         title = ns.QuestText.getTitle(questId, englishTitle, true), -- as shown: from a translation addon, when one has it
@@ -229,8 +241,12 @@ function QuestState.getQuest(questId)
         end
     end
     return {
-        questId = read.questId, title = read.title, englishTitle = read.englishTitle, level = read.level,
-        isComplete = read.isComplete, objectives = read.objectives,
+        questId = read.questId,
+        title = read.title,
+        englishTitle = read.englishTitle,
+        level = read.level,
+        isComplete = read.isComplete,
+        objectives = read.objectives,
     }
 end
 
@@ -282,15 +298,23 @@ end
 
 -- Told first of every change to the log and to what is tracked (this file loads before the modules that listen for
 -- the same events on frames of their own)
-local LOG_EVENTS = { "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_TURNED_IN", "QUEST_LOG_UPDATE", "QUEST_WATCH_LIST_CHANGED",
-    "UNIT_QUEST_LOG_CHANGED" }
+local LOG_EVENTS = {
+    "QUEST_ACCEPTED",
+    "QUEST_REMOVED",
+    "QUEST_TURNED_IN",
+    "QUEST_LOG_UPDATE",
+    "QUEST_WATCH_LIST_CHANGED",
+    "UNIT_QUEST_LOG_CHANGED",
+}
 if CreateFrame then
     local logWatcher = CreateFrame("Frame")
     if logWatcher and logWatcher.RegisterEvent and logWatcher.SetScript then
         for _, event in ipairs(LOG_EVENTS) do
             pcall(logWatcher.RegisterEvent, logWatcher, event)
         end
-        logWatcher:SetScript("OnEvent", function() QuestState.forgetFrame() end)
+        logWatcher:SetScript("OnEvent", function()
+            QuestState.forgetFrame()
+        end)
     end
 end
 
@@ -468,7 +492,8 @@ function QuestState.addWatch(questId)
     if QuestState.isWatched(questId) then
         return true
     end
-    local maxWatches = Constants and Constants.QuestWatchConsts and Constants.QuestWatchConsts.MAX_QUEST_WATCHES or DEFAULT_MAX_WATCHES
+    local maxWatches = Constants and Constants.QuestWatchConsts and Constants.QuestWatchConsts.MAX_QUEST_WATCHES
+        or DEFAULT_MAX_WATCHES
     if (C_QuestLog.GetNumQuestWatches() or 0) >= maxWatches then
         showError(OBJECTIVES_WATCH_TOO_MANY or ns.L("You can only track %d quests at a time.", maxWatches))
         return false
@@ -535,7 +560,9 @@ function QuestState.getDescription(questId)
         return nil
     end
     -- Selecting makes the game announce a quest log change, so it is done only when the selection differs
-    if C_QuestLog.SetSelectedQuest and not (C_QuestLog.GetSelectedQuest and C_QuestLog.GetSelectedQuest() == questId) then
+    if
+        C_QuestLog.SetSelectedQuest and not (C_QuestLog.GetSelectedQuest and C_QuestLog.GetSelectedQuest() == questId)
+    then
         C_QuestLog.SetSelectedQuest(questId)
     end
     local description = GetQuestLogQuestText(C_QuestLog.GetLogIndexForQuestID(questId))
@@ -551,7 +578,13 @@ local function getRewardItems(getCount, getInfo, questId, rewardType)
         if name then
             -- The kind, position and quest are what the game's tooltip needs to show the item
             items[#items + 1] = {
-                name = name, texture = texture, count = count or 1, rewardType = rewardType, index = index, questId = questId, itemId = itemId,
+                name = name,
+                texture = texture,
+                count = count or 1,
+                rewardType = rewardType,
+                index = index,
+                questId = questId,
+                itemId = itemId,
                 quality = type(quality) == "number" and quality or nil,
             }
         end
@@ -709,8 +742,13 @@ function QuestState.getLogSignature()
         local info = C_QuestLog.GetInfo(index)
         local questId = info and not info.isHeader and info.questID
         if questId and questId > 0 then
-            parts[#parts + 1] = string.format("%d:%s:%s:%s", questId, tostring(C_QuestLog.GetTitleForQuestID and C_QuestLog.GetTitleForQuestID(questId)),
-                tostring(C_QuestLog.IsComplete and C_QuestLog.IsComplete(questId)), tostring(C_QuestLog.IsFailed and C_QuestLog.IsFailed(questId)))
+            parts[#parts + 1] = string.format(
+                "%d:%s:%s:%s",
+                questId,
+                tostring(C_QuestLog.GetTitleForQuestID and C_QuestLog.GetTitleForQuestID(questId)),
+                tostring(C_QuestLog.IsComplete and C_QuestLog.IsComplete(questId)),
+                tostring(C_QuestLog.IsFailed and C_QuestLog.IsFailed(questId))
+            )
             for _, objective in ipairs(C_QuestLog.GetQuestObjectives(questId) or {}) do
                 parts[#parts + 1] = tostring(objective.text) .. (objective.finished and "+" or "-")
             end
@@ -730,7 +768,7 @@ end
 local countedItems = {}
 
 local function readItemCount(itemId)
-    local getCount = (C_Item and C_Item.GetItemCount) or GetItemCount
+    local getCount = (C_Item and C_Item.GetItemCount) or GetItemCount -- luacheck: ignore 113 (an older client's fallback)
     return getCount and getCount(itemId) or 0
 end
 

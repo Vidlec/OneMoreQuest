@@ -20,7 +20,8 @@ ns.MapMarks = MapMarks
 local Style, State = {}, {}
 local Compose, Look, Layout, Shapes, Areas, Draw = {}, {}, {}, {}, {}, {}
 ns.MapMarksStyle, ns.MapMarksState = Style, State
-ns.MapMarksCompose, ns.MapMarksLook, ns.MapMarksLayout, ns.MapMarksShapes, ns.MapMarksAreas, ns.MapMarksDraw = Compose, Look, Layout, Shapes, Areas, Draw
+ns.MapMarksCompose, ns.MapMarksLook, ns.MapMarksLayout, ns.MapMarksShapes, ns.MapMarksAreas, ns.MapMarksDraw =
+    Compose, Look, Layout, Shapes, Areas, Draw
 
 local LINK_DISTANCE = 0.06 -- places closer than this, as a fraction of the map, belong to one area
 local AREA_PADDING = 0.016
@@ -36,7 +37,8 @@ local MAX_POINTS = 80
 local MERGE_DISTANCE = 0.035 -- marks of the quest in focus closer than this become one mark with several labels
 
 local MEDIA = "Interface\\AddOns\\" .. addonName .. "\\Media\\"
-local GLYPHS = { kill = MEDIA .. "GlyphKill", loot = MEDIA .. "GlyphLoot", use = MEDIA .. "GlyphUse", tick = MEDIA .. "GlyphTick" }
+local GLYPHS =
+    { kill = MEDIA .. "GlyphKill", loot = MEDIA .. "GlyphLoot", use = MEDIA .. "GlyphUse", tick = MEDIA .. "GlyphTick" }
 local SOFT_DOT = MEDIA .. "SoftDot" -- a round patch, solid in the middle, fading at the edge
 local QUEST_BLUE = { 0.3, 0.62, 1 } -- the game's own shading of quest areas
 MapMarks.QUEST_BLUE = QUEST_BLUE -- the minimap's spawn squares are the same blue
@@ -59,8 +61,18 @@ MapMarks.GLYPHS = GLYPHS
 -- what to do there with a glow in the quest's colour
 -- Twelve, told apart on the map's greens and browns; none is the gold of quest givers and the quest in focus
 local QUEST_COLORS = {
-    { 0.3, 0.62, 1 }, { 1, 0.56, 0.18 }, { 0.38, 0.82, 0.42 }, { 0.96, 0.42, 0.66 }, { 0.66, 0.5, 1 }, { 0.22, 0.86, 0.84 },
-    { 0.95, 0.3, 0.25 }, { 0.72, 0.92, 0.3 }, { 0.5, 0.82, 1 }, { 0.88, 0.38, 0.95 }, { 1, 0.7, 0.55 }, { 0.55, 0.96, 0.72 },
+    { 0.3, 0.62, 1 },
+    { 1, 0.56, 0.18 },
+    { 0.38, 0.82, 0.42 },
+    { 0.96, 0.42, 0.66 },
+    { 0.66, 0.5, 1 },
+    { 0.22, 0.86, 0.84 },
+    { 0.95, 0.3, 0.25 },
+    { 0.72, 0.92, 0.3 },
+    { 0.5, 0.82, 1 },
+    { 0.88, 0.38, 0.95 },
+    { 1, 0.7, 0.55 },
+    { 0.55, 0.96, 0.72 },
 }
 -- A quest's areas are muted, as its spawn icons are, until the quest is focused or highlighted
 local AREA_FILL_ALPHA, FOCUSED_AREA_FILL_ALPHA = 0.08, 0.3
@@ -76,14 +88,14 @@ local AREA_MIN_POINTS = 2 -- a spawn on its own is no area: its icon alone shows
 local AREA_REACH_YARDS = 50 -- how far an area reaches past each spawn; rings that touch make one area
 -- Spawns all within this of one another are one place, not an area: the quest's mark stands on them and says it
 local ONE_PLACE_YARDS = 40
-local AREA_CIRCLE_STEPS = 12 -- the round each spawn's reach makes; the area is the smooth hull of them all
 local AREA_EDGE_PIXELS, AREA_RIM_PIXELS = 2, 4 -- the edge line and the soft dark line under it, on screen
 local ICON_SIZE = 11 -- an objective's icon on the map, kept the same size on screen
 local ICON_GLOW_SIZE = 17
 local ICON_CELL = 12 -- one icon to a cell of this grid (on screen): a pixel more than an icon, so they stand close but never overlap
 -- What to do at a spawn: a sword to kill, a sack to loot, a pointing hand to use, a speech bubble to talk; cream with a
 -- dark edge, so they read on any map art and any glow
-local OBJECTIVE_ICONS = { kill = MEDIA .. "IconKill", loot = MEDIA .. "IconLoot", use = MEDIA .. "IconUse", talk = MEDIA .. "IconTalk" }
+local OBJECTIVE_ICONS =
+    { kill = MEDIA .. "IconKill", loot = MEDIA .. "IconLoot", use = MEDIA .. "IconUse", talk = MEDIA .. "IconTalk" }
 MapMarks.OBJECTIVE_ICONS = OBJECTIVE_ICONS
 
 ---Sets an objective's icon on a texture.
@@ -328,7 +340,11 @@ local function getWorldAreas(places)
     for cellKey, cell in pairs(cells) do
         for columnOffset = -1, 1 do
             for rowOffset = -1, 1 do
-                local neighbourKey = cell.continent .. ":" .. (cell.column + columnOffset) .. ":" .. (cell.row + rowOffset)
+                local neighbourKey = cell.continent
+                    .. ":"
+                    .. (cell.column + columnOffset)
+                    .. ":"
+                    .. (cell.row + rowOffset)
                 if cells[neighbourKey] and neighbourKey ~= cellKey then
                     parents[getRoot(neighbourKey)] = getRoot(cellKey)
                 end
@@ -339,7 +355,13 @@ local function getWorldAreas(places)
     local result = { areaOf = {}, anchors = {}, sizes = {} }
     for _, item in ipairs(positions) do
         local position = item.position
-        local root = getRoot(position[1] .. ":" .. math.floor(position[3] / WORLD_LINK_YARDS) .. ":" .. math.floor(position[2] / WORLD_LINK_YARDS))
+        local root = getRoot(
+            position[1]
+                .. ":"
+                .. math.floor(position[3] / WORLD_LINK_YARDS)
+                .. ":"
+                .. math.floor(position[2] / WORLD_LINK_YARDS)
+        )
         local index = indexByRoot[root]
         if not index then
             index = #members + 1
@@ -404,7 +426,11 @@ function MapMarks.thinPoints(points, spacing)
     for _, point in ipairs(points) do
         local position = point.place and getWorldPlace(point.place)
         if position then
-            local cell = position[1] .. ":" .. math.floor(position[3] / spacing) .. ":" .. math.floor(position[2] / spacing)
+            local cell = position[1]
+                .. ":"
+                .. math.floor(position[3] / spacing)
+                .. ":"
+                .. math.floor(position[2] / spacing)
             local rank = getSpawnRank(point.place)
             if not bestRank[cell] or rank < bestRank[cell] then
                 best[cell], bestRank[cell] = point, rank
@@ -448,7 +474,8 @@ function MapMarks.chooseSpawnSpacing(pixelsPerYard, current, markScale)
     local chosen = choose(pixelsPerYard)
     if current and chosen ~= current then
         -- Only once past the edge by the slack, whichever way the zoom went
-        local further = choose(chosen < current and pixelsPerYard / SPAWN_SPACING_SLACK or pixelsPerYard * SPAWN_SPACING_SLACK)
+        local further =
+            choose(chosen < current and pixelsPerYard / SPAWN_SPACING_SLACK or pixelsPerYard * SPAWN_SPACING_SLACK)
         if further ~= chosen then
             return current
         end
@@ -515,8 +542,13 @@ function MapMarks.composeStableAreas(points)
                 end
             end
             areas[#areas + 1] = {
-                points = group, x = anchor.x, y = anchor.y, centroidX = anchor.x, centroidY = anchor.y,
-                shadeX = (minX + maxX) / 2, shadeY = (minY + maxY) / 2, -- the shading round the whole area
+                points = group,
+                x = anchor.x,
+                y = anchor.y,
+                centroidX = anchor.x,
+                centroidY = anchor.y,
+                shadeX = (minX + maxX) / 2,
+                shadeY = (minY + maxY) / 2, -- the shading round the whole area
                 radiusX = math.max((maxX - minX) / 2 + AREA_PADDING, MIN_AREA_RADIUS),
                 radiusY = math.max((maxY - minY) / 2 + AREA_PADDING, MIN_AREA_RADIUS),
             }
@@ -610,7 +642,8 @@ local function composePoints(places, mapId)
             x, y = nil, nil
         end
         if x then
-            points[#points + 1] = { x = x, y = y, dungeonName = place.dungeonName, zoneId = place.groupZoneId, place = place }
+            points[#points + 1] =
+                { x = x, y = y, dungeonName = place.dungeonName, zoneId = place.groupZoneId, place = place }
         end
     end
     return points
@@ -711,7 +744,11 @@ end
 function MapMarks.getProgress(entry)
     local sum = 0
     for _, objective in ipairs(entry.objectives) do
-        sum = sum + (objective.required > 0 and math.min(objective.fulfilled / objective.required, 1) or (objective.isFinished and 1 or 0))
+        sum = sum
+            + (
+                objective.required > 0 and math.min(objective.fulfilled / objective.required, 1)
+                or (objective.isFinished and 1 or 0)
+            )
     end
     return #entry.objectives > 0 and sum / #entry.objectives or 0
 end
@@ -793,7 +830,8 @@ end
 ---@return string text An objective as a mark's tooltip says it: its words, how far along it is, and the dungeon
 ---it is inside
 local function getObjectiveText(objective, dungeonName)
-    local text = (objective.shownLabel or objective.label) .. (objective.required > 1 and string.format(" %d/%d", objective.fulfilled, objective.required) or "")
+    local text = (objective.shownLabel or objective.label)
+        .. (objective.required > 1 and string.format(" %d/%d", objective.fulfilled, objective.required) or "")
     return dungeonName and ns.L("%s (in %s)", text, dungeonName) or text
 end
 
@@ -1011,7 +1049,13 @@ local function getFoundPlaces(spoilers, questId, objectiveIndex)
         if isExact or isPlaceUnfogged(spoilers, place) then
             local copy = foundCopies[place]
             if not copy then
-                copy = { zoneId = place.zoneId, groupZoneId = ns.Database.getParentZoneId(place.zoneId), x = place.x, y = place.y, isFound = true }
+                copy = {
+                    zoneId = place.zoneId,
+                    groupZoneId = ns.Database.getParentZoneId(place.zoneId),
+                    x = place.x,
+                    y = place.y,
+                    isFound = true,
+                }
                 foundCopies[place] = copy
             end
             found[#found + 1] = copy
@@ -1036,7 +1080,12 @@ local function getZoneYards(uiMapId)
     if yards == nil and uiMapId then
         local _, north, west = ns.Geometry.getWorldPosition(uiMapId, 0, 0)
         local _, southNorth, eastWest = ns.Geometry.getWorldPosition(uiMapId, 100, 100)
-        yards = north and southNorth and west - eastWest > 0 and north - southNorth > 0 and { west - eastWest, north - southNorth } or false
+        yards = north
+                and southNorth
+                and west - eastWest > 0
+                and north - southNorth > 0
+                and { west - eastWest, north - southNorth }
+            or false
         zoneYards[uiMapId] = yards
     end
     if not yards then
@@ -1075,22 +1124,32 @@ function MapMarks.getRoughCircles(questId, objectiveIndex, places)
         end
         local widthYards, heightYards = getZoneYards(uiMapId)
         local halfWidth, halfHeight = (maxX - minX) / 2 * widthYards / 100, (maxY - minY) / 2 * heightYards / 100
-        local reach = math.max(math.sqrt(halfWidth * halfWidth + halfHeight * halfHeight) + ROUGH_REACH_YARDS, ROUGH_MIN_YARDS)
+        local reach =
+            math.max(math.sqrt(halfWidth * halfWidth + halfHeight * halfHeight) + ROUGH_REACH_YARDS, ROUGH_MIN_YARDS)
         -- The step's direction, from where the area is alone: the same in every session, and the same for every
         -- objective and every quest hunting there, so their circles lie on one another (a fan of circles shifted
         -- each its own way was clutter, and where they all overlapped gave the middle away)
-        local seed = (anchor.zoneId or 0) * 12.9898 + math.floor(anchor.x + 0.5) * 78.233 + math.floor(anchor.y + 0.5) * 37.719
+        local seed = (anchor.zoneId or 0) * 12.9898
+            + math.floor(anchor.x + 0.5) * 78.233
+            + math.floor(anchor.y + 0.5) * 37.719
         local angle = ((math.sin(seed) * 43758.5453) % 1) * 2 * math.pi
         local shift = reach * ROUGH_SHIFT
         local x = (minX + maxX) / 2 + shift * math.cos(angle) / widthYards * 100
         local y = (minY + maxY) / 2 - shift * math.sin(angle) / heightYards * 100
         circles[#circles + 1] = {
             place = {
-                zoneId = anchor.zoneId, groupZoneId = anchor.groupZoneId, mapZoneId = anchor.mapZoneId,
-                x = math.max(0, math.min(100, x)), y = math.max(0, math.min(100, y)),
-                dungeonName = anchor.dungeonName, dungeonZoneId = anchor.dungeonZoneId,
+                zoneId = anchor.zoneId,
+                groupZoneId = anchor.groupZoneId,
+                mapZoneId = anchor.mapZoneId,
+                x = math.max(0, math.min(100, x)),
+                y = math.max(0, math.min(100, y)),
+                dungeonName = anchor.dungeonName,
+                dungeonZoneId = anchor.dungeonZoneId,
             },
-            radiusYards = reach + shift, size = world.sizes[index], places = list, order = index,
+            radiusYards = reach + shift,
+            size = world.sizes[index],
+            places = list,
+            order = index,
         }
     end
     table.sort(circles, function(first, second)
@@ -1136,7 +1195,9 @@ local function isLeftInDungeons(entry)
     for _, objective in ipairs(entry.objectives or NONE) do
         typeIndexes[objective.type] = (typeIndexes[objective.type] or 0) + 1
         if not objective.isFinished then
-            for _, place in ipairs(ns.Location.getObjectiveInfo(entry.questId, objective.type, typeIndexes[objective.type]) or NONE) do
+            for _, place in
+                ipairs(ns.Location.getObjectiveInfo(entry.questId, objective.type, typeIndexes[objective.type]) or NONE)
+            do
                 if not place.dungeonZoneId then
                     return false
                 end
@@ -1230,7 +1291,8 @@ local function addRoughMarks(marks, entry, mapId, isFocused, number, spoilers, t
                     for _, line in ipairs(same.counted) do
                         line.lineIndex = line.lineIndex + 1
                     end
-                    same.counted[#same.counted + 1] = { objectiveIndex = objectiveIndex, dungeonName = circle.place.dungeonName, lineIndex = 2 }
+                    same.counted[#same.counted + 1] =
+                        { objectiveIndex = objectiveIndex, dungeonName = circle.place.dungeonName, lineIndex = 2 }
                     if same.labels and isFocused then
                         same.labels[#same.labels + 1] = { text = text, glyph = glyph }
                     end
@@ -1239,12 +1301,26 @@ local function addRoughMarks(marks, entry, mapId, isFocused, number, spoilers, t
                 end
                 if placed then
                     local mark = {
-                        kind = "objective", x = placed.x, y = placed.y, questId = entry.questId, isFocused = isFocused, glyph = glyph,
-                        zoneId = placed.zoneId or entry.zoneId, number = number, progress = progress, isRough = true,
+                        kind = "objective",
+                        x = placed.x,
+                        y = placed.y,
+                        questId = entry.questId,
+                        isFocused = isFocused,
+                        glyph = glyph,
+                        zoneId = placed.zoneId or entry.zoneId,
+                        number = number,
+                        progress = progress,
+                        isRough = true,
                         lines = { title, text, somewhere, dropText },
                         -- (no spawns and no areas: the circle is all there is to see)
-                        labels = {}, areas = {}, points = {}, roughCircles = { placed }, size = circle.size,
-                        counted = { { objectiveIndex = objectiveIndex, dungeonName = circle.place.dungeonName, lineIndex = 2 } },
+                        labels = {},
+                        areas = {},
+                        points = {},
+                        roughCircles = { placed },
+                        size = circle.size,
+                        counted = {
+                            { objectiveIndex = objectiveIndex, dungeonName = circle.place.dungeonName, lineIndex = 2 },
+                        },
                     }
                     samePlace[string.format("%.1f:%.1f", placed.x * 100, placed.y * 100)] = mark
                     if isFocused then
@@ -1282,8 +1358,12 @@ local function addQuestMarks(marks, entry, mapId, isFocused, number, spoilers)
         local text = entry.eventText or ns.L("Turn in to %s", entry.finisherName or ns.L("the quest giver"))
         if areas[1] then
             marks[#marks + 1] = {
-                kind = entry.isTurnIn and "turnIn" or "objective", x = areas[1].centroidX, y = areas[1].centroidY,
-                questId = entry.questId, isFocused = isFocused, glyph = "talk", -- nothing to do but be there
+                kind = entry.isTurnIn and "turnIn" or "objective",
+                x = areas[1].centroidX,
+                y = areas[1].centroidY,
+                questId = entry.questId,
+                isFocused = isFocused,
+                glyph = "talk", -- nothing to do but be there
                 zoneId = areas[1].points[1].zoneId or entry.zoneId,
                 number = number,
                 progress = entry.isTurnIn and 1 or 0,
@@ -1322,7 +1402,8 @@ local function addQuestMarks(marks, entry, mapId, isFocused, number, spoilers)
             local isBySource = objectiveIndex == sourceObjectiveIndex
             local points, sourceLabels, areas
             if isBySource then
-                points, sourceLabels = MapMarks.composeSourcePoints(dropZones, mapId, MapMarks.getDropsChoice(spoilers, entry.questId))
+                points, sourceLabels =
+                    MapMarks.composeSourcePoints(dropZones, mapId, MapMarks.getDropsChoice(spoilers, entry.questId))
             elseif foundNote then
                 points = composePoints(getFoundPlaces(spoilers, entry.questId, objectiveIndex), mapId)
                 for _, point in ipairs(points) do
@@ -1358,11 +1439,25 @@ local function addQuestMarks(marks, entry, mapId, isFocused, number, spoilers)
                         end
                     end
                     addFocusedMark(marks, {
-                        kind = "objective", x = area.x, y = area.y, questId = entry.questId, isFocused = true, glyph = glyph,
+                        kind = "objective",
+                        x = area.x,
+                        y = area.y,
+                        questId = entry.questId,
+                        isFocused = true,
+                        glyph = glyph,
                         zoneId = area.points[1].zoneId or entry.zoneId,
-                        number = number, progress = progress,
+                        number = number,
+                        progress = progress,
                         labels = labels,
-                        areas = { { x = area.shadeX or area.x, y = area.shadeY or area.y, radiusX = area.radiusX, radiusY = area.radiusY, shade = shade } },
+                        areas = {
+                            {
+                                x = area.shadeX or area.x,
+                                y = area.shadeY or area.y,
+                                radiusX = area.radiusX,
+                                radiusY = area.radiusY,
+                                shade = shade,
+                            },
+                        },
                         -- Lists of the mark's own, not the area's: a mark joined by another (addFocusedMark) adds
                         -- that one's spawns to each, and one list in both places would hold them twice
                         points = #area.points > 1 and copyList(area.points) or {},
@@ -1371,10 +1466,23 @@ local function addQuestMarks(marks, entry, mapId, isFocused, number, spoilers)
                         spawnPoints = copyList(area.points),
                         lines = { title, text, foundNote },
                         -- (what of this follows the objective's count: MapMarks.refreshMarkTexts)
-                        counted = { { objectiveIndex = objectiveIndex, dungeonName = dungeonName, lineIndex = 2, label = labels[1] } },
+                        counted = {
+                            {
+                                objectiveIndex = objectiveIndex,
+                                dungeonName = dungeonName,
+                                lineIndex = 2,
+                                label = labels[1],
+                            },
+                        },
                     }, firstFocusedMark)
                 else
-                    quietAreas[#quietAreas + 1] = { area = area, text = text, glyph = glyph, objectiveIndex = objectiveIndex, dungeonName = dungeonName }
+                    quietAreas[#quietAreas + 1] = {
+                        area = area,
+                        text = text,
+                        glyph = glyph,
+                        objectiveIndex = objectiveIndex,
+                        dungeonName = dungeonName,
+                    }
                 end
             end
         end
@@ -1395,10 +1503,16 @@ local function addQuestMarks(marks, entry, mapId, isFocused, number, spoilers)
             end
         end
         marks[#marks + 1] = {
-            kind = "objective", x = largest.area.x, y = largest.area.y, questId = entry.questId, isFocused = false,
+            kind = "objective",
+            x = largest.area.x,
+            y = largest.area.y,
+            questId = entry.questId,
+            isFocused = false,
             glyph = largest.glyph,
             zoneId = largest.area.points[1].zoneId or entry.zoneId,
-            number = number, progress = progress, lines = { title, largest.text, foundNote },
+            number = number,
+            progress = progress,
+            lines = { title, largest.text, foundNote },
             counted = { { objectiveIndex = largest.objectiveIndex, dungeonName = largest.dungeonName, lineIndex = 2 } },
             fadedPoints = #fadedPoints > 1 and fadedPoints or nil,
         }
@@ -1413,7 +1527,7 @@ local function getStartItemIcon(quest)
         return nil
     end
     local icon = C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(quest.itemId)
-        or GetItemIcon and GetItemIcon(quest.itemId)
+        or GetItemIcon and GetItemIcon(quest.itemId) -- luacheck: ignore 113 (an older client's fallback)
     return icon or "Interface\\Icons\\INV_Misc_Note_01"
 end
 MapMarks.getStartItemIcon = getStartItemIcon
@@ -1444,7 +1558,11 @@ function MapMarks.composeSourcePoints(zones, mapId, drops)
             end
             if #sourcePoints > 0 then
                 if source.shade <= 3 then
-                    labels[#labels + 1] = { text = source.name .. (chance and (ns.Widgets.MIDDLE_DOT .. chance) or ""), glyph = "loot", shade = source.shade }
+                    labels[#labels + 1] = {
+                        text = source.name .. (chance and (ns.Widgets.MIDDLE_DOT .. chance) or ""),
+                        glyph = "loot",
+                        shade = source.shade,
+                    }
                 else
                     otherCount = otherCount + 1
                 end
@@ -1452,7 +1570,8 @@ function MapMarks.composeSourcePoints(zones, mapId, drops)
         end
     end
     if otherCount > 0 then
-        labels[#labels + 1] = { text = ns.Lp(otherCount, "%d other creature", "%d other creatures"), glyph = "loot", shade = 4 }
+        labels[#labels + 1] =
+            { text = ns.Lp(otherCount, "%d other creature", "%d other creatures"), glyph = "loot", shade = 4 }
     end
     return points, labels
 end
@@ -1503,9 +1622,14 @@ local function addGiverMarks(marks, mapId, spoilers)
     local isHidden = ns.settings.areMapGiversHidden == true
     local givers = {} -- one mark per quest first; then the quests of one giver share theirs (mergeGivers)
     for _, quest in ipairs(getMapGiverQuests(mapId)) do
-        if not quest.availableAtLevel and not quest.isHandedInHere and (not isHidden or quest.questId == selectedQuestId)
-            and (not spoilers or MapMarks.isGiverQuestShown(spoilers, quest.questId)) then
-            local line = string.format("[%d] %s", quest.level, quest.title) .. (quest.starterName and (" - " .. quest.starterName) or "")
+        if
+            not quest.availableAtLevel
+            and not quest.isHandedInHere
+            and (not isHidden or quest.questId == selectedQuestId)
+            and (not spoilers or MapMarks.isGiverQuestShown(spoilers, quest.questId))
+        then
+            local line = string.format("[%d] %s", quest.level, quest.title)
+                .. (quest.starterName and (" - " .. quest.starterName) or "")
             local hasLabels = quest.questId ~= selectedQuestId
             -- One "!" for each area the quest starts in: a giver is one spot, but a quest that starts from
             -- an item dropped by creatures would otherwise put a "!" on every spawn point
@@ -1513,21 +1637,35 @@ local function addGiverMarks(marks, mapId, spoilers)
                 -- (only where it starts out of the map's fog and outside a dungeon held back: Spoilers)
                 if not spoilers or isGiverAreaShown(spoilers, quest.questId, area.points) then
                     local mark = {
-                        kind = "giver", x = area.centroidX, y = area.centroidY, questId = quest.questId,
-                        isFocused = quest.questId == selectedQuestId, lines = { line }, itemIcon = getStartItemIcon(quest),
-                        zoneId = area.points[1].zoneId, isLowLevel = quest.isLowLevel == true,
+                        kind = "giver",
+                        x = area.centroidX,
+                        y = area.centroidY,
+                        questId = quest.questId,
+                        isFocused = quest.questId == selectedQuestId,
+                        lines = { line },
+                        itemIcon = getStartItemIcon(quest),
+                        zoneId = area.points[1].zoneId,
+                        isLowLevel = quest.isLowLevel == true,
                         isRepeatable = ns.Availability.isRepeatable(quest.questId),
                     }
                     local sourceLabels
-                    if mark.isFocused and quest.startType == "item" and quest.itemId and not quest.isHandedInHere
-                        and (not spoilers or isDropNamed(spoilers, quest.questId)) then
+                    if
+                        mark.isFocused
+                        and quest.startType == "item"
+                        and quest.itemId
+                        and not quest.isHandedInHere
+                        and (not spoilers or isDropNamed(spoilers, quest.questId))
+                    then
                         -- The selected quest starts from an item creatures drop: each creature's spawn points in its
                         -- own colour, the same as its dot on the quest page, and the mark's tooltip names them with
                         -- their chance, so it is plain where to hunt and who is likeliest to drop it. Drawn once, on
                         -- the mark that carries the labels.
                         if not hasLabels then
-                            mark.points, sourceLabels = MapMarks.composeSourcePoints(ns.Drops.getZones(quest.itemId), mapId,
-                                MapMarks.getDropsChoice(spoilers, quest.questId))
+                            mark.points, sourceLabels = MapMarks.composeSourcePoints(
+                                ns.Drops.getZones(quest.itemId),
+                                mapId,
+                                MapMarks.getDropsChoice(spoilers, quest.questId)
+                            )
                             for _, point in ipairs(mark.points or {}) do
                                 point.glyph = "loot" -- the item is looted from them
                             end
@@ -1576,8 +1714,12 @@ local function getHandsKey(questId, field)
         return nil
     end
     local parts = {}
-    for _, npcId in ipairs(hands[1] or {}) do parts[#parts + 1] = "n" .. npcId end
-    for _, objectId in ipairs(hands[2] or {}) do parts[#parts + 1] = "o" .. objectId end
+    for _, npcId in ipairs(hands[1] or {}) do
+        parts[#parts + 1] = "n" .. npcId
+    end
+    for _, objectId in ipairs(hands[2] or {}) do
+        parts[#parts + 1] = "o" .. objectId
+    end
     if #parts == 0 then
         return nil
     end
@@ -1587,8 +1729,10 @@ end
 
 ---@return boolean isSame Two marks stand for the same NPC at the same place
 local function isSameHands(first, second, firstKey, secondKey)
-    return firstKey ~= nil and firstKey == secondKey
-        and math.abs(first.x - second.x) <= SAME_SPOT and math.abs(first.y - second.y) <= SAME_SPOT
+    return firstKey ~= nil
+        and firstKey == secondKey
+        and math.abs(first.x - second.x) <= SAME_SPOT
+        and math.abs(first.y - second.y) <= SAME_SPOT
 end
 
 ---@return string[] titles A shared or single mark's quest lines, without the NPC heading a shared one's tooltip
@@ -1670,7 +1814,10 @@ function MapMarks.mergeTurnIns(marks)
             mark.handsKey = getHandsKey(mark.questId, "finishedBy")
             local spot
             for _, other in ipairs(spots) do
-                if other.isPending == (mark.isPending == true) and isSameHands(other, mark, other.handsKey, mark.handsKey) then
+                if
+                    other.isPending == (mark.isPending == true)
+                    and isSameHands(other, mark, other.handsKey, mark.handsKey)
+                then
                     spot = other
                     break
                 end
@@ -1678,7 +1825,13 @@ function MapMarks.mergeTurnIns(marks)
             if spot then
                 spot.members[#spot.members + 1] = mark
             else
-                spot = { x = mark.x, y = mark.y, handsKey = mark.handsKey, isPending = mark.isPending == true, members = { mark } }
+                spot = {
+                    x = mark.x,
+                    y = mark.y,
+                    handsKey = mark.handsKey,
+                    isPending = mark.isPending == true,
+                    members = { mark },
+                }
                 spots[#spots + 1] = spot
                 kept[#kept + 1] = spot
             end
@@ -1793,14 +1946,28 @@ local function addPendingTurnIn(marks, entry, mapId, spoilers)
         return
     end
     local places = ns.Location.getFinisherPlaces(entry.questId)
-    local lines = { string.format("[%d] %s", entry.level, entry.title), ns.L("Turn in to %s", entry.finisherName or ns.L("the quest giver")), ns.L("Not ready to hand in yet") }
+    local lines = {
+        string.format("[%d] %s", entry.level, entry.title),
+        ns.L("Turn in to %s", entry.finisherName or ns.L("the quest giver")),
+        ns.L("Not ready to hand in yet"),
+    }
     for _, place in ipairs(places) do
         local x, y
         if isOnMapZone(place, mapId) then
             x, y = ns.MapPins.getMapPosition(place, mapId)
         end
         if x then
-            marks[#marks + 1] = { kind = "turnIn", isPending = true, x = x, y = y, questId = entry.questId, isFocused = false, progress = 0, labels = {}, lines = lines }
+            marks[#marks + 1] = {
+                kind = "turnIn",
+                isPending = true,
+                x = x,
+                y = y,
+                questId = entry.questId,
+                isFocused = false,
+                progress = 0,
+                labels = {},
+                lines = lines,
+            }
         end
     end
 end
@@ -1808,7 +1975,11 @@ end
 local function addTurnInPreview(marks, mapId, spoilers)
     local quest = ns.Log.getSelectedAvailableQuest()
     -- Selecting a quest to pick up shows where it starts; its turn-in only once "Show turn-in" is pressed for it
-    if not quest or ns.Log.turnInShownQuestId ~= quest.questId or (spoilers and not MapMarks.isTurnInShown(spoilers, quest.questId)) then
+    if
+        not quest
+        or ns.Log.turnInShownQuestId ~= quest.questId
+        or (spoilers and not MapMarks.isTurnInShown(spoilers, quest.questId))
+    then
         return
     end
     local place = quest.finisherPlace
@@ -1825,7 +1996,13 @@ local function addTurnInPreview(marks, mapId, spoilers)
     local text = ns.L("Turn in to %s", quest.finisherName or ns.L("the quest giver"))
     -- Shown at ordinary size without a glow: the start is the place to go first, this is where it ends
     marks[#marks + 1] = {
-        kind = "turnIn", isPreview = true, x = x, y = y, questId = quest.questId, isFocused = false, progress = 1,
+        kind = "turnIn",
+        isPreview = true,
+        x = x,
+        y = y,
+        questId = quest.questId,
+        isFocused = false,
+        progress = 1,
         labels = { { text = ns.L("Then: %s", quest.finisherName or ns.L("turn in")), glyph = "tick" } },
         lines = { string.format("[%d] %s", quest.level, quest.title), text, ns.L("Not accepted yet") },
     }
@@ -1855,7 +2032,11 @@ local function groupDungeonMarks(marks, mapId, spoilers)
     local groups, order = {}, {}
     for index, mark in ipairs(marks) do
         local dungeon = mark.zoneId and ns.Database.getDungeon(mark.zoneId)
-        if dungeon and dungeon.areaId ~= shownZoneId and (not spoilers or MapMarks.isDungeonShown(spoilers, dungeon.areaId)) then
+        if
+            dungeon
+            and dungeon.areaId ~= shownZoneId
+            and (not spoilers or MapMarks.isDungeonShown(spoilers, dungeon.areaId))
+        then
             if not groups[dungeon.areaId] then
                 groups[dungeon.areaId] = { dungeon = dungeon, indexes = {} }
                 order[#order + 1] = dungeon.areaId
@@ -1887,14 +2068,25 @@ local function groupDungeonMarks(marks, mapId, spoilers)
                 isRaid = isRaid or (group ~= nil and group.isRaid == true) -- the game tags raid quests
             end
             table.sort(members, function(first, second)
-                if (first.isFocused == true) ~= (second.isFocused == true) then return first.isFocused == true end
-                if (first.kind == "giver") ~= (second.kind == "giver") then return second.kind == "giver" end
+                if (first.isFocused == true) ~= (second.isFocused == true) then
+                    return first.isFocused == true
+                end
+                if (first.kind == "giver") ~= (second.kind == "giver") then
+                    return second.kind == "giver"
+                end
                 return (first.number or 99) < (second.number or 99)
             end)
             merged[#merged + 1] = {
-                kind = "dungeon", dungeonId = dungeonId, x = x / #group.indexes, y = y / #group.indexes,
-                questId = focused and focused.questId or members[1].questId, isFocused = focused ~= nil,
-                logCount = logCount, giverCount = giverCount, members = members, isRaid = isRaid,
+                kind = "dungeon",
+                dungeonId = dungeonId,
+                x = x / #group.indexes,
+                y = y / #group.indexes,
+                questId = focused and focused.questId or members[1].questId,
+                isFocused = focused ~= nil,
+                logCount = logCount,
+                giverCount = giverCount,
+                members = members,
+                isRaid = isRaid,
                 labels = focused and focused.labels or nil,
                 lines = { group.dungeon.name },
             }
@@ -1905,11 +2097,17 @@ local function groupDungeonMarks(marks, mapId, spoilers)
     end
     local kept = {}
     for index, mark in ipairs(marks) do
-        if not isMerged[index] then kept[#kept + 1] = mark end
+        if not isMerged[index] then
+            kept[#kept + 1] = mark
+        end
     end
     -- The dungeon's mark drawn last when it holds the quest in focus, as a focused mark is
     for _, mark in ipairs(merged) do
-        if mark.isFocused then kept[#kept + 1] = mark else table.insert(kept, 1, mark) end
+        if mark.isFocused then
+            kept[#kept + 1] = mark
+        else
+            table.insert(kept, 1, mark)
+        end
     end
     return kept
 end
@@ -2064,8 +2262,12 @@ function MapMarks.getGiverPatrolLines(mapId, isPeekIgnored)
     local selectedQuestId = ns.Log.getHighlightedAvailableQuestId()
     local isDrawn = {}
     for _, quest in ipairs(getMapGiverQuests(mapId)) do
-        if quest.questId == selectedQuestId and not quest.availableAtLevel and not quest.isHandedInHere
-            and (not spoilers or MapMarks.isGiverQuestShown(spoilers, quest.questId)) then
+        if
+            quest.questId == selectedQuestId
+            and not quest.availableAtLevel
+            and not quest.isHandedInHere
+            and (not spoilers or MapMarks.isGiverQuestShown(spoilers, quest.questId))
+        then
             local isSelected = true
             local npcIds = ns.Location.getStarterNpcIds(quest.questId)
             if isSelected and (not spoilers or MapMarks.isTurnInShown(spoilers, quest.questId)) then

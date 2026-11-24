@@ -28,7 +28,8 @@ end
 
 ---@return number width A region's width on screen, in the screen's own units
 local function getScreenWidth(region)
-    return (region and region.GetWidth and region:GetWidth() or 0) * (region and region.GetEffectiveScale and region:GetEffectiveScale() or 1)
+    return (region and region.GetWidth and region:GetWidth() or 0)
+        * (region and region.GetEffectiveScale and region:GetEffectiveScale() or 1)
 end
 
 ---@return boolean hasRoom Whether a region fits on screen right of the window

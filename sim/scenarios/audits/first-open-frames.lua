@@ -10,7 +10,9 @@ for _, definition in pairs(W.types) do
             definition.methods[name] = function(...)
                 if isCounting then
                     local info = debug.getinfo(2, "S")
-                    if info and info.source:sub(1, #PREFIX) == PREFIX then count = count + 1 end
+                    if info and info.source:sub(1, #PREFIX) == PREFIX then
+                        count = count + 1
+                    end
                 end
                 return method(...)
             end
@@ -19,7 +21,30 @@ for _, definition in pairs(W.types) do
 end
 setProfile({ level = 36, race = "Troll", class = "HUNTER" })
 moveTo(1434, 0.325, 0.29)
-for _, questId in ipairs({ 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 568, 569, 570, 572, 573, 581, 582 }) do accept(questId) end
+for _, questId in ipairs({
+    185,
+    186,
+    187,
+    188,
+    189,
+    190,
+    191,
+    192,
+    193,
+    194,
+    195,
+    196,
+    197,
+    568,
+    569,
+    570,
+    572,
+    573,
+    581,
+    582,
+}) do
+    accept(questId)
+end
 wait(3)
 local function frames(name, start, ticks)
     isCounting = true
@@ -33,11 +58,23 @@ local function frames(name, start, ticks)
     end
     isCounting = false
     local total, peak = 0, 0
-    for _, calls in ipairs(perFrame) do total = total + calls; peak = math.max(peak, calls) end
-    io.write(string.format("FRAMES %-34s total %6d, worst frame %6d: %s\n", name, total, peak, table.concat(perFrame, " ")))
+    for _, calls in ipairs(perFrame) do
+        total = total + calls
+        peak = math.max(peak, calls)
+    end
+    io.write(
+        string.format("FRAMES %-34s total %6d, worst frame %6d: %s\n", name, total, peak, table.concat(perFrame, " "))
+    )
 end
-frames("first map open (cold)", function() scene.input({ type = "key", key = "M" }) end, 24)
-scene.input({ type = "key", key = "M" }); wait(0.5)
-frames("map reopened, nothing changed", function() scene.input({ type = "key", key = "M" }) end, 12)
+frames("first map open (cold)", function()
+    scene.input({ type = "key", key = "M" })
+end, 24)
+scene.input({ type = "key", key = "M" })
+wait(0.5)
+frames("map reopened, nothing changed", function()
+    scene.input({ type = "key", key = "M" })
+end, 12)
 local addon = require("addons").byName["onemorequest"].private
-frames("a kill that counts, map open", function() game.progressQuest(185, 1, 1) end, 12)
+frames("a kill that counts, map open", function()
+    game.progressQuest(185, 1, 1)
+end, 12)

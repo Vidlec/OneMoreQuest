@@ -3,11 +3,14 @@ local addonName, ns = ...
 -- The map's marks: drawing on a map (other addons' pins, dungeon entrances, the party, and the drawing itself).
 local MapMarks = ns.MapMarks
 local Style, State = ns.MapMarksStyle, ns.MapMarksState
-local Compose, Look, Layout, Shapes, Areas, Draw = ns.MapMarksCompose, ns.MapMarksLook, ns.MapMarksLayout, ns.MapMarksShapes, ns.MapMarksAreas, ns.MapMarksDraw
+local Compose, Look, Layout, Shapes, Areas, Draw =
+    ns.MapMarksCompose, ns.MapMarksLook, ns.MapMarksLayout, ns.MapMarksShapes, ns.MapMarksAreas, ns.MapMarksDraw
 local drawIcons, drawPatrols, drawQuestAreas = Areas.drawIcons, Areas.drawPatrols, Areas.drawQuestAreas
 local ensureLayers, getRect = Layout.ensureLayers, Layout.getRect
-local HALO_SIZE, MEMBER_CLEAR, PARTY_SECONDS, PLAYER_CLEAR, acquire = Look.HALO_SIZE, Look.MEMBER_CLEAR, Look.PARTY_SECONDS, Look.PLAYER_CLEAR, Look.acquire
-local AREA_TINT_ALPHA, FOCUSED_AREA_TINT_ALPHA, MAX_POINTS, QUEST_BLUE, QUEST_SHADES, SOFT_DOT = Style.AREA_TINT_ALPHA, Style.FOCUSED_AREA_TINT_ALPHA, Style.MAX_POINTS, Style.QUEST_BLUE, Style.QUEST_SHADES, Style.SOFT_DOT
+local HALO_SIZE, MEMBER_CLEAR, PARTY_SECONDS, PLAYER_CLEAR, acquire =
+    Look.HALO_SIZE, Look.MEMBER_CLEAR, Look.PARTY_SECONDS, Look.PLAYER_CLEAR, Look.acquire
+local AREA_TINT_ALPHA, FOCUSED_AREA_TINT_ALPHA, QUEST_BLUE, QUEST_SHADES, SOFT_DOT =
+    Style.AREA_TINT_ALPHA, Style.FOCUSED_AREA_TINT_ALPHA, Style.QUEST_BLUE, Style.QUEST_SHADES, Style.SOFT_DOT
 local SPAWN_ROOM = Style.SPAWN_ROOM
 
 local MAX_FOREIGN_PIN_SIZE = 48 -- anything bigger on the canvas is a layer or an overlay, not a pin
@@ -30,7 +33,13 @@ function MapMarks.getForeignPins(canvas, skipped)
     end
     for _, child in ipairs({ canvas:GetChildren() }) do
         -- Shown and seen: the game's own marks this addon made see-through take no room
-        if child ~= State.markLayer and child ~= State.areaLayer and child:IsShown() and (child:GetAlpha() or 1) > 0.05 and not (skipped and skipped[child]) then
+        if
+            child ~= State.markLayer
+            and child ~= State.areaLayer
+            and child:IsShown()
+            and (child:GetAlpha() or 1) > 0.05
+            and not (skipped and skipped[child])
+        then
             local left, bottom, width, height = child:GetRect()
             local scale = child:GetEffectiveScale()
             if left and width and width > 0 then
@@ -39,7 +48,12 @@ function MapMarks.getForeignPins(canvas, skipped)
                     local layerLeft = (left * scale - canvasLeft * canvasScale) / layerScale
                     local layerTop = (canvasTop * canvasScale - (bottom + height) * scale) / layerScale
                     local insetX, insetY = layerWidth * FOREIGN_PIN_INSET, layerHeight * FOREIGN_PIN_INSET
-                    rects[#rects + 1] = { left = layerLeft + insetX, top = layerTop + insetY, right = layerLeft + layerWidth - insetX, bottom = layerTop + layerHeight - insetY }
+                    rects[#rects + 1] = {
+                        left = layerLeft + insetX,
+                        top = layerTop + insetY,
+                        right = layerLeft + layerWidth - insetX,
+                        bottom = layerTop + layerHeight - insetY,
+                    }
                 end
             end
         end
@@ -58,19 +72,32 @@ function MapMarks.getEntrancePins(map, canvas)
     -- Where a pin stands on the canvas, as fractions of it, from where it is drawn: for an addon whose pins keep their
     -- own map's coordinates
     local function getCanvasPosition(pin)
-        local x, y = pin.GetCenter and pin:GetCenter()
+        -- (both values: "pin.GetCenter and pin:GetCenter()" kept only the first, so y was always nil and no pin was
+        -- ever placed; luacheck's W221 found it)
+        local x, y
+        if pin.GetCenter then
+            x, y = pin:GetCenter()
+        end
         local left, top = canvas:GetLeft(), canvas:GetTop()
         local width, height = canvas:GetWidth(), canvas:GetHeight()
         if not (x and y and left and top and width and height) or width <= 0 or height <= 0 then
             return nil, nil
         end
         local pinScale, canvasScale = pin:GetEffectiveScale(), canvas:GetEffectiveScale()
-        return (x * pinScale - left * canvasScale) / (width * canvasScale), (top * canvasScale - y * pinScale) / (height * canvasScale)
+        return (x * pinScale - left * canvasScale) / (width * canvasScale),
+            (top * canvasScale - y * pinScale) / (height * canvasScale)
     end
     for _, child in ipairs(canvas and canvas.GetChildren and { canvas:GetChildren() } or {}) do
         local data = child.isLeaMapsPin and type(child.data) == "table" and child.data
-        if data and ENTRANCE_KINDS[data[1]] ~= nil and type(data[2]) == "number" and type(data[3]) == "number" and child:IsShown() then
-            entrances[#entrances + 1] = { x = data[2] / 100, y = data[3] / 100, isRaid = ENTRANCE_KINDS[data[1]], frame = child }
+        if
+            data
+            and ENTRANCE_KINDS[data[1]] ~= nil
+            and type(data[2]) == "number"
+            and type(data[3]) == "number"
+            and child:IsShown()
+        then
+            entrances[#entrances + 1] =
+                { x = data[2] / 100, y = data[3] / 100, isRaid = ENTRANCE_KINDS[data[1]], frame = child }
         end
         -- MapUtils' entrance icons: its world-map pins (worldMap) whose entry is a dungeon
         local entry = child.worldMap == true and type(child.entry) == "table" and child.entry
@@ -106,7 +133,11 @@ function MapMarks.attachToEntrances(marks, entrances)
             local nearest, nearestDistance
             for _, entrance in ipairs(entrances) do
                 local distance = math.sqrt((entrance.x - mark.x) ^ 2 + (entrance.y - mark.y) ^ 2)
-                if distance <= MAX_ENTRANCE_DISTANCE and not attached[entrance.frame] and (not nearest or distance < nearestDistance) then
+                if
+                    distance <= MAX_ENTRANCE_DISTANCE
+                    and not attached[entrance.frame]
+                    and (not nearest or distance < nearestDistance)
+                then
                     nearest, nearestDistance = entrance, distance
                 end
             end
@@ -135,7 +166,12 @@ function MapMarks.updateParty()
         if position then
             local x, y = position:GetXY()
             if x and y and (x ~= 0 or y ~= 0) then
-                clear[#clear + 1] = { x = x * State.drawn.width * State.drawn.scale, y = y * State.drawn.height * State.drawn.scale, radius = radius, isMember = unit ~= "player" }
+                clear[#clear + 1] = {
+                    x = x * State.drawn.width * State.drawn.scale,
+                    y = y * State.drawn.height * State.drawn.scale,
+                    radius = radius,
+                    isMember = unit ~= "player",
+                }
             end
         end
     end
@@ -159,12 +195,20 @@ function MapMarks.updateParty()
     for _, point in ipairs(clear) do
         if point.isMember then
             -- With the areas, over their fill and under every pin: it darkens the map under the dot, nothing else
-            local halo = acquire(State.pools.halos, function() return State.areaLayer:CreateTexture(nil, "OVERLAY", nil, 7) end)
+            local halo = acquire(State.pools.halos, function()
+                return State.areaLayer:CreateTexture(nil, "OVERLAY", nil, 7)
+            end)
             halo:SetTexture(SOFT_DOT)
             halo:SetVertexColor(0, 0, 0, 0.75)
             halo:SetSize(HALO_SIZE / State.drawn.scale, HALO_SIZE / State.drawn.scale)
             halo:ClearAllPoints()
-            halo:SetPoint("CENTER", State.areaLayer, "TOPLEFT", point.x / State.drawn.scale, -point.y / State.drawn.scale)
+            halo:SetPoint(
+                "CENTER",
+                State.areaLayer,
+                "TOPLEFT",
+                point.x / State.drawn.scale,
+                -point.y / State.drawn.scale
+            )
         end
     end
     for index = State.pools.halos.usedCount + 1, #State.pools.halos do
@@ -273,7 +317,14 @@ function MapMarks.followZoom(map, isMoving)
             button:SetScale(buttonScale)
             button.zoomScale = buttonScale
             -- (the map opening sets its zoom a few times over, mostly to what it was: nothing passed on then)
-            ns.Widgets.place(button, "CENTER", State.markLayer, "TOPLEFT", place.left / buttonScale, -place.top / buttonScale)
+            ns.Widgets.place(
+                button,
+                "CENTER",
+                State.markLayer,
+                "TOPLEFT",
+                place.left / buttonScale,
+                -place.top / buttonScale
+            )
             if button.glow and button.glow:IsShown() then
                 rememberSize(button.glow)
                 button.glow:SetSize(button.glow.baseWidth * glowScale, button.glow.baseHeight * glowScale)
@@ -344,7 +395,9 @@ local function drawRoughCircles(marks, width, height, scale)
     pools.trailLines = pools.trailLines or { usedCount = 0 }
     pools.roughFills = pools.roughFills or { usedCount = 0 }
     local function makeLine(sublevel)
-        local line = acquire(pools.trailLines, function() return State.areaLayer:CreateLine(nil, "ARTWORK") end)
+        local line = acquire(pools.trailLines, function()
+            return State.areaLayer:CreateLine(nil, "ARTWORK")
+        end)
         line:SetDrawLayer("ARTWORK", 3 + sublevel) -- (as the walks: over the areas' edges)
         return line
     end
@@ -355,7 +408,12 @@ local function drawRoughCircles(marks, width, height, scale)
         for _, circle in ipairs(mark.roughCircles) do
             local x, y, radius = circle.x * width, circle.y * height, circle.radius * width
             local fill = acquire(pools.roughFills, createRoughFill)
-            fill:SetVertexColor(color[1], color[2], color[3], isFocused and FOCUSED_ROUGH_FILL_ALPHA or ROUGH_FILL_ALPHA)
+            fill:SetVertexColor(
+                color[1],
+                color[2],
+                color[3],
+                isFocused and FOCUSED_ROUGH_FILL_ALPHA or ROUGH_FILL_ALPHA
+            )
             fill:SetSize(radius * 2, radius * 2)
             ns.Widgets.place(fill, "CENTER", State.areaLayer, "TOPLEFT", x, -y)
             local steps = math.max(24, math.min(96, math.floor(2 * math.pi * radius * scale / ROUGH_DASH_PIXELS)))
@@ -364,9 +422,20 @@ local function drawRoughCircles(marks, width, height, scale)
                 local angle = step / steps * 2 * math.pi
                 points[step + 1] = { x = x + radius * math.cos(angle), y = y + radius * math.sin(angle) }
             end
-            MapMarks.paintDashes(points, makeLine, color, isFocused and Style.FOCUSED_AREA_EDGE_ALPHA or Style.AREA_EDGE_ALPHA, scale)
-            State.drawn.areas[#State.drawn.areas + 1] = { points = { { x = x, y = y } }, reach = radius, questId = mark.questId,
-                isFocused = isFocused, note = note }
+            MapMarks.paintDashes(
+                points,
+                makeLine,
+                color,
+                isFocused and Style.FOCUSED_AREA_EDGE_ALPHA or Style.AREA_EDGE_ALPHA,
+                scale
+            )
+            State.drawn.areas[#State.drawn.areas + 1] = {
+                points = { { x = x, y = y } },
+                reach = radius,
+                questId = mark.questId,
+                isFocused = isFocused,
+                note = note,
+            }
         end
     end
     for _, mark in ipairs(marks) do
@@ -441,17 +510,32 @@ function MapMarks.draw(map)
             end
             if type(canvasScale) == "number" and canvasScale ~= drawn.followedScale then
                 MapMarks.followZoom(map, true)
-            elseif drawn.isFollowPending and (GetTime and GetTime() or 0) - (drawn.zoomMovedAt or 0) >= ZOOM_STILL_SECONDS
-                and not (map == WorldMapFrame and ns.MapPins.isRedrawComing()) then
+            elseif
+                drawn.isFollowPending
+                and (GetTime and GetTime() or 0) - (drawn.zoomMovedAt or 0) >= ZOOM_STILL_SECONDS
+                and not (map == WorldMapFrame and ns.MapPins.isRedrawComing())
+            then
                 -- (not while the marks are about to be drawn again anyway, for this zoom: a zoom out over OpenMap's
                 -- joined-up map that showed ground they were not drawn for, or the map underneath changing)
                 -- The zoom has stayed put: the rest catches up, once
                 MapMarks.followZoom(map)
                 -- The zoom crossed a step of the spawns' thinning: drawn again, adding or taking away spawns, none moved
                 local mapYards = drawn.mapId and MapMarks.getMapYards(drawn.mapId)
-                local liveMarkScale = map == WorldMapFrame and drawn.width and MapMarks.getMarkScale(drawn.mapId, drawn.width * canvasScale) or 1
+                local liveMarkScale = map == WorldMapFrame
+                        and drawn.width
+                        and MapMarks.getMarkScale(drawn.mapId, drawn.width * canvasScale)
+                    or 1
                 liveMarkScale = liveMarkScale * MapMarks.getSpawnMarkerRoom(ns.settings.spawnMarkerScale) -- (as the drawing reckons it)
-                if mapYards and drawn.width and MapMarks.chooseSpawnSpacing(drawn.width * canvasScale / mapYards, drawn.spawnSpacing, liveMarkScale) ~= drawn.spawnSpacing then
+                if
+                    mapYards
+                    and drawn.width
+                    and MapMarks.chooseSpawnSpacing(
+                            drawn.width * canvasScale / mapYards,
+                            drawn.spawnSpacing,
+                            liveMarkScale
+                        )
+                        ~= drawn.spawnSpacing
+                then
                     -- (on a joined-up view, once another map can have come underneath it: drawn once, for that)
                     if drawn.view and map == WorldMapFrame then
                         ns.MapPins.queueSettledRefresh()
@@ -485,7 +569,8 @@ function MapMarks.draw(map)
     local mapYards = mapId and MapMarks.getMapYards(mapId)
     local spacingMarkScale = map == WorldMapFrame and MapMarks.getMarkScale(mapId, width * scale) or 1
     spacingMarkScale = spacingMarkScale * MapMarks.getSpawnMarkerRoom(ns.settings.spawnMarkerScale)
-    State.drawn.spawnSpacing = MapMarks.chooseSpawnSpacing(mapYards and width * scale / mapYards, State.drawn.spawnSpacing, spacingMarkScale)
+    State.drawn.spawnSpacing =
+        MapMarks.chooseSpawnSpacing(mapYards and width * scale / mapYards, State.drawn.spawnSpacing, spacingMarkScale)
     -- Another addon joining the neighbouring zones onto the world map (OpenMap): their marks too, placed as it
     -- draws them, as far as the view reaches and a margin past it
     local view = map == WorldMapFrame and ns.Compatibility.getMapView(map) or nil
@@ -506,7 +591,11 @@ function MapMarks.draw(map)
     -- What the player chose to see (Spoilers; nil in Guide): Alt held over the world map shows it everything
     local isPeekIgnored = map ~= WorldMapFrame
     local spoilers = MapMarks.getSpoilers(isPeekIgnored)
-    local marks = mapId and ns.settings.shouldShowMapPins and not isHiddenHere and MapMarks.compose(mapId, isPeekIgnored) or {}
+    local marks = mapId
+            and ns.settings.shouldShowMapPins
+            and not isHiddenHere
+            and MapMarks.compose(mapId, isPeekIgnored)
+        or {}
     if map == WorldMapFrame then
         -- Zoomed out past where a mark's spot means anything: a pill for each zone too small on screen
         marks = MapMarks.gatherZonePills(marks, mapId, width * scale)
@@ -519,8 +608,12 @@ function MapMarks.draw(map)
     -- marks, and the selected quest's hand-in, sit on their exact spots over the rest
     local mainFocused
     for _, mark in ipairs(marks) do
-        if mark.isFocused and mark.kind ~= "giver" and not mark.isPreview
-            and (not mainFocused or #(mark.points or {}) > #(mainFocused.points or {})) then
+        if
+            mark.isFocused
+            and mark.kind ~= "giver"
+            and not mark.isPreview
+            and (not mainFocused or #(mark.points or {}) > #(mainFocused.points or {}))
+        then
             mainFocused = mark
         end
     end
@@ -535,11 +628,17 @@ function MapMarks.draw(map)
             markWidth, markHeight, raise = markWidth * markScale, markHeight * markScale, raise * markScale
         end
         items[index] = {
-            mark = mark, index = index, width = markWidth, height = markHeight, raise = raise,
-            spotLeft = mark.x * width * scale, spotTop = mark.y * height * scale - raise,
+            mark = mark,
+            index = index,
+            width = markWidth,
+            height = markHeight,
+            raise = raise,
+            spotLeft = mark.x * width * scale,
+            spotTop = mark.y * height * scale - raise,
         }
         -- (a dungeon is laid out with the rest whatever quest is selected, so selecting one never moves it)
-        local isOnTop = mark.isPreview or (mark.isFocused and mark.kind ~= "giver" and mark.kind ~= "dungeon" and mark ~= mainFocused)
+        local isOnTop = mark.isPreview
+            or (mark.isFocused and mark.kind ~= "giver" and mark.kind ~= "dungeon" and mark ~= mainFocused)
         if mark.entrancePin then
             -- A dungeon's mark on another addon's entrance icon stays on it, whatever else is near (that addon's
             -- own pins, such as Leatrix Maps' zone arrows, included); the other marks keep clear of it
@@ -566,8 +665,12 @@ function MapMarks.draw(map)
     -- Laid out within the map, or within what is drawn of the joined-on view
     local bounds = { left = 0, top = 0, right = width * scale, bottom = height * scale }
     if viewBounds then
-        bounds = { left = viewBounds.left * width * scale, top = viewBounds.top * height * scale,
-            right = viewBounds.right * width * scale, bottom = viewBounds.bottom * height * scale }
+        bounds = {
+            left = viewBounds.left * width * scale,
+            top = viewBounds.top * height * scale,
+            right = viewBounds.right * width * scale,
+            bottom = viewBounds.bottom * height * scale,
+        }
     end
     MapMarks.arrangeMarks(onTop, obstacles, bounds)
     for _, item in ipairs(onTop) do
@@ -595,11 +698,17 @@ function MapMarks.draw(map)
         mark.place = items[index]
         if mark.kind == "zonePill" then
             -- A zone too small on screen for its marks: its pill, laid out with the marks, drawn on its own
-            local pill = acquire(State.pools.pills, function() return MapMarks.createPill(State.markLayer) end)
+            local pill = acquire(State.pools.pills, function()
+                return MapMarks.createPill(State.markLayer)
+            end)
             local pillWidth, pillHeight = MapMarks.applyPillLook(pill, mark, (State.markLayer:GetFrameLevel() or 1) + 1)
             ns.Widgets.place(pill, "CENTER", State.markLayer, "TOPLEFT", mark.place.left, -mark.place.top)
-            markRects[#markRects + 1] = { left = mark.place.left - pillWidth / 2, right = mark.place.left + pillWidth / 2,
-                top = mark.place.top - pillHeight / 2, bottom = mark.place.top + pillHeight / 2 }
+            markRects[#markRects + 1] = {
+                left = mark.place.left - pillWidth / 2,
+                right = mark.place.left + pillWidth / 2,
+                top = mark.place.top - pillHeight / 2,
+                bottom = mark.place.top + pillHeight / 2,
+            }
         else
             order[#order + 1] = mark
         end
@@ -625,7 +734,13 @@ function MapMarks.draw(map)
                 local key = mark.questId * 10 + shade
                 local group = groupByQuest[key]
                 if not group then
-                    group = { questId = key, hoverQuestId = mark.questId, color = QUEST_SHADES[shade] or QUEST_BLUE, isFocused = true, points = {} }
+                    group = {
+                        questId = key,
+                        hoverQuestId = mark.questId,
+                        color = QUEST_SHADES[shade] or QUEST_BLUE,
+                        isFocused = true,
+                        points = {},
+                    }
                     groupByQuest[key] = group
                     questGroups[#questGroups + 1] = group
                     -- The giver's glow takes the colour of its (first) area
@@ -635,10 +750,20 @@ function MapMarks.draw(map)
             end
         end
         -- Each tracked quest's places together, in the quest's colour, for "icons and areas"
-        if mark.questId and mark.kind == "objective" and not mark.isRough and (mark.spawnPoints or mark.points or mark.fadedPoints) then
+        if
+            mark.questId
+            and mark.kind == "objective"
+            and not mark.isRough
+            and (mark.spawnPoints or mark.points or mark.fadedPoints)
+        then
             local group = groupByQuest[mark.questId]
             if not group then
-                group = { questId = mark.questId, color = MapMarks.getQuestColor(mark.number, mark.questId), isFocused = mark.isFocused == true, points = {} }
+                group = {
+                    questId = mark.questId,
+                    color = MapMarks.getQuestColor(mark.number, mark.questId),
+                    isFocused = mark.isFocused == true,
+                    points = {},
+                }
                 -- (where its creatures walk only with its objectives shown exactly: Spoilers)
                 group.hasNoPatrols = spoilers ~= nil and spoilers.get("objectives", mark.questId) ~= "exact"
                 groupByQuest[mark.questId] = group
@@ -658,8 +783,11 @@ function MapMarks.draw(map)
         -- A quest with a coloured area: its mark's glow, the same size as the gold one, is in the area's colour,
         -- tying the two together while the mark itself stays gold; faint out of focus, as strong as the gold glow
         -- when highlighted, its gold ring saying it is the one highlighted
-        local areaGroup = MapMarks.hasQuestColours() and (mark.kind == "objective" and groupByQuest[mark.questId]
-            or mark.kind == "giver" and giverAreaGroups[mark.questId])
+        local areaGroup = MapMarks.hasQuestColours()
+            and (
+                mark.kind == "objective" and groupByQuest[mark.questId]
+                or mark.kind == "giver" and giverAreaGroups[mark.questId]
+            )
         if areaGroup then
             local color = areaGroup.color
             button.glowRed, button.glowGreen, button.glowBlue = color[1], color[2], color[3]
@@ -688,8 +816,13 @@ function MapMarks.draw(map)
             coverWidth = math.max(coverWidth, (button.focusRing:GetWidth() or 0) * markScale + 2 * SPAWN_ROOM)
             coverHeight = math.max(coverHeight, (button.focusRing:GetHeight() or 0) * markScale + 2 * SPAWN_ROOM)
         end
-        markRects[#markRects + 1] = { left = place.left - coverWidth / 2, right = place.left + coverWidth / 2,
-            top = place.top - coverHeight / 2, bottom = place.top + coverHeight / 2, questId = mark.questId }
+        markRects[#markRects + 1] = {
+            left = place.left - coverWidth / 2,
+            right = place.left + coverWidth / 2,
+            top = place.top - coverHeight / 2,
+            bottom = place.top + coverHeight / 2,
+            questId = mark.questId,
+        }
     end
     -- The quests' places, as chosen in the settings: the areas round their spawns (a light wash, the shapes, or
     -- none) and a marker on each spawn (of one of the kinds, or none). The quest in focus last, over the others.

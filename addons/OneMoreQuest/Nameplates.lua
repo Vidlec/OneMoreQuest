@@ -157,7 +157,10 @@ local function getDrawnEdges(unitFrame, mark, unit)
             return
         end
         local regionLeft, regionRight, regionTop, regionBottom = measure(region, frameScale)
-        if not (regionLeft and regionRight and regionTop and regionBottom) or regionTop - regionBottom > MAX_PART_HEIGHT then
+        if
+            not (regionLeft and regionRight and regionTop and regionBottom)
+            or regionTop - regionBottom > MAX_PART_HEIGHT
+        then
             return
         end
         left, right = math.min(left or regionLeft, regionLeft), math.max(right or regionRight, regionRight)
@@ -251,8 +254,16 @@ function Nameplates.update(unit, isNewPlate)
         -- no markers chosen, the glyph on its glow. A square is drawn larger here: it stands alone beside a plate.
         local marker = ns.MapMarks.getSpawnMarker()
         marker = marker == "none" and "glyph" or marker
-        local hasUnder = ns.MapMarks.dressSpawnMarker(mark.glow, mark.icon, marker, kind, color, true,
-            marker == "square" and ICON_SIZE * 1.6 or ICON_SIZE, GLOW_SIZE)
+        local hasUnder = ns.MapMarks.dressSpawnMarker(
+            mark.glow,
+            mark.icon,
+            marker,
+            kind,
+            color,
+            true,
+            marker == "square" and ICON_SIZE * 1.6 or ICON_SIZE,
+            GLOW_SIZE
+        )
         mark.glow:SetShown(hasUnder)
         Nameplates.place(mark, plate)
         mark:Show()
@@ -279,7 +290,9 @@ end
 function Nameplates.refresh()
     wantByNpcId = {}
     for _, plate in ipairs(C_NamePlate and C_NamePlate.GetNamePlates and C_NamePlate.GetNamePlates() or {}) do
-        local unit = plate.namePlateUnitToken or plate.unitToken or (type(plate.UnitFrame) == "table" and plate.UnitFrame.unit)
+        local unit = plate.namePlateUnitToken
+            or plate.unitToken
+            or (type(plate.UnitFrame) == "table" and plate.UnitFrame.unit)
         if unit then
             Nameplates.update(unit)
         elseif plate.oneMoreQuestMark then
@@ -298,11 +311,19 @@ end
 ns.registerModule({
     name = "Nameplates",
     events = {
-        NAME_PLATE_UNIT_ADDED = function(unit) Nameplates.update(unit, true) end,
+        NAME_PLATE_UNIT_ADDED = function(unit)
+            Nameplates.update(unit, true)
+        end,
         NAME_PLATE_UNIT_REMOVED = handleRemoved,
         -- (an elite's ornament or a raid mark shown or taken off: the icon makes way, or closes the gap)
-        UNIT_CLASSIFICATION_CHANGED = function(unit) if type(unit) == "string" and unit:find("^nameplate") then Nameplates.update(unit) end end,
-        RAID_TARGET_UPDATE = function() Nameplates.placeShown() end,
+        UNIT_CLASSIFICATION_CHANGED = function(unit)
+            if type(unit) == "string" and unit:find("^nameplate") then
+                Nameplates.update(unit)
+            end
+        end,
+        RAID_TARGET_UPDATE = function()
+            Nameplates.placeShown()
+        end,
     },
     -- Once the log has really changed (the game sends QUEST_LOG_UPDATE many times a second, mostly for nothing),
     -- with the rest's redraw: the icons follow

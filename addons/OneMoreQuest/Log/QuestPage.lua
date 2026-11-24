@@ -4,13 +4,15 @@ local CreateFrame = ns.CreateFrame -- (Core: frames made inside an open gamepad 
 -- The quest log window: the page on parchment (a quest's page, its header and rewards, a zone's page).
 local Log = ns.Log
 local Style, State, Actions = ns.LogStyle, ns.LogState, ns.LogActions
-local List, QuestPage, QuestsTab, AvailableTab, SettingsView, Window = ns.LogList, ns.LogQuestPage, ns.LogQuestsTab, ns.LogAvailableTab, ns.LogSettingsView, ns.LogWindow
+local List, QuestPage, QuestsTab, AvailableTab, SettingsView, Window =
+    ns.LogList, ns.LogQuestPage, ns.LogQuestsTab, ns.LogAvailableTab, ns.LogSettingsView, ns.LogWindow
 local selectQuest = Actions.selectQuest
 local selectedQuestIds = State.selectedQuestIds
-local BAR_HEIGHT, COLORS, DOT, ITEM_ICON, LIST_WIDTH, MAX_OPEN_CHAIN = Style.BAR_HEIGHT, Style.COLORS, Style.DOT, Style.ITEM_ICON, Style.LIST_WIDTH, Style.MAX_OPEN_CHAIN
-local MEDIA, PADDING, PAGE_CONTENT_WIDTH, PAGE_TOP, PAPER_FILL, READY_ICON = Style.MEDIA, Style.PADDING, Style.PAGE_CONTENT_WIDTH, Style.PAGE_TOP, Style.PAPER_FILL, Style.READY_ICON
+local BAR_HEIGHT, COLORS, DOT, ITEM_ICON, LIST_WIDTH, MAX_OPEN_CHAIN =
+    Style.BAR_HEIGHT, Style.COLORS, Style.DOT, Style.ITEM_ICON, Style.LIST_WIDTH, Style.MAX_OPEN_CHAIN
+local MEDIA, PADDING, PAGE_CONTENT_WIDTH, PAGE_TOP, PAPER_FILL, READY_ICON =
+    Style.MEDIA, Style.PADDING, Style.PAGE_CONTENT_WIDTH, Style.PAGE_TOP, Style.PAPER_FILL, Style.READY_ICON
 local SELECTED_EDGE, TAB_AVAILABLE = Style.SELECTED_EDGE, Style.TAB_AVAILABLE
-local showPlace = Window.showPlace
 
 -- What the Spoilers choices let a quest's page tell (ns.Spoilers), worked out once as the page is drawn
 -- (Spoiled.compose): Spoiled.view is nil in Guide, where everything is told as ever and nothing below asks again.
@@ -21,14 +23,17 @@ local Spoiled = {}
 
 ---@return number y Below the heading
 local function addHeading(y, text)
-    local height = State.detail:addText(text, PADDING, y, { font = "QuestFont_Large", color = COLORS.ink, isSingleLine = true })
+    local height =
+        State.detail:addText(text, PADDING, y, { font = "QuestFont_Large", color = COLORS.ink, isSingleLine = true })
     return y + height + 6
 end
 
 ---@return number y Below the text
 local function addBody(y, text, color, indent)
     local height = State.detail:addText(text, PADDING + (indent or 0), y, {
-        font = "QuestFont", color = color or COLORS.ink, width = State.detail.width - 2 * PADDING - (indent or 0),
+        font = "QuestFont",
+        color = color or COLORS.ink,
+        width = State.detail.width - 2 * PADDING - (indent or 0),
     })
     return y + height + 4
 end
@@ -37,10 +42,16 @@ end
 ---@return number y Below the title block
 local function addTitle(y, title, subLines)
     local width = State.detail.width - 2 * PADDING
-    local height = State.detail:addText(title, PADDING, y, { font = "QuestFont_Huge", color = COLORS.ink, width = width })
+    local height =
+        State.detail:addText(title, PADDING, y, { font = "QuestFont_Huge", color = COLORS.ink, width = width })
     y = y + height + 3
     for _, line in ipairs(subLines) do
-        height = State.detail:addText(line, PADDING, y, { font = "GameFontHighlightSmall", color = COLORS.softInk, width = width })
+        height = State.detail:addText(
+            line,
+            PADDING,
+            y,
+            { font = "GameFontHighlightSmall", color = COLORS.softInk, width = width }
+        )
         y = y + height + 2
     end
     return y + 12
@@ -53,7 +64,12 @@ local function addPaperButton(canvas, right, y, text, handleClick, data)
     local x = right - width
     canvas:addRect(x, y, width, 20, COLORS.softInk, 4)
     canvas:addRect(x + 1, y + 1, width - 2, 18, PAPER_FILL, 5)
-    canvas:addText(text, x, y + 4, { font = "GameFontHighlightSmall", color = COLORS.ink, width = width, justify = "CENTER", isSingleLine = true })
+    canvas:addText(
+        text,
+        x,
+        y + 4,
+        { font = "GameFontHighlightSmall", color = COLORS.ink, width = width, justify = "CENTER", isSingleLine = true }
+    )
     local button = canvas:addButton(x, y, width, 20, handleClick, data)
     return width, button
 end
@@ -88,9 +104,11 @@ local function composePlaceLine(place, options)
         after[#after + 1] = options.suffix
     end
     return {
-        text = prefix, link = place.x >= 0 and string.format("%s %d, %d", zoneName, place.x, place.y) or zoneName,
+        text = prefix,
+        link = place.x >= 0 and string.format("%s %d, %d", zoneName, place.x, place.y) or zoneName,
         afterText = #after > 0 and (DOT:gsub("^ ", "") .. table.concat(after, DOT)) or nil,
-        handleClick = options.handleClick or showPlace, data = options.data or { place = place },
+        handleClick = options.handleClick or showPlace,
+        data = options.data or { place = place },
     }
 end
 
@@ -101,19 +119,35 @@ local function composeObjectiveDetails(entry)
     local position = ns.Geometry.getPlayerPosition()
     for _, objective in ipairs(entry.objectives) do
         typeIndexes[objective.type] = (typeIndexes[objective.type] or 0) + 1
-        local stillNeeded = objective.required and objective.required > 0 and math.max(objective.required - (objective.fulfilled or 0), 0) or nil
-        local places, sourceText, isCrafted = ns.Location.getObjectiveInfo(entry.questId, objective.type, typeIndexes[objective.type], objective.label, stillNeeded)
+        local stillNeeded = objective.required
+                and objective.required > 0
+                and math.max(objective.required - (objective.fulfilled or 0), 0)
+            or nil
+        local places, sourceText, isCrafted = ns.Location.getObjectiveInfo(
+            entry.questId,
+            objective.type,
+            typeIndexes[objective.type],
+            objective.label,
+            stillNeeded
+        )
         local distance, _, place = ns.Geometry.getNearest(places, position, ns.Database.getUiMapId)
         -- For an item that drops, how often: the chance of its likeliest source, the one worth hunting
         -- For an item that drops: where, zone by zone, each creature with its chance (Drops)
         local zones
-        local target = objective.type == "item" and ns.Location.getObjectiveTarget(entry.questId, "item", typeIndexes.item)
+        local target = objective.type == "item"
+            and ns.Location.getObjectiveTarget(entry.questId, "item", typeIndexes.item)
         if target and target.itemId then
             zones = ns.Drops.getZones(target.itemId)
         end
         details[#details + 1] = {
-            objective = objective, place = place or places[1], distance = distance, sourceText = sourceText, isCrafted = isCrafted,
-            zones = zones and #zones > 0 and zones or nil, itemId = target and target.itemId or nil, stillNeeded = stillNeeded,
+            objective = objective,
+            place = place or places[1],
+            distance = distance,
+            sourceText = sourceText,
+            isCrafted = isCrafted,
+            zones = zones and #zones > 0 and zones or nil,
+            itemId = target and target.itemId or nil,
+            stillNeeded = stillNeeded,
         }
     end
     return details
@@ -137,7 +171,8 @@ function QuestPage.composeWaysToGet(detail)
         local toGet = math.max((detail.stillNeeded or 1) - inBank, 0)
         local price = toGet > 0 and ns.Prices.getAuctionPrice(itemId)
         if price then
-            ways[#ways + 1] = toGet > 1 and ns.L("about %s for %d at the Auction House", ns.Widgets.formatMoney(price * toGet), toGet)
+            ways[#ways + 1] = toGet > 1
+                    and ns.L("about %s for %d at the Auction House", ns.Widgets.formatMoney(price * toGet), toGet)
                 or ns.L("about %s at the Auction House", ns.Widgets.formatMoney(price))
         end
     end
@@ -169,7 +204,13 @@ function QuestPage.showQuestWords(button, data)
     else
         GameTooltip:AddLine(ns.L("The quest says nothing about where"), 0.6, 0.6, 0.6, true)
     end
-    GameTooltip:AddLine(ns.L("Its place is not in the quest database, so it has no mark on the map."), 0.6, 0.6, 0.6, true)
+    GameTooltip:AddLine(
+        ns.L("Its place is not in the quest database, so it has no mark on the map."),
+        0.6,
+        0.6,
+        0.6,
+        true
+    )
     GameTooltip:Show()
 end
 
@@ -197,10 +238,25 @@ local function addQuestItem(y, entry)
     State.detail:addRect(PADDING, y, width, 54, COLORS.softInk)
     State.detail:addRect(PADDING + 1, y + 1, width - 2, 52, PAPER_FILL, 1)
     State.detail:addIcon(PADDING + 9, y + 11, 32, item.texture or ITEM_ICON)
-    State.detail:addText(ns.L("QUEST ITEM"), PADDING + 50, y + 7, { font = "GameFontNormalSmall", color = COLORS.softInk, isSingleLine = true })
-    State.detail:addText(item.name or ns.L("Quest item"), PADDING + 50, y + 21, { font = "QuestFont", color = COLORS.ink, width = width - 58, isSingleLine = true })
+    State.detail:addText(
+        ns.L("QUEST ITEM"),
+        PADDING + 50,
+        y + 7,
+        { font = "GameFontNormalSmall", color = COLORS.softInk, isSingleLine = true }
+    )
+    State.detail:addText(
+        item.name or ns.L("Quest item"),
+        PADDING + 50,
+        y + 21,
+        { font = "QuestFont", color = COLORS.ink, width = width - 58, isSingleLine = true }
+    )
     local note = (item.count and (ns.Lp(item.count, "%d left", "%d left") .. DOT) or "") .. ns.L("use from the tracker")
-    State.detail:addText(note, PADDING + 50, y + 37, { font = "GameFontHighlightSmall", color = COLORS.softInk, width = width - 58, isSingleLine = true })
+    State.detail:addText(
+        note,
+        PADDING + 50,
+        y + 37,
+        { font = "GameFontHighlightSmall", color = COLORS.softInk, width = width - 58, isSingleLine = true }
+    )
     State.detail:addButton(PADDING, y, width, 54, nil, item, showItemTooltip)
     return y + 54 + 16
 end
@@ -231,9 +287,19 @@ end
 local function showDoneStepTooltip(button, questId)
     GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
     local entry = ns.ChroniclePage.findEntry(questId)
-    GameTooltip:AddLine(ns.L(entry and "Click to read it in the Chronicle" or "Click to see it in the Chronicle"), 1, 1, 1)
+    GameTooltip:AddLine(
+        ns.L(entry and "Click to read it in the Chronicle" or "Click to see it in the Chronicle"),
+        1,
+        1,
+        1
+    )
     if entry and entry.turnedInAt then
-        GameTooltip:AddLine(ns.L("Done %s", ns.Chronicle.formatShownDate("%d %b %Y", entry.turnedInAt)), 0.82, 0.77, 0.64)
+        GameTooltip:AddLine(
+            ns.L("Done %s", ns.Chronicle.formatShownDate("%d %b %Y", entry.turnedInAt)),
+            0.82,
+            0.77,
+            0.64
+        )
     else
         GameTooltip:AddLine(ns.L("Done before the chronicle began"), 0.82, 0.77, 0.64, true)
     end
@@ -244,7 +310,12 @@ end
 local function showChainStepTooltip(button, questId)
     GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
     local isInLog = ns.QuestState.isInLog(questId)
-    GameTooltip:AddLine(ns.L(isInLog and "Click to open it in My quests" or "Click to open it on the Available tab"), 1, 1, 1)
+    GameTooltip:AddLine(
+        ns.L(isInLog and "Click to open it in My quests" or "Click to open it on the Available tab"),
+        1,
+        1,
+        1
+    )
     if not isInLog then
         local questIds = ns.Chain.getQuestIds(questId)
         for position, chainQuestId in ipairs(questIds) do
@@ -326,13 +397,25 @@ local BOX_CORNER, BOX_INSET = 24, 7
 local function addParchmentBox(x, y, width, height)
     local page = State.detail
     local middle, side = width - 2 * BOX_CORNER, height - 2 * BOX_CORNER
-    page:addImage(x + BOX_INSET, y + BOX_INSET, width - 2 * BOX_INSET, height - 2 * BOX_INSET, { atlas = "ParchmentPopup-Background" }, nil, nil, -4)
+    page:addImage(
+        x + BOX_INSET,
+        y + BOX_INSET,
+        width - 2 * BOX_INSET,
+        height - 2 * BOX_INSET,
+        { atlas = "ParchmentPopup-Background" },
+        nil,
+        nil,
+        -4
+    )
     for _, part in ipairs({
-        { "ParchmentPopup-TopLeft", x, y, BOX_CORNER, BOX_CORNER }, { "ParchmentPopup-TopRight", x + width - BOX_CORNER, y, BOX_CORNER, BOX_CORNER },
+        { "ParchmentPopup-TopLeft", x, y, BOX_CORNER, BOX_CORNER },
+        { "ParchmentPopup-TopRight", x + width - BOX_CORNER, y, BOX_CORNER, BOX_CORNER },
         { "ParchmentPopup-BottomLeft", x, y + height - BOX_CORNER, BOX_CORNER, BOX_CORNER },
         { "ParchmentPopup-BottomRight", x + width - BOX_CORNER, y + height - BOX_CORNER, BOX_CORNER, BOX_CORNER },
-        { "ParchmentPopup-Top", x + BOX_CORNER, y, middle, BOX_CORNER }, { "ParchmentPopup-Bottom", x + BOX_CORNER, y + height - BOX_CORNER, middle, BOX_CORNER },
-        { "ParchmentPopup-Left", x, y + BOX_CORNER, BOX_CORNER, side }, { "ParchmentPopup-Right", x + width - BOX_CORNER, y + BOX_CORNER, BOX_CORNER, side },
+        { "ParchmentPopup-Top", x + BOX_CORNER, y, middle, BOX_CORNER },
+        { "ParchmentPopup-Bottom", x + BOX_CORNER, y + height - BOX_CORNER, middle, BOX_CORNER },
+        { "ParchmentPopup-Left", x, y + BOX_CORNER, BOX_CORNER, side },
+        { "ParchmentPopup-Right", x + width - BOX_CORNER, y + BOX_CORNER, BOX_CORNER, side },
     }) do
         page:addImage(part[2], part[3], part[4], part[5], { atlas = part[1] }, nil, nil, -3)
     end
@@ -368,13 +451,30 @@ local function addChainPrize(y, questIds, index)
             local rim = getPrizeRimColor(item.quality)
             State.detail:addRect(x, y, PRIZE_ICON, PRIZE_ICON, rim, 1)
             State.detail:addRect(x + 1, y + 1, PRIZE_ICON - 2, PRIZE_ICON - 2, { 0, 0, 0 }, 2)
-            State.detail:addIcon(x + 2, y + 2, PRIZE_ICON - 4, item.texture or "Interface\\Icons\\INV_Misc_QuestionMark", nil, 5, { 0.07, 0.93, 0.07, 0.93 })
+            State.detail:addIcon(
+                x + 2,
+                y + 2,
+                PRIZE_ICON - 4,
+                item.texture or "Interface\\Icons\\INV_Misc_QuestionMark",
+                nil,
+                5,
+                { 0.07, 0.93, 0.07, 0.93 }
+            )
             if item.count and item.count > 1 then
-                State.detail:addText(tostring(item.count), x, y + PRIZE_ICON - 13, { font = "NumberFontNormal", color = COLORS.white, width = PRIZE_ICON - 3, justify = "RIGHT", isSingleLine = true, level = 6 })
+                State.detail:addText(tostring(item.count), x, y + PRIZE_ICON - 13, {
+                    font = "NumberFontNormal",
+                    color = COLORS.white,
+                    width = PRIZE_ICON - 3,
+                    justify = "RIGHT",
+                    isSingleLine = true,
+                    level = 6,
+                })
             end
             -- (centred on the icon: placed, measured, then moved down by half what is left)
             local nameHeight, _, nameText = State.detail:addText(item.name, x + PRIZE_ICON + 5, y, {
-                font = "QuestFont", color = getPrizeNameColor(item.quality), width = nameWidth,
+                font = "QuestFont",
+                color = getPrizeNameColor(item.quality),
+                width = nameWidth,
             })
             local nameTop = y + math.max(0, math.floor((PRIZE_ICON - (nameHeight or 14)) / 2))
             if nameText and nameTop ~= y then
@@ -390,26 +490,41 @@ local function addChainPrize(y, questIds, index)
     -- amount, the coins, each faction, the items still on the way
     local pieces = {}
     if rest.experience > 0 then
-        pieces[#pieces + 1] = { icon = XP_REWARD_ICON, text = BreakUpLargeNumbers and BreakUpLargeNumbers(rest.experience) or tostring(rest.experience) }
+        pieces[#pieces + 1] = {
+            icon = XP_REWARD_ICON,
+            text = BreakUpLargeNumbers and BreakUpLargeNumbers(rest.experience) or tostring(rest.experience),
+        }
     end
     if rest.money > 0 then
         pieces[#pieces + 1] = { text = ns.Widgets.formatMoney(rest.money) }
     end
     for _, factionId in ipairs(rest.factionOrder) do
-        pieces[#pieces + 1] = { text = string.format("%s +%d", ns.Availability.getFactionName(factionId), rest.reputation[factionId]) }
+        pieces[#pieces + 1] =
+            { text = string.format("%s +%d", ns.Availability.getFactionName(factionId), rest.reputation[factionId]) }
     end
     if rest.itemsOnTheWay > 0 then
-        pieces[#pieces + 1] = { text = ns.Lp(rest.itemsOnTheWay, "%d more item on the way", "%d more items on the way") }
+        pieces[#pieces + 1] =
+            { text = ns.Lp(rest.itemsOnTheWay, "%d more item on the way", "%d more items on the way") }
     end
     if rest.isLoading then
         pieces[#pieces + 1] = { text = ns.L("(asking the game for the rest)") }
     end
     local lineHeight, right = 20, left + width
-    local _, leadWidth = State.detail:addText(ns.L("Left in the chain:"), left, y + 2, { font = "QuestFont", color = COLORS.softInk, isSingleLine = true })
+    local _, leadWidth = State.detail:addText(
+        ns.L("Left in the chain:"),
+        left,
+        y + 2,
+        { font = "QuestFont", color = COLORS.softInk, isSingleLine = true }
+    )
     local x = left + (leadWidth or 110) + 8
     for _, piece in ipairs(pieces) do
         local iconWidth = piece.icon and 20 or 0
-        local textHeight, textWidth, text = State.detail:addText(piece.text, x + iconWidth, y + 2, { font = "QuestFont", color = COLORS.ink, isSingleLine = true })
+        local textHeight, textWidth, text = State.detail:addText(
+            piece.text,
+            x + iconWidth,
+            y + 2,
+            { font = "QuestFont", color = COLORS.ink, isSingleLine = true }
+        )
         textWidth = textWidth or (#piece.text * 7)
         if x + iconWidth + textWidth > right and x > left then
             -- Not room on this line: the piece starts the next one
@@ -450,26 +565,51 @@ local function addChainStep(y, chainQuestId, state, isNameShared)
         text = text .. "  |cff7a4f00(" .. ns.L("this quest") .. ")|r"
     end
     local textHeight = State.detail:addText(text, textLeft, y, {
-        font = "QuestFont", color = state == "current" and COLORS.ink or COLORS.softInk, width = State.detail.width - PADDING - textLeft,
+        font = "QuestFont",
+        color = state == "current" and COLORS.ink or COLORS.softInk,
+        width = State.detail.width - PADDING - textLeft,
     })
     -- A step still to come opens where it is: in the log on My quests, else on the Available tab; a step done opens
     -- in the chronicle, its story there
     if state == "done" or (state == "upcoming" and ns.QuestState.isTurnedIn(chainQuestId)) then
-        State.detail:addButton(textLeft - 2, y - 2, State.detail.width - PADDING - textLeft + 4, textHeight + 4, openDoneStep, chainQuestId,
-            showDoneStepTooltip, nil, hideTooltip)
+        State.detail:addButton(
+            textLeft - 2,
+            y - 2,
+            State.detail.width - PADDING - textLeft + 4,
+            textHeight + 4,
+            openDoneStep,
+            chainQuestId,
+            showDoneStepTooltip,
+            nil,
+            hideTooltip
+        )
     elseif state == "upcoming" then
-        State.detail:addButton(textLeft - 2, y - 2, State.detail.width - PADDING - textLeft + 4, textHeight + 4, openChainStep, chainQuestId,
-            showChainStepTooltip, nil, hideTooltip)
+        State.detail:addButton(
+            textLeft - 2,
+            y - 2,
+            State.detail.width - PADDING - textLeft + 4,
+            textHeight + 4,
+            openChainStep,
+            chainQuestId,
+            showChainStepTooltip,
+            nil,
+            hideTooltip
+        )
     end
     -- Steps of one name (Test of Lore's six) are told apart by what each asks, its first sentence
     local objectivesText = isNameShared and ns.Database.getQuestField(chainQuestId, "objectivesText")
     -- In the player's language when a translation addon has it, as the step's title above it
-    local asks = type(objectivesText) == "table" and ns.QuestText.getObjectives(chainQuestId, table.concat(objectivesText, " "))
+    local asks = type(objectivesText) == "table"
+        and ns.QuestText.getObjectives(chainQuestId, table.concat(objectivesText, " "))
     local firstSentence = asks and (asks:match("^%s*(.-[%.!?])%s") or asks)
     if firstSentence and firstSentence:match("%S") then
-        textHeight = textHeight + 2 + State.detail:addText(firstSentence, textLeft, y + textHeight + 2, {
-            font = "GameFontHighlightSmall", color = COLORS.softInk, width = State.detail.width - PADDING - textLeft,
-        })
+        textHeight = textHeight
+            + 2
+            + State.detail:addText(firstSentence, textLeft, y + textHeight + 2, {
+                font = "GameFontHighlightSmall",
+                color = COLORS.softInk,
+                width = State.detail.width - PADDING - textLeft,
+            })
     end
     -- The To do list's checkbox: ticked for a quest done, empty for one to come; this quest gets a gold arrow
     if state == "current" then
@@ -488,8 +628,18 @@ end
 ---@return number y Below the fold
 local function addChainFold(y, text, isOpen)
     -- A line of the chain like the others: the game's +/- in the checkbox column, the words in soft ink
-    State.detail:addIcon(PADDING + 1, y, 16, isOpen and "Interface\\Buttons\\UI-MinusButton-Up" or "Interface\\Buttons\\UI-PlusButton-Up")
-    local height = State.detail:addText(text, PADDING + TO_DO_LEAD, y, { font = "QuestFont", color = COLORS.softInk, isSingleLine = true })
+    State.detail:addIcon(
+        PADDING + 1,
+        y,
+        16,
+        isOpen and "Interface\\Buttons\\UI-MinusButton-Up" or "Interface\\Buttons\\UI-PlusButton-Up"
+    )
+    local height = State.detail:addText(
+        text,
+        PADDING + TO_DO_LEAD,
+        y,
+        { font = "QuestFont", color = COLORS.softInk, isSingleLine = true }
+    )
     State.detail:addButton(PADDING - 4, y - 3, State.detail.width - 2 * PADDING + 8, height + 6, toggleChain)
     return y + math.max(height + 8, 24)
 end
@@ -520,14 +670,27 @@ function Spoiled.addCountedChain(y, questIds, index, total, isNameShared)
     end
     y = addChainStep(y, questIds[index], "current", isNameShared(questIds[index]))
     if index < total then
-        State.detail:addText("\194\183 \194\183 \194\183", PADDING + 1, y, { font = "QuestFont", color = COLORS.softInk, isSingleLine = true })
-        y = y + State.detail:addText(ns.Lp(total - index, "%d more step", "%d more steps"), PADDING + TO_DO_LEAD, y, {
-            font = "QuestFont", color = COLORS.softInk, isSingleLine = true,
-        }) + 8
+        State.detail:addText(
+            "\194\183 \194\183 \194\183",
+            PADDING + 1,
+            y,
+            { font = "QuestFont", color = COLORS.softInk, isSingleLine = true }
+        )
+        y = y
+            + State.detail:addText(ns.Lp(total - index, "%d more step", "%d more steps"), PADDING + TO_DO_LEAD, y, {
+                font = "QuestFont",
+                color = COLORS.softInk,
+                isSingleLine = true,
+            })
+            + 8
         if not Spoiled.view or Spoiled.view.rewards ~= "hidden" then
-            y = y + State.detail:addText(ns.L("A reward waits at the end of the chain."), PADDING, y, {
-                font = "GameFontHighlightSmall", color = COLORS.softInk, width = State.detail.width - 2 * PADDING,
-            }) + 6
+            y = y
+                + State.detail:addText(ns.L("A reward waits at the end of the chain."), PADDING, y, {
+                    font = "GameFontHighlightSmall",
+                    color = COLORS.softInk,
+                    width = State.detail.width - 2 * PADDING,
+                })
+                + 6
         end
     end
     return y + 12
@@ -661,7 +824,9 @@ local function acquireRewardIcon(index)
                 GameTooltip:Show()
             end
         end)
-        button:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        button:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+        end)
         State.rewardsBlock.icons[index] = button
     end
     return button
@@ -702,7 +867,8 @@ local function setPageRewards(questId)
     State.rewardsBlock.title:SetText(ns.L("Rewards"))
     -- A page about several quests (a dungeon's run) gives their rewards added up, in the same shape
     local rewards = type(questId) == "table" and questId or (questId and ns.QuestState.getRewards(questId))
-    local hasRewards = rewards and (rewards.money > 0 or rewards.experience > 0 or #rewards.items > 0 or #rewards.choices > 0)
+    local hasRewards = rewards
+        and (rewards.money > 0 or rewards.experience > 0 or #rewards.items > 0 or #rewards.choices > 0)
     local height, iconCount, textCount = 0, 0, 0
     if rewards and (hasRewards or rewards.isLoading) then
         local left, right = 12, PAGE_CONTENT_WIDTH + (State.frame.pageExtra or 0) - 12
@@ -764,7 +930,8 @@ local function setPageRewards(questId)
         height = y + REWARD_ICON_SIZE + State.rewardsBlock.bottomHeight
     end
     -- Only the first row shows until the page is scrolled to its end; further rows rise then
-    local peekHeight = math.min(height, State.rewardsBlock.topHeight + 6 + REWARD_ICON_SIZE + State.rewardsBlock.bottomHeight)
+    local peekHeight =
+        math.min(height, State.rewardsBlock.topHeight + 6 + REWARD_ICON_SIZE + State.rewardsBlock.bottomHeight)
     State.rewardsBlock.fullHeight, State.rewardsBlock.peekHeight = height, peekHeight
     State.rewardsBlock:SetHeight(math.max(peekHeight, 1))
     for index = iconCount + 1, #State.rewardsBlock.icons do
@@ -774,7 +941,13 @@ local function setPageRewards(questId)
         State.rewardsBlock.texts[index]:Hide()
     end
     State.rewardsBlock:SetShown(height > 0)
-    State.detail.frame:SetPoint("BOTTOMLEFT", State.frame, "BOTTOMLEFT", State.frame.pageLeft or LIST_WIDTH + 2, (State.frame.pageBottom or BAR_HEIGHT) + 2 + peekHeight) -- (over the bar, or at the foot with a controller)
+    State.detail.frame:SetPoint(
+        "BOTTOMLEFT",
+        State.frame,
+        "BOTTOMLEFT",
+        State.frame.pageLeft or LIST_WIDTH + 2,
+        (State.frame.pageBottom or BAR_HEIGHT) + 2 + peekHeight
+    ) -- (over the bar, or at the foot with a controller)
     return height - peekHeight
 end
 
@@ -818,13 +991,16 @@ local function createRewardsBlock(parent, pageLeft)
     return block
 end
 
-
 ---One line of text in a quest page's lists: plain text; or text after a coloured dot (a creature, in the colour of
 ---its spawn points on the map); or text with a place name in it to click, underlined as links are.
 ---@param line string|{ text: string?, dotColor: number[]?, link: string?, afterText: string?, handleClick: function?, data: any?, font: string?, color: number[]? }
 ---@return number height
 local function addStepLine(y, line, textLeft, textWidth)
-    local options = { font = type(line) == "table" and line.font or "QuestFont", color = type(line) == "table" and line.color or COLORS.softInk, width = textWidth }
+    local options = {
+        font = type(line) == "table" and line.font or "QuestFont",
+        color = type(line) == "table" and line.color or COLORS.softInk,
+        width = textWidth,
+    }
     if type(line) == "string" then
         return (State.detail:addText(line, textLeft, y, options))
     end
@@ -855,7 +1031,12 @@ local function addStepLine(y, line, textLeft, textWidth)
         local right = textLeft + textWidth
         -- The link follows the text on its last line, or starts a line of its own when it does not fit there
         local linkLeft, linkTop = left + (line.text and width + 4 or 0), y
-        local linkHeight, linkWidth, linkText = State.detail:addText(line.link, linkLeft, linkTop, { font = options.font, color = COLORS.brown, isSingleLine = true })
+        local linkHeight, linkWidth, linkText = State.detail:addText(
+            line.link,
+            linkLeft,
+            linkTop,
+            { font = options.font, color = COLORS.brown, isSingleLine = true }
+        )
         if line.text and (height > linkHeight * 1.5 or linkLeft + linkWidth > right) then
             linkLeft, linkTop = left, y + height + 1
             linkText:ClearAllPoints()
@@ -869,7 +1050,12 @@ local function addStepLine(y, line, textLeft, textWidth)
         if line.afterText then
             -- After the link on its line, or on the next line when it does not fit
             local afterLeft, afterTop = linkLeft + linkWidth + 3, linkTop
-            local afterHeight, afterWidth, afterText = State.detail:addText(line.afterText, afterLeft, afterTop, { font = options.font, color = options.color, isSingleLine = true })
+            local afterHeight, afterWidth, afterText = State.detail:addText(
+                line.afterText,
+                afterLeft,
+                afterTop,
+                { font = options.font, color = options.color, isSingleLine = true }
+            )
             if afterLeft + afterWidth > right then
                 afterLeft, afterTop = left, bottom + 1
                 afterText:ClearAllPoints()
@@ -955,14 +1141,28 @@ local function composeDropZoneLines(zones, foldKey, options)
         if view and view.drops ~= "names" and view.drops ~= "chances" then
             return nil -- (the map colours a creature's places only where drops are named: no square to match)
         end
-        return ns.MapMarks.getShadeColor(isByCreature and source.shade or options.objectiveShade, options.questId or (options.quest and options.quest.questId))
+        return ns.MapMarks.getShadeColor(
+            isByCreature and source.shade or options.objectiveShade,
+            options.questId or (options.quest and options.quest.questId)
+        )
     end
     local function getClickData(zone)
         -- (a rough area: the map turns to the zone, not to a spot in it)
-        return { zone = zone, place = not (view and view.isRough) and getDropZonePlace(zone) or nil, quest = options.quest, questId = options.questId }
+        return {
+            zone = zone,
+            place = not (view and view.isRough) and getDropZonePlace(zone) or nil,
+            quest = options.quest,
+            questId = options.questId,
+        }
     end
     local function formatSource(source)
-        return source.name .. (source.chance and not (view and view.isChanceHidden) and (DOT .. ns.Drops.formatChance(source.chance)) or "")
+        return source.name
+            .. (
+                source.chance
+                    and not (view and view.isChanceHidden)
+                    and (DOT .. ns.Drops.formatChance(source.chance))
+                or ""
+            )
     end
     local function addCreatures(zone, indent, firstPrefix)
         local zoneKey = foldKey .. ":" .. zone.zoneId
@@ -970,15 +1170,28 @@ local function composeDropZoneLines(zones, foldKey, options)
         local sources = getSources(zone)
         for index, source in ipairs(sources) do
             if index > MAX_ZONE_CREATURES and not isOpen then
-                lines[#lines + 1] = { link = ns.Lp(#sources - MAX_ZONE_CREATURES, "+ %d more here", "+ %d more here"), handleClick = toggleDropFold, data = zoneKey, indent = indent + 14, isQuiet = true }
+                lines[#lines + 1] = {
+                    link = ns.Lp(#sources - MAX_ZONE_CREATURES, "+ %d more here", "+ %d more here"),
+                    handleClick = toggleDropFold,
+                    data = zoneKey,
+                    indent = indent + 14,
+                    isQuiet = true,
+                }
                 return
             end
             -- The first creature after its lead ("Drops from %s"), the next ones after "or"
-            local text = firstPrefix and ns.L(index == 1 and firstPrefix or "or %s", formatSource(source)) or formatSource(source)
+            local text = firstPrefix and ns.L(index == 1 and firstPrefix or "or %s", formatSource(source))
+                or formatSource(source)
             lines[#lines + 1] = { text = text, dotColor = getDotColor(source), indent = indent }
         end
         if isOpen then
-            lines[#lines + 1] = { link = ns.L("Show fewer"), handleClick = toggleDropFold, data = zoneKey, indent = indent + 14, isQuiet = true }
+            lines[#lines + 1] = {
+                link = ns.L("Show fewer"),
+                handleClick = toggleDropFold,
+                data = zoneKey,
+                indent = indent + 14,
+                isQuiet = true,
+            }
         end
     end
 
@@ -992,7 +1205,9 @@ local function composeDropZoneLines(zones, foldKey, options)
         local place = data.place
         lines[#lines + 1] = {
             text = place and place.dungeonName and ns.L("Inside %s, entrance in", place.dungeonName) or ns.L("in"),
-            link = zone.name .. (place and place.x >= 0 and string.format(" %d, %d", place.x, place.y) or ""), handleClick = options.handleClick, data = data,
+            link = zone.name .. (place and place.x >= 0 and string.format(" %d, %d", place.x, place.y) or ""),
+            handleClick = options.handleClick,
+            data = data,
         }
         return lines
     end
@@ -1008,13 +1223,20 @@ local function composeDropZoneLines(zones, foldKey, options)
             end
         end
     end
-    lines[1] = { text = creatureCount > 0 and ns.Lp(creatureCount, "Drops from %d creature in %d zones", "Drops from %d creatures in %d zones", #zones)
-        or ns.Lp(#zones, "In %d zone", "In %d zones") }
+    lines[1] = {
+        text = creatureCount > 0 and ns.Lp(
+            creatureCount,
+            "Drops from %d creature in %d zones",
+            "Drops from %d creatures in %d zones",
+            #zones
+        ) or ns.Lp(#zones, "In %d zone", "In %d zones"),
+    }
     local shownZoneId = ns.MapDock.getShownZoneId()
     local function addZone(zone)
         local facts = {}
         if zone.minLevel then
-            facts[#facts + 1] = zone.minLevel == zone.maxLevel and ns.L("level %d", zone.minLevel) or ns.L("levels %d-%d", zone.minLevel, zone.maxLevel)
+            facts[#facts + 1] = zone.minLevel == zone.maxLevel and ns.L("level %d", zone.minLevel)
+                or ns.L("levels %d-%d", zone.minLevel, zone.maxLevel)
         end
         if zone.isPlayerZone then
             facts[#facts + 1] = ns.L("you are here")
@@ -1024,8 +1246,11 @@ local function composeDropZoneLines(zones, foldKey, options)
             facts[#facts + 1] = ns.L("dungeon")
         end
         lines[#lines + 1] = {
-            link = zone.name, afterText = #facts > 0 and (DOT:gsub("^ ", "") .. table.concat(facts, DOT)) or nil,
-            handleClick = options.handleClick, data = getClickData(zone), spaceBefore = 5,
+            link = zone.name,
+            afterText = #facts > 0 and (DOT:gsub("^ ", "") .. table.concat(facts, DOT)) or nil,
+            handleClick = options.handleClick,
+            data = getClickData(zone),
+            spaceBefore = 5,
         }
         addCreatures(zone, 10)
     end
@@ -1041,25 +1266,48 @@ local function composeDropZoneLines(zones, foldKey, options)
                 names[#names + 1] = fittingZones[restIndex].name
             end
             local count = #fittingZones - MAX_OPEN_DROP_ZONES
-            lines[#lines + 1] = { link = ns.Lp(count, "+ %d more zone", "+ %d more zones"), afterText = table.concat(names, ", "), handleClick = toggleDropFold, data = moreKey, isQuiet = true, spaceBefore = 5 }
+            lines[#lines + 1] = {
+                link = ns.Lp(count, "+ %d more zone", "+ %d more zones"),
+                afterText = table.concat(names, ", "),
+                handleClick = toggleDropFold,
+                data = moreKey,
+                isQuiet = true,
+                spaceBefore = 5,
+            }
             break
         end
         addZone(zone)
     end
     if dropFolds[moreKey] then
-        lines[#lines + 1] = { link = ns.L("Show fewer zones"), handleClick = toggleDropFold, data = moreKey, isQuiet = true, spaceBefore = 5 }
+        lines[#lines + 1] = {
+            link = ns.L("Show fewer zones"),
+            handleClick = toggleDropFold,
+            data = moreKey,
+            isQuiet = true,
+            spaceBefore = 5,
+        }
     end
     if #highZones > 0 then
         if dropFolds[highKey] then
             for _, zone in ipairs(highZones) do
                 addZone(zone)
             end
-            lines[#lines + 1] = { link = ns.L("Hide zones for higher levels"), handleClick = toggleDropFold, data = highKey, isQuiet = true, spaceBefore = 5 }
+            lines[#lines + 1] = {
+                link = ns.L("Hide zones for higher levels"),
+                handleClick = toggleDropFold,
+                data = highKey,
+                isQuiet = true,
+                spaceBefore = 5,
+            }
         else
             local lowest = highZones[1].minLevel
             lines[#lines + 1] = {
                 link = ns.Lp(#highZones, "+ %d zone for higher levels", "+ %d zones for higher levels"),
-                afterText = lowest and ns.L("(levels %d+)", lowest) or nil, handleClick = toggleDropFold, data = highKey, isQuiet = true, spaceBefore = 3,
+                afterText = lowest and ns.L("(levels %d+)", lowest) or nil,
+                handleClick = toggleDropFold,
+                data = highKey,
+                isQuiet = true,
+                spaceBefore = 3,
             }
         end
     end
@@ -1108,10 +1356,15 @@ function Spoiled.compose(questId)
     end
     local get = ns.Spoilers.get
     local view = {
-        objectives = get("objectives", questId), drops = get("drops", questId), turnIn = get("turnIn", questId),
-        chains = get("chains", questId), rewards = get("rewards", questId), hint = ns.Spoilers.getHint(questId),
+        objectives = get("objectives", questId),
+        drops = get("drops", questId),
+        turnIn = get("turnIn", questId),
+        chains = get("chains", questId),
+        rewards = get("rewards", questId),
+        hint = ns.Spoilers.getHint(questId),
         isTurnInShown = ns.Model.isTurnInShown(questId),
-        isStoryHidden = ns.Availability.isLaterHidden("quest"), isDungeonHidden = ns.Availability.isLaterHidden("dungeon"),
+        isStoryHidden = ns.Availability.isLaterHidden("quest"),
+        isDungeonHidden = ns.Availability.isLaterHidden("dungeon"),
     }
     view.isChanceHidden = view.drops ~= "chances"
     view.isRough = view.objectives == "rough"
@@ -1156,7 +1409,10 @@ function Spoiled.composeCreatureLines(zones, getSources, formatSource, getDotCol
             if not isNamed[source.name] then
                 isNamed[source.name], count = true, count + 1
                 if count <= MAX_NAMED_CREATURES then
-                    lines[#lines + 1] = { text = ns.L(count == 1 and "Drops from %s" or "or %s", formatSource(source)), dotColor = getDotColor(source) }
+                    lines[#lines + 1] = {
+                        text = ns.L(count == 1 and "Drops from %s" or "or %s", formatSource(source)),
+                        dotColor = getDotColor(source),
+                    }
                 end
             end
         end
@@ -1172,8 +1428,10 @@ end
 ---@return table line
 function Spoiled.composeZoneLine(questId, zoneId, prefix)
     return {
-        text = prefix, link = ns.Database.getZoneName(zoneId) or ns.L("Unknown location"),
-        handleClick = showObjectivePlace, data = { questId = questId, zone = { zoneId = zoneId } },
+        text = prefix,
+        link = ns.Database.getZoneName(zoneId) or ns.L("Unknown location"),
+        handleClick = showObjectivePlace,
+        data = { questId = questId, zone = { zoneId = zoneId } },
     }
 end
 
@@ -1189,8 +1447,17 @@ function Spoiled.composeFoundLines(questId, objectiveIndex)
     local lines = {}
     for index = #found, math.max(#found - MAX_FOUND_PLACES + 1, 1), -1 do
         local spot = found[index]
-        local place = { mapZoneId = spot.zoneId, groupZoneId = spot.zoneId, x = math.floor(spot.x + 0.5), y = math.floor(spot.y + 0.5) }
-        lines[#lines + 1] = composePlaceLine(place, { suffix = ns.L("found by you"), handleClick = showObjectivePlace, data = { questId = questId, place = place } })
+        local place = {
+            mapZoneId = spot.zoneId,
+            groupZoneId = spot.zoneId,
+            x = math.floor(spot.x + 0.5),
+            y = math.floor(spot.y + 0.5),
+        }
+        lines[#lines + 1] = composePlaceLine(place, {
+            suffix = ns.L("found by you"),
+            handleClick = showObjectivePlace,
+            data = { questId = questId, place = place },
+        })
     end
     if #found > MAX_FOUND_PLACES then
         lines[#lines + 1] = ns.Lp(#found - MAX_FOUND_PLACES, "and %d more place", "and %d more places")
@@ -1209,7 +1476,8 @@ function Spoiled.composeWhere(view, questId, objectiveIndex, sourceText, zoneId,
     end
     local lines = {}
     if view.objectives == "rough" and zoneId then
-        lines[1] = Spoiled.composeZoneLine(questId, zoneId, sourceText and (sourceText .. DOT:gsub(" $", "")) or ns.L("in"))
+        lines[1] =
+            Spoiled.composeZoneLine(questId, zoneId, sourceText and (sourceText .. DOT:gsub(" $", "")) or ns.L("in"))
         return lines
     end
     lines[1] = sourceText
@@ -1241,14 +1509,26 @@ local function addToDo(y, entry, details)
                     line.font = "GameFontHighlightSmall"
                     y = y + addStepLine(y, line, textLeft, textWidth) + 2
                 elseif line ~= "" then
-                    y = y + State.detail:addText(line, textLeft, y, { font = "GameFontHighlightSmall", color = COLORS.softInk, width = textWidth }) + 2
+                    y = y
+                        + State.detail:addText(
+                            line,
+                            textLeft,
+                            y,
+                            { font = "GameFontHighlightSmall", color = COLORS.softInk, width = textWidth }
+                        )
+                        + 2
                 end
             end
         elseif type(where) == "table" then
             where.font = "GameFontHighlightSmall"
             y = y + addStepLine(y, where, textLeft, textWidth) + 2
         elseif where and where ~= "" then
-            local whereHeight = State.detail:addText(where, textLeft, y, { font = "GameFontHighlightSmall", color = COLORS.softInk, width = textWidth })
+            local whereHeight = State.detail:addText(
+                where,
+                textLeft,
+                y,
+                { font = "GameFontHighlightSmall", color = COLORS.softInk, width = textWidth }
+            )
             y = y + whereHeight + 2
         end
         y = y + 6
@@ -1272,7 +1552,16 @@ local function addToDo(y, entry, details)
         })
         if (progress.drops or 0) > 0 then
             -- Where an average player would be for the drops got
-            local mark = State.detail:addImage(innerLeft + inner * (earlierKills + progress.expected) / total - 1, innerTop - 2, 2, innerHeight + 4, "Interface\\Buttons\\WHITE8X8", nil, nil, 3)
+            local mark = State.detail:addImage(
+                innerLeft + inner * (earlierKills + progress.expected) / total - 1,
+                innerTop - 2,
+                2,
+                innerHeight + 4,
+                "Interface\\Buttons\\WHITE8X8",
+                nil,
+                nil,
+                3
+            )
             mark:SetVertexColor(COLORS.gold[1], COLORS.gold[2], COLORS.gold[3])
         end
         local parts = { ns.KillCounter.formatKills(progress, DOT) }
@@ -1285,10 +1574,17 @@ local function addToDo(y, entry, details)
         end
         local textColor = isUnlucky and COLORS.warning or COLORS.softInk
         if progress.remaining >= 0.5 then
-            parts[#parts + 1] = ns.Profit.formatEstimateSign(textColor) .. " " .. ns.Lp(math.floor(progress.remaining + 0.5), "%d kill to go", "%d kills to go")
+            parts[#parts + 1] = ns.Profit.formatEstimateSign(textColor)
+                .. " "
+                .. ns.Lp(math.floor(progress.remaining + 0.5), "%d kill to go", "%d kills to go")
         end
         local text = table.concat(parts, DOT)
-        local textHeight = State.detail:addText(text, textLeft, top + height + 2, { font = "GameFontHighlightSmall", color = textColor, width = textWidth })
+        local textHeight = State.detail:addText(
+            text,
+            textLeft,
+            top + height + 2,
+            { font = "GameFontHighlightSmall", color = textColor, width = textWidth }
+        )
         y = top + height + 4 + (type(textHeight) == "number" and textHeight or 12) + 2
     end
     -- An item that drops: each creature with its chance, behind a dot in the colour of its spawn points on the
@@ -1296,14 +1592,27 @@ local function addToDo(y, entry, details)
     local shades, _, sourceObjectiveIndex = ns.MapMarks.getObjectiveShades(entry)
     local function addSourceLines(objectiveIndex, objectiveDetail)
         local lines = composeDropZoneLines(objectiveDetail.zones, "log:" .. entry.questId .. ":" .. objectiveIndex, {
-            handleClick = showObjectivePlace, questId = entry.questId,
-            isByCreature = objectiveIndex == sourceObjectiveIndex, objectiveShade = shades[objectiveIndex],
-            view = view, itemId = objectiveDetail.itemId,
+            handleClick = showObjectivePlace,
+            questId = entry.questId,
+            isByCreature = objectiveIndex == sourceObjectiveIndex,
+            objectiveShade = shades[objectiveIndex],
+            view = view,
+            itemId = objectiveDetail.itemId,
         })
         if view and view.objectives ~= "exact" and view.objectives ~= "rough" then
             -- (the creatures' zones held back: the places found, or the zone a hint gave)
             local place = objectiveDetail.place
-            for _, line in ipairs(Spoiled.composeWhere(view, entry.questId, objectiveIndex, nil, place and (place.mapZoneId or place.groupZoneId))) do
+            for _, line in
+                ipairs(
+                    Spoiled.composeWhere(
+                        view,
+                        entry.questId,
+                        objectiveIndex,
+                        nil,
+                        place and (place.mapZoneId or place.groupZoneId)
+                    )
+                )
+            do
                 lines[#lines + 1] = type(line) == "table" and line or { text = line }
             end
         end
@@ -1342,12 +1651,22 @@ local function addToDo(y, entry, details)
             local place = objectiveDetail.place
             if place then
                 local sourceText = objectiveDetail.sourceText
-                whereText = (not view or view.objectives == "exact") and composePlaceLine(place, {
-                    prefix = sourceText and (sourceText .. DOT:gsub(" $", "")) or nil,
-                    handleClick = showObjectivePlace, data = { questId = entry.questId, place = place },
-                }) or nil
+                whereText = (not view or view.objectives == "exact")
+                        and composePlaceLine(place, {
+                            prefix = sourceText and (sourceText .. DOT:gsub(" $", "")) or nil,
+                            handleClick = showObjectivePlace,
+                            data = { questId = entry.questId, place = place },
+                        })
+                    or nil
                 if view then
-                    whereText = Spoiled.composeWhere(view, entry.questId, objectiveIndex, sourceText, place.mapZoneId or place.groupZoneId, whereText)
+                    whereText = Spoiled.composeWhere(
+                        view,
+                        entry.questId,
+                        objectiveIndex,
+                        sourceText,
+                        place.mapZoneId or place.groupZoneId,
+                        whereText
+                    )
                 end
             else
                 -- Nothing to mark on the map: what can be done instead, and the quest's own words on hover
@@ -1362,7 +1681,8 @@ local function addToDo(y, entry, details)
             label = objective.isFinished and (count .. " " .. label) or ("|cff6a3d00" .. count .. "|r " .. label)
         end
         if hasSourceLines then
-            local height = State.detail:addText(label, textLeft, y, { font = "QuestFont", color = color, width = textWidth })
+            local height =
+                State.detail:addText(label, textLeft, y, { font = "QuestFont", color = color, width = textWidth })
             y = y + height + 2
             addSourceLines(objectiveIndex, objectiveDetail)
         else
@@ -1370,11 +1690,20 @@ local function addToDo(y, entry, details)
             addLine(label, color, whereText)
             if unplacedObjective then
                 -- Pointed at, the objective shows what the quest itself says, as the game's tooltip
-                State.detail:addButton(textLeft - TO_DO_LEAD, top - 2, textWidth + TO_DO_LEAD, math.max(y - top - 4, 14), nil,
-                    { questId = entry.questId, title = entry.title, label = objective.label }, QuestPage.showQuestWords)
+                State.detail:addButton(
+                    textLeft - TO_DO_LEAD,
+                    top - 2,
+                    textWidth + TO_DO_LEAD,
+                    math.max(y - top - 4, 14),
+                    nil,
+                    { questId = entry.questId, title = entry.title, label = objective.label },
+                    QuestPage.showQuestWords
+                )
             end
         end
-        local progress = ns.settings.shouldCountKills and not objective.isFinished and objective.type == "item"
+        local progress = ns.settings.shouldCountKills
+            and not objective.isFinished
+            and objective.type == "item"
             and ns.KillCounter.getProgress(entry.questId, objectiveIndex, objective)
         if progress then
             addKillBar(progress)
@@ -1383,19 +1712,34 @@ local function addToDo(y, entry, details)
     if entry.eventText and not entry.isTurnIn then
         -- No objectives: what the quest asks (waiting, talking) is the one thing to do, at its NPC
         State.detail:addIcon(PADDING - 2, y - 2, CHECKBOX_SIZE, CHECKBOX_IMAGE)
-        local _, _, eventPlace = ns.Geometry.getNearest(ns.Location.getFinisherPlaces(entry.questId), ns.Geometry.getPlayerPosition(), ns.Database.getUiMapId)
+        local _, _, eventPlace = ns.Geometry.getNearest(
+            ns.Location.getFinisherPlaces(entry.questId),
+            ns.Geometry.getPlayerPosition(),
+            ns.Database.getUiMapId
+        )
         if view and not view.isTurnInShown then
             eventPlace = nil -- (where it happens is the turn-in's place, held back)
         end
-        local happensAt = entry.finisherName and ns.L("Happens at %s", entry.finisherName) or ns.L("Happens at the quest giver")
-        addLine(entry.eventText, COLORS.ink, eventPlace and composePlaceLine(eventPlace, { prefix = happensAt .. "," }) or happensAt)
+        local happensAt = entry.finisherName and ns.L("Happens at %s", entry.finisherName)
+            or ns.L("Happens at the quest giver")
+        addLine(
+            entry.eventText,
+            COLORS.ink,
+            eventPlace and composePlaceLine(eventPlace, { prefix = happensAt .. "," }) or happensAt
+        )
     end
     -- The turn-in closes the list: the last thing to do, or the only one left
     local finisherPlaces = ns.Location.getFinisherPlaces(entry.questId)
-    local _, _, finisherPlace = ns.Geometry.getNearest(finisherPlaces, ns.Geometry.getPlayerPosition(), ns.Database.getUiMapId)
+    local _, _, finisherPlace =
+        ns.Geometry.getNearest(finisherPlaces, ns.Geometry.getPlayerPosition(), ns.Database.getUiMapId)
     finisherPlace = finisherPlace or finisherPlaces[1]
     -- The map's turn-in mark: the game's "?", grey until the quest is ready, as the map shows it then
-    State.detail:addMark(PADDING - 1, y - 1, 18, { kind = "turnIn", questId = entry.questId, isFocused = false, lines = {}, isPending = not entry.isTurnIn })
+    State.detail:addMark(
+        PADDING - 1,
+        y - 1,
+        18,
+        { kind = "turnIn", questId = entry.questId, isFocused = false, lines = {}, isPending = not entry.isTurnIn }
+    )
     local turnInWhere = finisherPlace and composePlaceLine(finisherPlace) or nil
     if view and view.turnIn == "met" and view.isTurnInShown and finisherPlace then
         turnInWhere = composePlaceLine(finisherPlace, { suffix = ns.L("you have met them") })
@@ -1403,14 +1747,25 @@ local function addToDo(y, entry, details)
         -- Held back: the name alone (the game's own words say it too); "once you met them" says they are not met yet
         turnInWhere = view.turnIn == "met" and ns.L("Not met yet") or nil
     end
-    addLine(entry.finisherName and ns.L("Turn in to %s", entry.finisherName) or ns.L("Turn in to the quest giver"), entry.isTurnIn and COLORS.darkGreen or COLORS.ink,
-        turnInWhere)
+    addLine(
+        entry.finisherName and ns.L("Turn in to %s", entry.finisherName) or ns.L("Turn in to the quest giver"),
+        entry.isTurnIn and COLORS.darkGreen or COLORS.ink,
+        turnInWhere
+    )
     -- Ready to hand in: what the drops took, each counted objective's item with its bar and kills against the
     -- kills an average player would have needed
     for objectiveIndex, objective in ipairs(entry.isTurnIn and ns.settings.shouldCountKills and entry.objectives or {}) do
-        local progress = objective.type == "item" and ns.KillCounter.getProgress(entry.questId, objectiveIndex, objective)
+        local progress = objective.type == "item"
+            and ns.KillCounter.getProgress(entry.questId, objectiveIndex, objective)
         if progress and progress.kills > 0 then
-            y = y + 2 + State.detail:addText((objective.shownLabel or objective.label), textLeft, y, { font = "GameFontHighlightSmall", color = COLORS.softInk, width = textWidth, isSingleLine = true })
+            y = y
+                + 2
+                + State.detail:addText(
+                    (objective.shownLabel or objective.label),
+                    textLeft,
+                    y,
+                    { font = "GameFontHighlightSmall", color = COLORS.softInk, width = textWidth, isSingleLine = true }
+                )
             y = y + 4
             addKillBar(progress)
         end
@@ -1420,7 +1775,15 @@ local function addToDo(y, entry, details)
         y = addBody(y, ns.Widgets.formatMoreZones(entry.otherZonesText, "6a3d00"), COLORS.softInk)
         if entry.zoneIds then
             -- Under the mouse, every zone; a click turns the map to the next of them
-            State.detail:addButton(PADDING - 4, top - 2, State.detail.width - 2 * PADDING + 8, y - top, handleZonesClick, entry, showZonesTooltip)
+            State.detail:addButton(
+                PADDING - 4,
+                top - 2,
+                State.detail.width - 2 * PADDING + 8,
+                y - top,
+                handleZonesClick,
+                entry,
+                showZonesTooltip
+            )
         end
     end
     return y + 10
@@ -1454,7 +1817,14 @@ local function describeMember(member)
         for index, count in ipairs(member.counts or {}) do
             local objective = member.objectives and member.objectives[index]
             if count and not count.isDone and objective then
-                return string.format("%d/%d %s", count.fulfilled, count.required, objective.shownLabel or objective.label), COLORS.ink, false
+                return string.format(
+                    "%d/%d %s",
+                    count.fulfilled,
+                    count.required,
+                    objective.shownLabel or objective.label
+                ),
+                    COLORS.ink,
+                    false
             end
         end
         return ns.L("On this quest"), COLORS.ink, false
@@ -1482,7 +1852,9 @@ local function openMemberMenu(member)
             end
         end)
         if canTake and member.questId then
-            root:CreateButton(ns.L("Share with the party"), function() ns.Log.shareQuest(member.questId) end)
+            root:CreateButton(ns.L("Share with the party"), function()
+                ns.Log.shareQuest(member.questId)
+            end)
         end
     end)
 end
@@ -1512,9 +1884,28 @@ function QuestPage.addPartyRows(y, entry, members)
         local faceTop = y + (PARTY_ROW_HEIGHT - ns.Widgets.getPortraitSize(PARTY_FACE)) / 2
         State.detail:addPortrait(PADDING, faceTop, PARTY_FACE, member)
         local textLeft = PADDING + ns.Widgets.getPortraitSize(PARTY_FACE) + 8
-        State.detail:addText(member.name, textLeft, y + 3, { font = "GameFontNormal", color = COLORS.ink, width = width - textLeft, isSingleLine = true })
-        State.detail:addText(text, textLeft, y + 18, { font = "GameFontHighlightSmall", color = color, width = width - textLeft + PADDING, isSingleLine = true })
-        local button = State.detail:addButton(PADDING - 4, y, width + 8, PARTY_ROW_HEIGHT, pressMember, member, showMemberTooltip, openMemberMenu)
+        State.detail:addText(
+            member.name,
+            textLeft,
+            y + 3,
+            { font = "GameFontNormal", color = COLORS.ink, width = width - textLeft, isSingleLine = true }
+        )
+        State.detail:addText(
+            text,
+            textLeft,
+            y + 18,
+            { font = "GameFontHighlightSmall", color = color, width = width - textLeft + PADDING, isSingleLine = true }
+        )
+        local button = State.detail:addButton(
+            PADDING - 4,
+            y,
+            width + 8,
+            PARTY_ROW_HEIGHT,
+            pressMember,
+            member,
+            showMemberTooltip,
+            openMemberMenu
+        )
         button.canShareWith = canTake
         y = y + PARTY_ROW_HEIGHT + 2
     end
@@ -1529,9 +1920,20 @@ local function addFold(y, name, questId, title, noteText, isOpenByDefault, showH
     State.detail:addRect(PADDING, y, width, 1, { 0.42, 0.29, 0.14, 0.75 })
     State.detail:addRect(PADDING, y + 1, width, 1, { 1, 0.95, 0.8, 0.45 })
     State.detail:addIcon(PADDING, y + 9, 11, MEDIA .. (isOpen and "ChevronDown" or "ChevronRight"), COLORS.softInk)
-    local _, titleWidth = State.detail:addText(title, PADDING + 17, y + 6, { font = "QuestFont_Large", color = COLORS.ink, isSingleLine = true })
+    local _, titleWidth = State.detail:addText(
+        title,
+        PADDING + 17,
+        y + 6,
+        { font = "QuestFont_Large", color = COLORS.ink, isSingleLine = true }
+    )
     if noteText then
-        State.detail:addText(noteText, PADDING + width - 90, y + 9, { font = "GameFontHighlightSmall", color = COLORS.softInk, width = 90, justify = "RIGHT", isSingleLine = true })
+        State.detail:addText(noteText, PADDING + width - 90, y + 9, {
+            font = "GameFontHighlightSmall",
+            color = COLORS.softInk,
+            width = 90,
+            justify = "RIGHT",
+            isSingleLine = true,
+        })
     end
     if not showHelp then
         State.detail:addButton(PADDING - 4, y + 1, width + 8, 28, toggleFold, fold)
@@ -1549,7 +1951,7 @@ end
 
 local HEADER_FILL, HEADER_EDGE = { 0.2, 0.07, 0.05 }, { 0.54, 0.48, 0.29 }
 local HEADER_ART_RIM = 5 -- texels of darker rim on the left of the header's art
-local HEADER_BADGE_FILL, HEADER_BADGE_TEXT = { 0.14, 0.12, 0.08 }, { 0.91, 0.86, 0.75 }
+local HEADER_BADGE_TEXT = { 0.91, 0.86, 0.75 }
 
 -- State.pageHeader: the bar pinned above the page; created with the window
 local BADGE_HEIGHT = 18
@@ -1590,7 +1992,13 @@ local function setPageHeader(title, factsText, chainIndex, chainTotal, zoneLink,
         end
         State.pageHeader.title:ClearAllPoints()
         State.pageHeader.title:SetPoint("TOPLEFT", State.pageHeader, "TOPLEFT", PADDING, -10)
-        State.pageHeader.title:SetPoint("RIGHT", chainIndex and State.pageHeader.badge or State.pageHeader, chainIndex and "LEFT" or "RIGHT", chainIndex and -8 or -PADDING, 0)
+        State.pageHeader.title:SetPoint(
+            "RIGHT",
+            chainIndex and State.pageHeader.badge or State.pageHeader,
+            chainIndex and "LEFT" or "RIGHT",
+            chainIndex and -8 or -PADDING,
+            0
+        )
         State.pageHeader.title:SetText(title)
         State.pageHeader.facts:SetText(factsText or "")
         -- The zone in the facts, underlined over a button of its own size, as the page's place links are
@@ -1601,7 +2009,8 @@ local function setPageHeader(title, factsText, chainIndex, chainTotal, zoneLink,
             State.pageHeader.measure:SetText(zoneLink.before)
             local beforeWidth = State.pageHeader.measure:GetStringWidth()
             State.pageHeader.measure:SetText(zoneLink.text)
-            local linkWidth, lineHeight = State.pageHeader.measure:GetStringWidth(), State.pageHeader.measure:GetStringHeight()
+            local linkWidth, lineHeight =
+                State.pageHeader.measure:GetStringWidth(), State.pageHeader.measure:GetStringHeight()
             beforeWidth = type(beforeWidth) == "number" and beforeWidth or 0
             linkWidth = type(linkWidth) == "number" and linkWidth or 60
             lineHeight = type(lineHeight) == "number" and lineHeight or 12
@@ -1613,9 +2022,13 @@ local function setPageHeader(title, factsText, chainIndex, chainTotal, zoneLink,
             zoneButton.underline:SetSize(linkWidth, 1)
             zoneButton.handleClick, zoneButton.data = zoneLink.handleClick, zoneLink.data
         end
-        local titleHeight, factsHeight = State.pageHeader.title:GetStringHeight(), State.pageHeader.facts:GetStringHeight()
-        height = 10 + math.max(type(titleHeight) == "number" and titleHeight or 16, BADGE_HEIGHT)
-            + 4 + (type(factsHeight) == "number" and factsHeight or 12) + HEADER_BOTTOM_PADDING
+        local titleHeight, factsHeight =
+            State.pageHeader.title:GetStringHeight(), State.pageHeader.facts:GetStringHeight()
+        height = 10
+            + math.max(type(titleHeight) == "number" and titleHeight or 16, BADGE_HEIGHT)
+            + 4
+            + (type(factsHeight) == "number" and factsHeight or 12)
+            + HEADER_BOTTOM_PADDING
         -- A quest a translation addon has narrated: its buttons under the facts, and where the narration is
         local voice = State.pageHeader.voice
         local voiceState, voicePosition = ns.QuestText.getVoiceState(questId)
@@ -1626,9 +2039,17 @@ local function setPageHeader(title, factsText, chainIndex, chainTotal, zoneLink,
             Log.setButtonText(voice.playButton, ns.L(voiceState == "playing" and "Stop" or "Play"))
             Log.setButtonText(voice.queueButton, ns.L(voiceState == "queued" and "Unqueue" or "Queue"))
             voice.queueButton:SetShown(voiceState ~= "playing")
-            voice.text:SetPoint("LEFT", voiceState == "playing" and voice.playButton or voice.queueButton, "RIGHT", 8, 0)
-            local stateText = voiceState == "playing" and ns.L("playing now") or voiceState == "paused" and ns.L("paused")
-                or voiceState == "queued" and ns.L("number %d in the queue", voicePosition or 1) or nil
+            voice.text:SetPoint(
+                "LEFT",
+                voiceState == "playing" and voice.playButton or voice.queueButton,
+                "RIGHT",
+                8,
+                0
+            )
+            local stateText = voiceState == "playing" and ns.L("playing now")
+                or voiceState == "paused" and ns.L("paused")
+                or voiceState == "queued" and ns.L("number %d in the queue", voicePosition or 1)
+                or nil
             -- Where it is, while it plays or waits; who narrates, while idle (the page is narrow for both)
             voice.text:SetText(stateText or ns.L("Narration by %s", provider and provider.label or "?"))
             height = height + VOICE_ROW_HEIGHT
@@ -1644,7 +2065,13 @@ local function setPageHeader(title, factsText, chainIndex, chainTotal, zoneLink,
     if title and questId ~= nil and State.pageHeader.hasArt then
         overlap = State.pageHeader.hasFringeApart == true and HEADER_FRINGE or math.floor(height * HEADER_FRINGE_SHARE)
     end
-    State.detail.frame:SetPoint("TOPLEFT", State.frame, "TOPLEFT", State.frame.pageLeft or LIST_WIDTH + 2, -PAGE_TOP - height + overlap)
+    State.detail.frame:SetPoint(
+        "TOPLEFT",
+        State.frame,
+        "TOPLEFT",
+        State.frame.pageLeft or LIST_WIDTH + 2,
+        -PAGE_TOP - height + overlap
+    )
 end
 
 ---One piece of the game's art on the header, turned over (flipX, flipY) by its texture coordinates when asked.
@@ -1679,16 +2106,20 @@ addHeaderOrnaments = function(header)
     if filigree then
         filigree:SetPoint("BOTTOM", header, "BOTTOM", 0, 0)
     end
-    local leftCorner = addOrnament(header, "parchmentpopup-filigree", HEADER_CORNER[1], HEADER_CORNER[2], "ARTWORK", false, true)
+    local leftCorner =
+        addOrnament(header, "parchmentpopup-filigree", HEADER_CORNER[1], HEADER_CORNER[2], "ARTWORK", false, true)
     if leftCorner then
         leftCorner:SetPoint("BOTTOMLEFT", header, "BOTTOMLEFT", 1, HEADER_FRINGE - 2)
     end
-    local rightCorner = addOrnament(header, "parchmentpopup-filigree", HEADER_CORNER[1], HEADER_CORNER[2], "ARTWORK", true, true)
+    local rightCorner =
+        addOrnament(header, "parchmentpopup-filigree", HEADER_CORNER[1], HEADER_CORNER[2], "ARTWORK", true, true)
     if rightCorner then
         rightCorner:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", -1, HEADER_FRINGE - 2)
     end
     local faction = UnitFactionGroup and UnitFactionGroup("player")
-    local seal = faction == "Horde" and "quest-horde-waxseal" or faction == "Alliance" and "quest-alliance-waxseal" or nil
+    local seal = faction == "Horde" and "quest-horde-waxseal"
+        or faction == "Alliance" and "quest-alliance-waxseal"
+        or nil
     header.seal = seal and addOrnament(header, seal, 50, 47, "OVERLAY")
     if header.seal then
         header.seal:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", -8, -22) -- (over the right flourish's end, half on the page)
@@ -1704,7 +2135,12 @@ local function createPageHeader(parent, pageLeft)
     local fill = header:CreateTexture(nil, "BACKGROUND")
     fill:SetAllPoints(header)
     -- The dark wood the game puts behind the top of its own quest page, when this client has it
-    if fill.SetAtlas and C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo("questlog-reward-top-frame") then
+    if
+        fill.SetAtlas
+        and C_Texture
+        and C_Texture.GetAtlasInfo
+        and C_Texture.GetAtlasInfo("questlog-reward-top-frame")
+    then
         fill:SetAtlas("questlog-reward-top-frame") -- the art has an edge of its own, so no line is drawn under it
         header.hasArt = true
         -- Its left 5 texels are a darker rim, which the game's own frame covers; here it stood beside the divider as
@@ -1778,7 +2214,12 @@ local function createPageHeader(parent, pageLeft)
             -- The gamepad's cursor on the title: its buttons, with their icons, as the game's own map pins say them
             GameTooltip_AddLineWithInputIcon(GameTooltip, ns.L("Share to chat"), GREEN_FONT_COLOR, GAMEPAD_FACE_BOTTOM)
             if canFocus then
-                GameTooltip_AddLineWithInputIcon(GameTooltip, CONTEXT_ACTION_LABEL_FOCUS or ns.L("Focus"), GREEN_FONT_COLOR, GAMEPAD_FACE_LEFT)
+                GameTooltip_AddLineWithInputIcon(
+                    GameTooltip,
+                    CONTEXT_ACTION_LABEL_FOCUS or ns.L("Focus"),
+                    GREEN_FONT_COLOR,
+                    GAMEPAD_FACE_LEFT
+                )
             end
         else
             GameTooltip:AddLine(ns.L("Shift-click to link it in chat"), 0.6, 0.6, 0.6)
@@ -1788,7 +2229,9 @@ local function createPageHeader(parent, pageLeft)
         end
         GameTooltip:Show()
     end)
-    header.titleButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    header.titleButton:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
     header.titleButton:Hide()
     -- The narration's row, for a quest a translation addon has narrated: play now (or stop), queue (or take off
     -- the queue), then who narrates and where it is. Played by that addon, in its own player and queue.
@@ -1797,7 +2240,10 @@ local function createPageHeader(parent, pageLeft)
     header.voice:SetPoint("RIGHT", header, "RIGHT", -PADDING, 0)
     header.voice:SetHeight(20)
     header.voice:SetFrameLevel((header:GetFrameLevel() or 1) + 2)
-    for _, part in ipairs({ { "playButton", ns.QuestText.toggleVoice }, { "queueButton", ns.QuestText.toggleVoiceQueue } }) do
+    for _, part in ipairs({
+        { "playButton", ns.QuestText.toggleVoice },
+        { "queueButton", ns.QuestText.toggleVoiceQueue },
+    }) do
         local button = CreateFrame("Button", nil, header.voice, "UIPanelButtonTemplate")
         button:SetSize(72, 20)
         button.baseWidth = 72
@@ -1889,9 +2335,21 @@ local function showProfitHelp(button)
     GameTooltip:AddLine(ns.L("Quest money + best reward item + loot from the kills still needed."), 1, 1, 1, true)
     local parts = {
         { ns.L("Reward items"), ns.L("Items you always get, plus the most valuable of the ones you choose between.") },
-        { ns.L("Kills"), ns.L("What is left on kill objectives. For items to collect: items left divided by the drop chance.") },
-        { ns.L("Loot"), ns.L("Each thing a creature can drop, times its chance, times the kills. Quest-only drops are left out.") },
-        { ns.L("Prices"), ns.L("The vendor's, or the auction house's after its %d%% cut when Auctionator has seen the item and it pays more.", 5) },
+        {
+            ns.L("Kills"),
+            ns.L("What is left on kill objectives. For items to collect: items left divided by the drop chance."),
+        },
+        {
+            ns.L("Loot"),
+            ns.L("Each thing a creature can drop, times its chance, times the kills. Quest-only drops are left out."),
+        },
+        {
+            ns.L("Prices"),
+            ns.L(
+                "The vendor's, or the auction house's after its %d%% cut when Auctionator has seen the item and it pays more.",
+                5
+            ),
+        },
     }
     for _, part in ipairs(parts) do
         GameTooltip:AddLine(" ")
@@ -1899,7 +2357,13 @@ local function showProfitHelp(button)
         GameTooltip:AddLine(part[2], 0.82, 0.82, 0.82, true)
     end
     GameTooltip:AddLine(" ")
-    GameTooltip:AddLine(ns.L("Not counted: coins dropped by creatures, travel and repair costs."), 0.63, 0.63, 0.63, true)
+    GameTooltip:AddLine(
+        ns.L("Not counted: coins dropped by creatures, travel and repair costs."),
+        0.63,
+        0.63,
+        0.63,
+        true
+    )
     GameTooltip:Show()
 end
 
@@ -1923,8 +2387,18 @@ local function addProfitSection(y, questId)
     end
     local left, right = PADDING, State.detail.width - PADDING
     local function addLine(text, amountText)
-        State.detail:addText(text, left, y, { font = "QuestFont", color = COLORS.ink, width = right - left - 96, isSingleLine = true })
-        State.detail:addText(amountText, right - 92, y, { font = "QuestFont", color = COLORS.ink, width = 92, justify = "RIGHT", isSingleLine = true })
+        State.detail:addText(
+            text,
+            left,
+            y,
+            { font = "QuestFont", color = COLORS.ink, width = right - left - 96, isSingleLine = true }
+        )
+        State.detail:addText(
+            amountText,
+            right - 92,
+            y,
+            { font = "QuestFont", color = COLORS.ink, width = 92, justify = "RIGHT", isSingleLine = true }
+        )
         y = y + 21
     end
     if profit.rewardMoney > 0 then
@@ -1932,7 +2406,10 @@ local function addProfitSection(y, questId)
     end
     for _, rewardItem in ipairs(profit.rewardItems) do
         if rewardItem.isCounted and rewardItem.value > 0 then
-            addLine(rewardItem.count > 1 and (rewardItem.name .. " x" .. rewardItem.count) or rewardItem.name, formatCopper(rewardItem.value))
+            addLine(
+                rewardItem.count > 1 and (rewardItem.name .. " x" .. rewardItem.count) or rewardItem.name,
+                formatCopper(rewardItem.value)
+            )
         end
     end
     if profit.kills > 0 then
@@ -1947,7 +2424,12 @@ local function addProfitSection(y, questId)
     elseif profit.isPending then
         note = ns.L("Still loading item prices; the amount may rise")
     end
-    local noteHeight = State.detail:addText(note, left, y, { font = "GameFontHighlightSmall", color = COLORS.softInk, width = right - left })
+    local noteHeight = State.detail:addText(
+        note,
+        left,
+        y,
+        { font = "GameFontHighlightSmall", color = COLORS.softInk, width = right - left }
+    )
     return y + noteHeight + 12
 end
 
@@ -1999,7 +2481,11 @@ do
         local questId = ladder.questId
         local step = ns.Spoilers.getHint(questId)
         ladder.title:SetText(ns.L("Need a hint?"))
-        ladder.questName:SetText(ns.QuestText.getQuestName(questId) or (C_QuestLog.GetTitleForQuestID and C_QuestLog.GetTitleForQuestID(questId)) or ("Quest " .. questId))
+        ladder.questName:SetText(
+            ns.QuestText.getQuestName(questId)
+                or (C_QuestLog.GetTitleForQuestID and C_QuestLog.GetTitleForQuestID(questId))
+                or ("Quest " .. questId)
+        )
         for index, words in ipairs(STEP_WORDS) do
             local row = ladder.rows[index]
             local isDone, isNext = index <= step, index == step + 1
@@ -2029,9 +2515,13 @@ do
             row.isNext = isNext and ns.Spoilers.canHint(questId)
             row.hover:SetShown(row.isNext)
         end
-        ladder.footnote:SetText(ns.L("A hint stays for this quest only. The Chronicle counts quests done with no hints."))
+        ladder.footnote:SetText(
+            ns.L("A hint stays for this quest only. The Chronicle counts quests done with no hints.")
+        )
         local footHeight = ladder.footnote:GetStringHeight()
-        ladder:SetHeight(LADDER_TOP + #STEP_WORDS * STEP_HEIGHT + 8 + (type(footHeight) == "number" and footHeight or 24) + 12)
+        ladder:SetHeight(
+            LADDER_TOP + #STEP_WORDS * STEP_HEIGHT + 8 + (type(footHeight) == "number" and footHeight or 24) + 12
+        )
     end
 
     local function createLadder()
@@ -2041,7 +2531,11 @@ do
         ladder:SetToplevel(true)
         ladder:SetClampedToScreen(true)
         ladder:EnableMouse(true)
-        ladder:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+        ladder:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8X8",
+            edgeFile = "Interface\\Buttons\\WHITE8X8",
+            edgeSize = 1,
+        })
         ladder:SetBackdropColor(LADDER_BACK[1], LADDER_BACK[2], LADDER_BACK[3], LADDER_BACK[4])
         ladder:SetBackdropBorderColor(LADDER_EDGE[1], LADDER_EDGE[2], LADDER_EDGE[3], 1)
         ladder.title = ns.Widgets.createFontString(ladder, "OVERLAY", "GameFontNormal")
@@ -2066,7 +2560,9 @@ do
         lit:SetTexture(crossFile)
         lit:SetBlendMode("ADD")
         lit:SetAlpha(0.5)
-        close:SetScript("OnClick", function() ladder:Hide() end)
+        close:SetScript("OnClick", function()
+            ladder:Hide()
+        end)
         ladder.rows = {}
         for index = 1, #STEP_WORDS do
             local row = CreateFrame("Button", nil, ladder)
@@ -2125,7 +2621,9 @@ do
         ladder.questId, ladder.anchorFrame = questId, anchorFrame
         ladder:ClearAllPoints()
         -- Where it opens is fixed on the screen: the page's buttons are reused once it is drawn again
-        local right, bottom = anchorFrame and anchorFrame.GetRight and anchorFrame:GetRight(), anchorFrame and anchorFrame.GetBottom and anchorFrame:GetBottom()
+        local right, bottom =
+            anchorFrame and anchorFrame.GetRight and anchorFrame:GetRight(),
+            anchorFrame and anchorFrame.GetBottom and anchorFrame:GetBottom()
         local scale = type(right) == "number" and anchorFrame:GetEffectiveScale() / UIParent:GetEffectiveScale()
         if type(right) == "number" and type(bottom) == "number" and type(scale) == "number" then
             ladder:SetPoint("TOPRIGHT", UIParent, "BOTTOMLEFT", right * scale, bottom * scale - 4)
@@ -2175,7 +2673,14 @@ local function drawLogQuest(entry)
         factsText = factsText .. DOT .. ns.Widgets.formatGroup(group) .. " " .. group.kindText
     end
     local isChainShown = not view or view.chains ~= "hidden"
-    setPageHeader(entry.title, factsText, isChainShown and entry.chainIndex or nil, entry.chainTotal, zoneLink, entry.questId)
+    setPageHeader(
+        entry.title,
+        factsText,
+        isChainShown and entry.chainIndex or nil,
+        entry.chainTotal,
+        zoneLink,
+        entry.questId
+    )
     local y = 12
     local rewardsExtraHeight = setPageRewards((not view or view.rewards ~= "hidden") and entry.questId or nil)
     y = addQuestItem(y, entry)
@@ -2191,15 +2696,18 @@ local function drawLogQuest(entry)
             onQuestCount = onQuestCount + (member.isOnQuest and 1 or 0)
         end
         local isPartyOpen
-        y, isPartyOpen = addFold(y, "party", entry.questId, ns.L("Party"), ns.L("%d of %d on it", onQuestCount, #partyMembers), true)
+        y, isPartyOpen =
+            addFold(y, "party", entry.questId, ns.L("Party"), ns.L("%d of %d on it", onQuestCount, #partyMembers), true)
         if isPartyOpen and ns.Gamepad.isGamepadUI() then
             -- With a controller: a row a member, its words saying where they are with the quest, for the cursor to
             -- stop on (the faces' hover is out of the pad's reach)
-            local members = ns.Party.getProgress(entry.questId, entry.objectives, entry.eventText ~= nil and not entry.isTurnIn)
+            local members =
+                ns.Party.getProgress(entry.questId, entry.objectives, entry.eventText ~= nil and not entry.isTurnIn)
             y = QuestPage.addPartyRows(y, entry, members) + 6
         elseif isPartyOpen then
             -- Their faces across the row, large, each in a ring that fills with their progress; the rest on hover
-            local members = ns.Party.getProgress(entry.questId, entry.objectives, entry.eventText ~= nil and not entry.isTurnIn)
+            local members =
+                ns.Party.getProgress(entry.questId, entry.objectives, entry.eventText ~= nil and not entry.isTurnIn)
             local rowWidth = State.detail.width - 2 * PADDING
             local slotWidth = rowWidth / math.max(#members, 1)
             local faceSize = math.min(52, math.floor(math.min(slotWidth, rowWidth / 4) - 22))
@@ -2208,9 +2716,15 @@ local function drawLogQuest(entry)
                 State.detail:addPortrait(PADDING + (index - 0.5) * slotWidth - size / 2, y + 2, faceSize, member)
             end
             y = y + size + 8
-            y = y + State.detail:addText(ns.L("Hover a face for their name and progress, or why not"), PADDING, y, {
-                font = "GameFontHighlightSmall", color = COLORS.softInk, width = rowWidth, justify = "CENTER", isSingleLine = true,
-            }) + 10
+            y = y
+                + State.detail:addText(ns.L("Hover a face for their name and progress, or why not"), PADDING, y, {
+                    font = "GameFontHighlightSmall",
+                    color = COLORS.softInk,
+                    width = rowWidth,
+                    justify = "CENTER",
+                    isSingleLine = true,
+                })
+                + 10
         end
     end
     y = addProfitSection(y, entry.questId)
@@ -2224,7 +2738,14 @@ local function drawLogQuest(entry)
         end
     end
     if entry.chainIndex and isChainShown then
-        y, isOpen = addFold(y, "chain", entry.questId, ns.L("Quest chain"), ns.L("%d of %d", entry.chainIndex, entry.chainTotal), true)
+        y, isOpen = addFold(
+            y,
+            "chain",
+            entry.questId,
+            ns.L("Quest chain"),
+            ns.L("%d of %d", entry.chainIndex, entry.chainTotal),
+            true
+        )
         if isOpen then
             y = addChain(y + 2, entry.questId, true)
         end
@@ -2236,8 +2757,18 @@ end
 ---@return number y Below the lines
 local function addZoneLine(y, entry, noteText)
     local width = State.detail.width - 2 * PADDING
-    State.detail:addText(string.format("[%d] %s", entry.level, entry.title), PADDING, y + 2, { font = "QuestFont", color = COLORS.ink, width = width, isSingleLine = true })
-    State.detail:addText(noteText, PADDING, y + 18, { font = "GameFontHighlightSmall", color = COLORS.softInk, width = width, isSingleLine = true })
+    State.detail:addText(
+        string.format("[%d] %s", entry.level, entry.title),
+        PADDING,
+        y + 2,
+        { font = "QuestFont", color = COLORS.ink, width = width, isSingleLine = true }
+    )
+    State.detail:addText(
+        noteText,
+        PADDING,
+        y + 18,
+        { font = "GameFontHighlightSmall", color = COLORS.softInk, width = width, isSingleLine = true }
+    )
     State.detail:addButton(PADDING - 4, y, width + 8, 34, selectQuest, entry.questId)
     return y + 38
 end
@@ -2262,7 +2793,8 @@ local function composeProgress(entry)
     end
     local text
     if total - doneCount == 1 and open then
-        text = (open.shownLabel or open.label) .. (open.required > 1 and string.format(" %d/%d", open.fulfilled, open.required) or "")
+        text = (open.shownLabel or open.label)
+            .. (open.required > 1 and string.format(" %d/%d", open.fulfilled, open.required) or "")
     else
         text = ns.L("%d of %d done", doneCount, total)
     end
@@ -2304,7 +2836,17 @@ local function drawZonePage(group)
             end
         end
         y = y + 15
-        y = addBody(y, ns.L("Quests that start here: %d done, %d in your log, %d available, %d not yet", summary.done, summary.inLog, summary.available, summary.notYet), COLORS.softInk) + 12
+        y = addBody(
+            y,
+            ns.L(
+                "Quests that start here: %d done, %d in your log, %d available, %d not yet",
+                summary.done,
+                summary.inLog,
+                summary.available,
+                summary.notYet
+            ),
+            COLORS.softInk
+        ) + 12
     end
 
     local ready, open = {}, {}
@@ -2318,7 +2860,12 @@ local function drawZonePage(group)
             if isSpoiling and not ns.Model.isTurnInShown(entry.questId) then
                 place = nil -- (where to hand it in is held back: the name alone)
             end
-            y = addZoneLine(y, entry, (entry.finisherName or ns.L("Turn in")) .. (place and place.x >= 0 and string.format("%s%d, %d", DOT, place.x, place.y) or ""))
+            y = addZoneLine(
+                y,
+                entry,
+                (entry.finisherName or ns.L("Turn in"))
+                    .. (place and place.x >= 0 and string.format("%s%d, %d", DOT, place.x, place.y) or "")
+            )
         end
         y = y + 12
     end
@@ -2330,12 +2877,29 @@ local function drawZonePage(group)
         y = y + 12
     end
     if summary.available > 0 then
-        local text = ns.Lp(summary.available, "%d more quest can be picked up in %s", "%d more quests can be picked up in %s", group.zoneName)
-        local textHeight = State.detail:addText(text, PADDING + 10, y + 8, { font = "QuestFont", color = COLORS.ink, width = width - 20 })
+        local text = ns.Lp(
+            summary.available,
+            "%d more quest can be picked up in %s",
+            "%d more quests can be picked up in %s",
+            group.zoneName
+        )
+        local textHeight = State.detail:addText(
+            text,
+            PADDING + 10,
+            y + 8,
+            { font = "QuestFont", color = COLORS.ink, width = width - 20 }
+        )
         local height = textHeight + 42
         State.detail:addRect(PADDING, y, width, height, COLORS.softInk)
         State.detail:addRect(PADDING + 1, y + 1, width - 2, height - 2, PAPER_FILL, 1)
-        addPaperButton(State.detail, PADDING + 10 + 102, y + textHeight + 14, ns.L("See available"), Log.showZone, group.zoneId)
+        addPaperButton(
+            State.detail,
+            PADDING + 10 + 102,
+            y + textHeight + 14,
+            ns.L("See available"),
+            Log.showZone,
+            group.zoneId
+        )
         y = y + height + 12
     end
     return y + PADDING
@@ -2349,7 +2913,12 @@ local function addSteps(y, steps)
     local textWidth = State.detail.width - PADDING - textLeft
     for stepIndex, step in ipairs(steps) do
         local top = y
-        local height = State.detail:addText(step.title, textLeft, y + 2, { font = "QuestFont", color = COLORS.ink, width = textWidth })
+        local height = State.detail:addText(
+            step.title,
+            textLeft,
+            y + 2,
+            { font = "QuestFont", color = COLORS.ink, width = textWidth }
+        )
         y = y + height + 4
         for _, line in ipairs(step.lines) do
             height = addStepLine(y, line, textLeft, textWidth)
@@ -2391,14 +2960,26 @@ local function drawAvailableQuest(quest, zoneId)
         -- The zone is a link wherever the language puts it in the words: the text ahead of it is measured
         local endsText = ns.L("ends in %s", zoneName)
         local zoneStart = endsText:find(zoneName, 1, true) or (#endsText + 1)
-        zoneLink = { before = table.concat(facts, DOT) .. DOT .. endsText:sub(1, zoneStart - 1), text = zoneName, handleClick = showPlace, data = { place = quest.finisherPlace } }
+        zoneLink = {
+            before = table.concat(facts, DOT) .. DOT .. endsText:sub(1, zoneStart - 1),
+            text = zoneName,
+            handleClick = showPlace,
+            data = { place = quest.finisherPlace },
+        }
         facts[#facts + 1] = endsText
     end
     if group then
         facts[#facts + 1] = ns.Widgets.formatGroup(group) .. " " .. group.kindText
     end
     local isChainShown = not view or view.chains ~= "hidden"
-    setPageHeader(quest.title, table.concat(facts, DOT), isChainShown and quest.chainIndex or nil, quest.chainTotal, zoneLink, quest.questId)
+    setPageHeader(
+        quest.title,
+        table.concat(facts, DOT),
+        isChainShown and quest.chainIndex or nil,
+        quest.chainTotal,
+        zoneLink,
+        quest.questId
+    )
     local y = 12
 
     local warnings, warningLinks = ns.Warnings.getQuestWarnings(quest.questId)
@@ -2409,7 +2990,11 @@ local function drawAvailableQuest(quest, zoneId)
     if quest.availableAtLevel then
         table.insert(warnings, 1, ns.L("Available at level %d", quest.availableAtLevel))
     elseif quest.blocker then
-        table.insert(warnings, 1, ns.L("Not yet: %s", (ns.Availability.getShownReason(quest.blocker):gsub("^%u", string.lower))))
+        table.insert(
+            warnings,
+            1,
+            ns.L("Not yet: %s", (ns.Availability.getShownReason(quest.blocker):gsub("^%u", string.lower)))
+        )
     end
     for _, warning in ipairs(warnings) do
         local link = linkByWarning[warning]
@@ -2421,12 +3006,20 @@ local function drawAvailableQuest(quest, zoneId)
         if before then
             -- The quest it names is a link to its page, as the lead-in steps' names are
             height = addStepLine(y + 6, {
-                text = before:gsub("\"?%s*$", ""), link = ns.QuestText.getQuestName(link.questId) or ("Quest " .. link.questId),
-                afterText = after:gsub("^\"", ""):gsub("^%s+", ""), handleClick = Log.showQuestAnywhere, data = link.questId,
+                text = before:gsub('"?%s*$', ""),
+                link = ns.QuestText.getQuestName(link.questId) or ("Quest " .. link.questId),
+                afterText = after:gsub('^"', ""):gsub("^%s+", ""),
+                handleClick = Log.showQuestAnywhere,
+                data = link.questId,
                 color = COLORS.warning,
             }, PADDING + 10, State.detail.width - 2 * PADDING - 20)
         else
-            height = State.detail:addText(warning, PADDING + 10, y + 6, { font = "QuestFont", color = COLORS.warning, width = State.detail.width - 2 * PADDING - 20 })
+            height = State.detail:addText(
+                warning,
+                PADDING + 10,
+                y + 6,
+                { font = "QuestFont", color = COLORS.warning, width = State.detail.width - 2 * PADDING - 20 }
+            )
         end
         State.detail:addRect(PADDING, y, State.detail.width - 2 * PADDING, height + 12, { 0.79, 0.52, 0.15, 0.28 })
         State.detail:addRect(PADDING, y, 3, height + 12, COLORS.warning, 1)
@@ -2442,7 +3035,9 @@ local function drawAvailableQuest(quest, zoneId)
     local place = quest.nearestPlace or quest.places[1]
     local steps = {}
     -- (Spoilers: who drops a starting item is named with names or chances, or once it dropped for the player)
-    local isSourceNamed = not view or not view.isChanceHidden or view.drops == "names"
+    local isSourceNamed = not view
+        or not view.isChanceHidden
+        or view.drops == "names"
         or (view.drops == "found" and quest.itemId ~= nil and ns.Spoilers.hasSeenDrop(quest.itemId))
     if quest.startType == "item" then
         local source = quest.starterName and isSourceNamed and ns.L("Drops from %s", quest.starterName) or ns.L("Found")
@@ -2451,16 +3046,23 @@ local function drawAvailableQuest(quest, zoneId)
         -- Where it drops, as one phrase with its zone when that is known
         local sourceText = source
         if quest.sourceZoneName then
-            sourceText = quest.starterName and isSourceNamed and ns.L("Drops from %s in %s", quest.starterName, quest.sourceZoneName)
+            sourceText = quest.starterName
+                    and isSourceNamed
+                    and ns.L("Drops from %s in %s", quest.starterName, quest.sourceZoneName)
                 or ns.L("Found in %s", quest.sourceZoneName)
         end
-        steps[1] = { title = ns.L(quest.isItemInBags and "Use %s" or "Loot %s", quest.itemName), lines = {
-            quest.isItemInBags and ns.L("It is in your bags; using it starts the quest") or sourceText,
-        } }
+        steps[1] = {
+            title = ns.L(quest.isItemInBags and "Use %s" or "Loot %s", quest.itemName),
+            lines = {
+                quest.isItemInBags and ns.L("It is in your bags; using it starts the quest") or sourceText,
+            },
+        }
         local dropZones = not quest.isItemInBags and quest.itemId and ns.Drops.getZones(quest.itemId) or {}
         if #dropZones > 0 then
             steps[1].lines = composeDropZoneLines(dropZones, "available:" .. quest.questId, {
-                handleClick = showDropZone, quest = quest, itemId = quest.itemId,
+                handleClick = showDropZone,
+                quest = quest,
+                itemId = quest.itemId,
                 view = view and { drops = view.drops, isChanceHidden = view.isChanceHidden },
             })
         elseif not quest.isItemInBags then
@@ -2468,15 +3070,25 @@ local function drawAvailableQuest(quest, zoneId)
             local pickupDungeon = ns.Database.getDungeon(ns.Location.getPickupDungeonId(quest.questId) or 0)
             local entrance = pickupDungeon and pickupDungeon.entrances[1]
             if pickupDungeon then
-                steps[1].lines = { ns.L("%s, somewhere in %s: the quest database does not say where", source, pickupDungeon.name) }
+                steps[1].lines =
+                    { ns.L("%s, somewhere in %s: the quest database does not say where", source, pickupDungeon.name) }
             end
             if entrance then
-                table.insert(steps[1].lines, composePlaceLine({ groupZoneId = entrance.zoneId, mapZoneId = entrance.zoneId, x = entrance.x, y = entrance.y }, { prefix = ns.L("Entrance at") }))
+                table.insert(
+                    steps[1].lines,
+                    composePlaceLine(
+                        { groupZoneId = entrance.zoneId, mapZoneId = entrance.zoneId, x = entrance.x, y = entrance.y },
+                        { prefix = ns.L("Entrance at") }
+                    )
+                )
             end
         end
         if sourcePlace and not isInInstance and #dropZones == 0 then
             -- The drop list names its zones as links already; otherwise the place, with the way there
-            table.insert(steps[1].lines, composePlaceLine(sourcePlace, { distance = quest.distance, direction = quest.direction }))
+            table.insert(
+                steps[1].lines,
+                composePlaceLine(sourcePlace, { distance = quest.distance, direction = quest.direction })
+            )
         end
         steps[2] = { title = ns.L("Use it from your bags to accept the quest"), lines = {} }
     else
@@ -2484,7 +3096,10 @@ local function drawAvailableQuest(quest, zoneId)
         steps[1] = {
             title = quest.starterName and ns.L(isObject and "Use %s" or "Talk to %s", quest.starterName)
                 or ns.L(isObject and "Use the quest giver" or "Talk to the quest giver"),
-            lines = { place and composePlaceLine(place, { distance = quest.distance, direction = quest.direction }) or ns.L("Location not in the database") },
+            lines = {
+                place and composePlaceLine(place, { distance = quest.distance, direction = quest.direction })
+                    or ns.L("Location not in the database"),
+            },
         }
     end
     -- Behind a lead-in: the lead-ins come first, each a link to its page, saying what kind of quest it is
@@ -2497,7 +3112,8 @@ local function drawAvailableQuest(quest, zoneId)
             local leadInDungeon = ns.Database.getDungeon(ns.Location.getInsideDungeonIds(leadInId)[1] or 0)
             local startZoneId = ns.Availability.getStartZoneId(leadInId)
             local kindText = leadInDungeon and ns.L("a %s quest", leadInDungeon.name)
-                or (startZoneId and ns.L("picked up in %s", ns.Database.getZoneName(startZoneId))) or nil
+                or (startZoneId and ns.L("picked up in %s", ns.Database.getZoneName(startZoneId)))
+                or nil
             local title
             if #leadInIds > 1 then
                 title = ns.L(isInLog and "Finish lead-in %d of %d" or "Do lead-in %d of %d", leadInIndex, #leadInIds)
@@ -2506,11 +3122,16 @@ local function drawAvailableQuest(quest, zoneId)
             end
             leadInSteps[#leadInSteps + 1] = {
                 title = title,
-                lines = { {
-                    link = ns.QuestText.getQuestName(leadInId) or ("Quest " .. leadInId),
-                    afterText = kindText and (DOT:gsub("^ ", "") .. kindText .. (isInLog and DOT .. ns.L("in your log") or "")) or nil,
-                    handleClick = Log.showQuestAnywhere, data = leadInId,
-                } },
+                lines = {
+                    {
+                        link = ns.QuestText.getQuestName(leadInId) or ("Quest " .. leadInId),
+                        afterText = kindText and (DOT:gsub("^ ", "") .. kindText .. (isInLog and DOT .. ns.L(
+                            "in your log"
+                        ) or "")) or nil,
+                        handleClick = Log.showQuestAnywhere,
+                        data = leadInId,
+                    },
+                },
             }
         end
         for leadInIndex = #leadInSteps, 1, -1 do
@@ -2526,14 +3147,21 @@ local function drawAvailableQuest(quest, zoneId)
             lines[1] = view.turnIn == "met" and ns.L("Not met yet") or nil
         end
         if finisherPlace then
-            lines[1] = composePlaceLine(finisherPlace, { suffix = ns.L(finisherPlace.groupZoneId == zoneId and "in this location" or "not in this location") })
+            lines[1] = composePlaceLine(
+                finisherPlace,
+                { suffix = ns.L(finisherPlace.groupZoneId == zoneId and "in this location" or "not in this location") }
+            )
         end
         if #instantStepIds > 0 then
             -- What to bring before handing in: each item it asks for, and who drops it
             local objectives = ns.Database.getQuestField(quest.questId, "objectives") or {}
             for _, item in ipairs(objectives[3] or {}) do
                 local source = ns.Drops.getHuntedSource(item[1])
-                if view and view.isChanceHidden and not (view.drops == "names" or (view.drops == "found" and ns.Spoilers.hasSeenDrop(item[1]))) then
+                if
+                    view
+                    and view.isChanceHidden
+                    and not (view.drops == "names" or (view.drops == "found" and ns.Spoilers.hasSeenDrop(item[1])))
+                then
                     source = nil -- (who drops it is held back)
                 end
                 local itemName = ns.Database.getItemField(item[1], "name")
@@ -2547,7 +3175,10 @@ local function drawAvailableQuest(quest, zoneId)
         State.shownTurnInPlace = finisherPlace
         for _, stepQuestId in ipairs(instantStepIds) do
             steps[#steps + 1] = {
-                title = ns.L("Then take %s there and hand it straight back", ns.QuestText.getQuestName(stepQuestId) or ns.L("the next step")),
+                title = ns.L(
+                    "Then take %s there and hand it straight back",
+                    ns.QuestText.getQuestName(stepQuestId) or ns.L("the next step")
+                ),
                 lines = { ns.L("the next step of the same name: it asks nothing, the reward comes at once") },
             }
         end
@@ -2580,15 +3211,28 @@ local function drawAvailableQuest(quest, zoneId)
         State.detail:addDot(PADDING + 2, y + 2, 10, COLORS.warning, 0)
         local textLeft, textWidth = PADDING + 22, State.detail.width - 2 * PADDING - 22
         local isInLog = ns.QuestState.isInLog(blocker.questId)
-        y = y + addStepLine(y, { text = ns.L(isInLog and "Finish" or "Do"), link = blocker.name, afterText = ns.L("first"), handleClick = Log.showQuestAnywhere, data = blocker.questId }, textLeft, textWidth) + 6
+        y = y
+            + addStepLine(y, {
+                text = ns.L(isInLog and "Finish" or "Do"),
+                link = blocker.name,
+                afterText = ns.L("first"),
+                handleClick = Log.showQuestAnywhere,
+                data = blocker.questId,
+            }, textLeft, textWidth)
+            + 6
         local chainStartQuestId = ns.Availability.getChainStart(quest.questId, ns.Availability.getPlayer())
         if chainStartQuestId and chainStartQuestId ~= blocker.questId then
             local chainStartName = ns.QuestText.getQuestName(chainStartQuestId) or ("Quest " .. chainStartQuestId)
             local startZoneId = ns.Availability.getStartZoneId(chainStartQuestId)
-            y = y + addStepLine(y, {
-                text = ns.L("The chain starts with"), link = chainStartName, handleClick = Log.showQuestAnywhere, data = chainStartQuestId,
-                afterText = startZoneId and ns.L("in %s", ns.Database.getZoneName(startZoneId)) or nil,
-            }, textLeft, textWidth) + 6
+            y = y
+                + addStepLine(y, {
+                    text = ns.L("The chain starts with"),
+                    link = chainStartName,
+                    handleClick = Log.showQuestAnywhere,
+                    data = chainStartQuestId,
+                    afterText = startZoneId and ns.L("in %s", ns.Database.getZoneName(startZoneId)) or nil,
+                }, textLeft, textWidth)
+                + 6
         end
     elseif blocker and blocker.kind ~= "level" then
         State.detail:addDot(PADDING + 2, y + 2, 10, COLORS.warning, 0)
@@ -2615,12 +3259,25 @@ local function drawAvailableQuest(quest, zoneId)
         y, isOpen = addFold(y, "asks", quest.questId, ns.L("What it asks"), nil, true)
         if isOpen then
             local isSameHands = quest.finisherName == quest.starterName
-            y = addBody(y, ns.L(isSameHands and "Nothing in between: take it and hand it straight back to %s for the reward."
-                or "Nothing to collect or kill: take it to %s.", quest.finisherName)) + 10
+            y = addBody(
+                y,
+                ns.L(
+                    isSameHands and "Nothing in between: take it and hand it straight back to %s for the reward."
+                        or "Nothing to collect or kill: take it to %s.",
+                    quest.finisherName
+                )
+            ) + 10
         end
     end
     if quest.chainIndex and isChainShown then
-        y, isOpen = addFold(y, "chain", quest.questId, ns.L("Quest chain"), ns.L("%d of %d", quest.chainIndex, quest.chainTotal), true)
+        y, isOpen = addFold(
+            y,
+            "chain",
+            quest.questId,
+            ns.L("Quest chain"),
+            ns.L("%d of %d", quest.chainIndex, quest.chainTotal),
+            true
+        )
         if isOpen then
             y = addChain(y + 2, quest.questId, true)
         end

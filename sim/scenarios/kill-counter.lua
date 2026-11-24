@@ -16,9 +16,15 @@ wait(0.5)
 local trailhead = require("addons").byName["onemorequest"].private
 local objectiveIndex
 for index, objective in ipairs(trailhead.QuestState.getQuest(1113).objectives) do
-    if objective.type == "item" then objectiveIndex = index end
+    if objective.type == "item" then
+        objectiveIndex = index
+    end
 end
-local progress = trailhead.KillCounter.getProgress(1113, objectiveIndex, trailhead.QuestState.getQuest(1113).objectives[objectiveIndex])
+local progress = trailhead.KillCounter.getProgress(
+    1113,
+    objectiveIndex,
+    trailhead.QuestState.getQuest(1113).objectives[objectiveIndex]
+)
 expect(progress and progress.kills == 3, "the three kills the player made are counted, not the tapped one")
 
 -- Where the game hides unit identities from addons (PvP, some instances), a kill cannot be told apart: it
@@ -26,20 +32,35 @@ expect(progress and progress.kills == 3, "the three kills the player made are co
 restrict({ identity = true, threat = true })
 kill(dropperId, false)
 wait(0.5)
-local hidden = trailhead.KillCounter.getProgress(1113, objectiveIndex, trailhead.QuestState.getQuest(1113).objectives[objectiveIndex])
+local hidden = trailhead.KillCounter.getProgress(
+    1113,
+    objectiveIndex,
+    trailhead.QuestState.getQuest(1113).objectives[objectiveIndex]
+)
 expect(hidden and hidden.kills == 3, "a kill with a hidden identity is not counted, and raises no error")
 restrict({})
 
 -- Farming through nameplates, untargeted, with hearts dropping a quarter of the time: every kill counts
 seed(7)
 local drops = hunt(dropperId, 20, 0.25, "nameplate")
-local farmed = trailhead.KillCounter.getProgress(1113, objectiveIndex, trailhead.QuestState.getQuest(1113).objectives[objectiveIndex])
-expect(farmed and farmed.kills == 23, "20 nameplate kills counted on top of the 3 (got " .. tostring(farmed and farmed.kills) .. ")")
+local farmed = trailhead.KillCounter.getProgress(
+    1113,
+    objectiveIndex,
+    trailhead.QuestState.getQuest(1113).objectives[objectiveIndex]
+)
+expect(
+    farmed and farmed.kills == 23,
+    "20 nameplate kills counted on top of the 3 (got " .. tostring(farmed and farmed.kills) .. ")"
+)
 expect(drops >= 1 and drops <= 12, "about a quarter of them dropped a heart (got " .. drops .. ")")
 
 -- Killed without ever being a unit the player sees (area damage with nameplates off): the game gives an addon
 -- no way to know it was the player's, so it is not counted
 kill(dropperId, { loot = false, via = "unseen" })
 wait(0.2)
-local unseen = trailhead.KillCounter.getProgress(1113, objectiveIndex, trailhead.QuestState.getQuest(1113).objectives[objectiveIndex])
+local unseen = trailhead.KillCounter.getProgress(
+    1113,
+    objectiveIndex,
+    trailhead.QuestState.getQuest(1113).objectives[objectiveIndex]
+)
 expect(unseen and unseen.kills == 23, "an unseen kill is not counted")

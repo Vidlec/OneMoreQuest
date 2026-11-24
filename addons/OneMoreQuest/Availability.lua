@@ -46,8 +46,17 @@ local eligibility = {} -- [questId] = true (can be picked up), false (cannot), o
 -- The fields of a quest that name the other quests its availability reads (isEligibleApartFromLevel reads exactly
 -- these): the index notes, for every quest, whose availability reads it (index.dependents), so that a quest taken,
 -- dropped or handed in forgets only its own answer and theirs.
-local DEPENDENCY_FIELDS = { "preQuestSingle", "preQuestGroup", "parentQuest", "nextQuestInChain", "breadcrumbForQuestId", "exclusiveTo",
-    "disabledByQuest", "availableUntilCompleted", "availableStartingWith" }
+local DEPENDENCY_FIELDS = {
+    "preQuestSingle",
+    "preQuestGroup",
+    "parentQuest",
+    "nextQuestInChain",
+    "breadcrumbForQuestId",
+    "exclusiveTo",
+    "disabledByQuest",
+    "availableUntilCompleted",
+    "availableStartingWith",
+}
 local changeCount = 0 -- raised whenever who can pick up what may have changed (Availability.getChangeKey)
 local settleCharacterChanges, startWarmUp -- (written with the forgetting, below the lists)
 local computeBlocker -- (written with Availability.getBlocker)
@@ -99,7 +108,6 @@ local function isBelowPlayer(questId, player)
     local gap = tonumber(ns.settings.lowLevelGap) or 0
     return questLevel > 0 and player.level - questLevel > (gap > 0 and gap or getTrivialGap(player.level, player.unit))
 end
-
 
 local function isDone(questId)
     return ns.QuestState.isTurnedIn(questId)
@@ -252,7 +260,10 @@ end
 ---database and this addon's rules, never these.
 local function isLeftOutBySettings(questId)
     -- The Ahn'Qiraj War Effort's, over on every realm, unless asked for (as Questie); one the player hid
-    if (ns.AQWarEffortQuests[questId] and ns.settings.shouldShowAQWarEffort ~= true) or ns.QuestHiding.isHidden(questId) then
+    if
+        (ns.AQWarEffortQuests[questId] and ns.settings.shouldShowAQWarEffort ~= true)
+        or ns.QuestHiding.isHidden(questId)
+    then
         return true
     end
     if not ns.settings.shouldShowRepeatable and Availability.isRepeatable(questId) then
@@ -274,7 +285,9 @@ local function isForCharacter(questId, player)
     local get = ns.Database.getQuestField
     -- (Questie's list hides every event quest all year, as Questie shows each only while its event runs: one whose
     -- event runs now is offered, Events says)
-    if (ns.HiddenQuests[questId] and not ns.Events.isQuestOffered(questId)) or ns.QuestState.isMissingFromGame(questId) then
+    if
+        (ns.HiddenQuests[questId] and not ns.Events.isQuestOffered(questId)) or ns.QuestState.isMissingFromGame(questId)
+    then
         return false -- not really in the game (the game itself said so, for the second)
     end
     if isLeftOutBySettings(questId) then
@@ -325,8 +338,12 @@ local instanceQuests = {} -- [questId] = isInstanceQuest's answer: the database'
 local function isInstanceQuest(questId)
     local known = instanceQuests[questId]
     if known == nil then
-        known = Availability.isDungeon(questId) or Availability.isRaid(questId)
-            or (Availability.isForRun(questId) and (ns.Location.getQuestDungeonId(questId) or ns.Location.getObjectivesDungeonId(questId)) ~= nil)
+        known = Availability.isDungeon(questId)
+            or Availability.isRaid(questId)
+            or (
+                Availability.isForRun(questId)
+                and (ns.Location.getQuestDungeonId(questId) or ns.Location.getObjectivesDungeonId(questId)) ~= nil
+            )
         instanceQuests[questId] = known
     end
     return known
@@ -360,11 +377,20 @@ function Availability.getChainLead(questId, player, kind)
         for _, nextQuestId in ipairs(nextQuestIds) do
             if not seen[nextQuestId] and current.depth < MAX_LEAD_STEPS then
                 seen[nextQuestId] = true
-                if isForCharacter(nextQuestId, player) and not isTaken(nextQuestId) and not isBelowPlayer(nextQuestId, player)
-                    and (not isDungeonOnly or isInstanceQuest(nextQuestId)) then
+                if
+                    isForCharacter(nextQuestId, player)
+                    and not isTaken(nextQuestId)
+                    and not isBelowPlayer(nextQuestId, player)
+                    and (not isDungeonOnly or isInstanceQuest(nextQuestId))
+                then
                     lead = {
-                        questId = nextQuestId, title = ns.QuestText.getTitle(nextQuestId, ns.Database.getQuestField(nextQuestId, "name") or ("Quest " .. nextQuestId)),
-                        level = ns.Database.getQuestField(nextQuestId, "questLevel") or 0, stepCount = current.depth + 1,
+                        questId = nextQuestId,
+                        title = ns.QuestText.getTitle(
+                            nextQuestId,
+                            ns.Database.getQuestField(nextQuestId, "name") or ("Quest " .. nextQuestId)
+                        ),
+                        level = ns.Database.getQuestField(nextQuestId, "questLevel") or 0,
+                        stepCount = current.depth + 1,
                     }
                     break
                 end
@@ -393,7 +419,8 @@ local function getShownLead(questId, player)
     end
     local mode = Availability.getLeadInMode()
     return Availability.getChainLead(questId, player, mode == "dungeon" and "dungeon" or "any")
-        or (mode == "dungeon" and Availability.getChainLead(questId, player, "any")) or nil
+        or (mode == "dungeon" and Availability.getChainLead(questId, player, "any"))
+        or nil
 end
 
 ---Everything except the level, which decides between "now" and "soon".
@@ -476,7 +503,10 @@ local function isEligibleApartFromLevel(questId, player)
     if disablingQuestId ~= 0 and isDone(disablingQuestId) then
         return false
     end
-    if not hasReputation(get(questId, "requiredMinRep"), true) or not hasReputation(get(questId, "requiredMaxRep"), false) then
+    if
+        not hasReputation(get(questId, "requiredMinRep"), true)
+        or not hasReputation(get(questId, "requiredMaxRep"), false)
+    then
         return false
     end
     if not hasSkill(get(questId, "requiredSkill")) then
@@ -486,7 +516,8 @@ local function isEligibleApartFromLevel(questId, player)
         return false
     end
     -- Available only until another quest is done, or only from another quest on (taken or done)
-    local untilQuestId, startingQuestId = get(questId, "availableUntilCompleted") or 0, get(questId, "availableStartingWith") or 0
+    local untilQuestId, startingQuestId =
+        get(questId, "availableUntilCompleted") or 0, get(questId, "availableStartingWith") or 0
     if (untilQuestId ~= 0 and isDone(untilQuestId)) or (startingQuestId ~= 0 and not isTaken(startingQuestId)) then
         return false
     end
@@ -548,8 +579,14 @@ function Availability.isEligible(questId, player)
 end
 
 local STANDINGS = { -- the lowest reputation of each standing, highest first
-    { 42000, "Exalted" }, { 21000, "Revered" }, { 9000, "Honored" }, { 3000, "Friendly" }, { 0, "Neutral" },
-    { -3000, "Unfriendly" }, { -6000, "Hostile" }, { -42000, "Hated" },
+    { 42000, "Exalted" },
+    { 21000, "Revered" },
+    { 9000, "Honored" },
+    { 3000, "Friendly" },
+    { 0, "Neutral" },
+    { -3000, "Unfriendly" },
+    { -6000, "Hostile" },
+    { -42000, "Hated" },
 }
 
 local function getStandingName(value)
@@ -580,7 +617,11 @@ local function getMissingQuestId(questIds, isAnyEnough)
     local player = isAnyEnough and Availability.getPlayer()
     for _, signedQuestId in ipairs(questIds) do
         local questId = math.abs(signedQuestId)
-        if not isDoneOrChosenOther(questId) and ns.Database.getQuestField(questId, "name") and (not player or isForCharacter(questId, player)) then
+        if
+            not isDoneOrChosenOther(questId)
+            and ns.Database.getQuestField(questId, "name")
+            and (not player or isForCharacter(questId, player))
+        then
             if ns.QuestState.isInLog(questId) then
                 return questId, 0
             end
@@ -621,7 +662,13 @@ composeQuestBlockerFor = function(questId, isAfter, blockedQuestId)
         shownName = index and string.format("%s %d/%d", title, index, total) or ns.L("%s (the step before)", title)
     end
     local key = ns.QuestState.isInLog(questId) and "Finish %s first" or isAfter and "After %s" or "Take %s first"
-    return { kind = "quest", questId = questId, name = shownName, text = ns.L(key, shownName), phrase = phrase(key, { questId = questId }) }
+    return {
+        kind = "quest",
+        questId = questId,
+        name = shownName,
+        text = ns.L(key, shownName),
+        phrase = phrase(key, { questId = questId }),
+    }
 end
 
 ---Why a quest the character could do one day cannot be picked up yet: a level to reach, a quest to do first,
@@ -707,12 +754,18 @@ computeBlocker = function(questId, player)
     end
     local minReputation = get(questId, "requiredMinRep")
     if not hasReputation(minReputation, true) then
-        return { kind = "reputation", text = ns.L("Needs %s with %s", getStandingName(minReputation[2]), getFactionName(minReputation[1])) }
+        return {
+            kind = "reputation",
+            text = ns.L("Needs %s with %s", getStandingName(minReputation[2]), getFactionName(minReputation[1])),
+        }
     end
     local skill = get(questId, "requiredSkill")
     if not hasSkill(skill) then
         local skillName = ns.Crafting.getProfessionName(skill[1]) or ns.L("a profession")
-        return { kind = "skill", text = (skill[2] or 0) > 0 and ns.L("Needs %s %s", skillName, skill[2]) or ns.L("Needs %s", skillName) }
+        return {
+            kind = "skill",
+            text = (skill[2] or 0) > 0 and ns.L("Needs %s %s", skillName, skill[2]) or ns.L("Needs %s", skillName),
+        }
     end
     local startingQuestId = get(questId, "availableStartingWith") or 0
     if startingQuestId ~= 0 and not isTaken(startingQuestId) then
@@ -727,7 +780,11 @@ computeBlocker = function(questId, player)
     local refusal = ns.GameOffers.getRefusal(questId)
     if refusal then
         local npcName = refusal.npcName or ns.L("the quest giver")
-        return { kind = "refused", text = ns.L("Not offered by %s when you asked", npcName), phrase = phrase("Not offered by %s when you asked", npcName) }
+        return {
+            kind = "refused",
+            text = ns.L("Not offered by %s when you asked", npcName),
+            phrase = phrase("Not offered by %s when you asked", npcName),
+        }
     end
     local isEligible, availableAtLevel = Availability.isEligible(questId, player)
     if isEligible then
@@ -737,7 +794,12 @@ computeBlocker = function(questId, player)
     if requiredLevel <= 0 then
         requiredLevel = math.max(get(questId, "questLevel") or 0, 0)
     end
-    return { kind = "level", level = requiredLevel, text = ns.L("Needs level %d", requiredLevel), phrase = phrase("Needs level %d", requiredLevel) }
+    return {
+        kind = "level",
+        level = requiredLevel,
+        text = ns.L("Needs level %d", requiredLevel),
+        phrase = phrase("Needs level %d", requiredLevel),
+    }
 end
 
 ---Why a character cannot take a quest, judged by what anyone can see of them: race, class and level. Whether
@@ -756,18 +818,23 @@ function Availability.getUnmetRequirement(questId, player)
     end
     local requiredMaxLevel = get(questId, "requiredMaxLevel") or 0
     if requiredMaxLevel ~= 0 and player.level > requiredMaxLevel then
-        return ns.L("Level %d, the quest is for level %d and below", player.level, requiredMaxLevel), ns.L("too high"),
-            phrase("Level %d, the quest is for level %d and below", player.level, requiredMaxLevel), phrase("too high")
+        return ns.L("Level %d, the quest is for level %d and below", player.level, requiredMaxLevel),
+            ns.L("too high"),
+            phrase("Level %d, the quest is for level %d and below", player.level, requiredMaxLevel),
+            phrase("too high")
     end
     local requiredLevel = getRequiredLevel(questId)
     if requiredLevel > player.level then
-        return ns.L("Level %d, the quest needs %d", player.level, requiredLevel), ns.L("lvl %d", requiredLevel),
-            phrase("Level %d, the quest needs %d", player.level, requiredLevel), phrase("lvl %d", requiredLevel)
+        return ns.L("Level %d, the quest needs %d", player.level, requiredLevel),
+            ns.L("lvl %d", requiredLevel),
+            phrase("Level %d, the quest needs %d", player.level, requiredLevel),
+            phrase("lvl %d", requiredLevel)
     end
     return nil
 end
 
-local BLOCKER_SHORT_REASONS = { quest = "earlier", level = "level", reputation = "rep", skill = "skill", spell = "spell" }
+local BLOCKER_SHORT_REASONS =
+    { quest = "earlier", level = "level", reputation = "rep", skill = "skill", spell = "spell" }
 
 ---What the player is to a quest, as a party member asking about it is told: on it, done it, can take it, or
 ---cannot and why.
@@ -789,12 +856,20 @@ function Availability.getOwnStatus(questId)
     if blocker then
         local shortKey = BLOCKER_SHORT_REASONS[blocker.kind] or "not yet"
         if blocker.kind == "level" then
-            return "cannot", blocker.text, ns.L("lvl %d", blocker.level), blocker.phrase, phrase("lvl %d", blocker.level)
+            return "cannot",
+                blocker.text,
+                ns.L("lvl %d", blocker.level),
+                blocker.phrase,
+                phrase("lvl %d", blocker.level)
         end
         return "cannot", blocker.text, ns.L(shortKey), blocker.phrase, phrase(shortKey)
     end
     if isClosed then
-        return "cannot", ns.L("Can't take it any more"), ns.L("closed"), phrase("Can't take it any more"), phrase("closed")
+        return "cannot",
+            ns.L("Can't take it any more"),
+            ns.L("closed"),
+            phrase("Can't take it any more"),
+            phrase("closed")
     end
     return "can"
 end
@@ -953,8 +1028,15 @@ local function addQuestToIndex(newIndex, questId)
     end
     -- A candidate city donation: filed in a capital, asking only for items, paying in reputation
     local filedZoneId, objectives = get(questId, "zoneOrSort") or 0, get(questId, "objectives") or {}
-    if filedZoneId > 0 and ns.Database.isCapital(filedZoneId) and objectives[3] and not objectives[1] and not objectives[2]
-        and not objectives[5] and get(questId, "reputationReward") then
+    if
+        filedZoneId > 0
+        and ns.Database.isCapital(filedZoneId)
+        and objectives[3]
+        and not objectives[1]
+        and not objectives[2]
+        and not objectives[5]
+        and get(questId, "reputationReward")
+    then
         local name = get(questId, "name") or ""
         local candidate = newIndex.donationCandidates[name] or { questIds = {}, capitals = {}, capitalCount = 0 }
         newIndex.donationCandidates[name] = candidate
@@ -982,7 +1064,8 @@ local function addQuestToIndex(newIndex, questId)
     -- Repeatable hand-ins (the Thorium Brotherhood's) and event quests (the Lunar Festival's elders, the Darkmoon
     -- Faire's fortunes) are not a dungeon's: they would swell its count with quests no run is for
     local isForRun = Availability.isForRun(questId)
-    local dungeonZoneId = isForRun and (ns.Location.getQuestDungeonId(questId) or ns.Location.getObjectivesDungeonId(questId))
+    local dungeonZoneId = isForRun
+        and (ns.Location.getQuestDungeonId(questId) or ns.Location.getObjectivesDungeonId(questId))
     if dungeonZoneId then
         newIndex.forDungeon[dungeonZoneId] = newIndex.forDungeon[dungeonZoneId] or {}
         table.insert(newIndex.forDungeon[dungeonZoneId], questId)
@@ -1063,7 +1146,18 @@ function Availability.prepare(handleReady)
     end
     isIndexing = true
     local questIds = ns.Database.getQuestIds()
-    local newIndex = { startedInZone = {}, handedInZone = {}, forDungeon = {}, inDungeon = {}, followUps = {}, atEntrance = {}, instantStepAfter = {}, isInstantStep = {}, donationCandidates = {}, isCityDonation = {} }
+    local newIndex = {
+        startedInZone = {},
+        handedInZone = {},
+        forDungeon = {},
+        inDungeon = {},
+        followUps = {},
+        atEntrance = {},
+        instantStepAfter = {},
+        isInstantStep = {},
+        donationCandidates = {},
+        isCityDonation = {},
+    }
     newIndex.dependents, newIndex.reputation, newIndex.skill, newIndex.spellStates = {}, {}, {}, {}
     local position = 0
     local function step()
@@ -1071,13 +1165,17 @@ function Availability.prepare(handleReady)
         -- in one frame, a dozen frames running, and the first seconds after logging in stuttered. Where the game
         -- gives no clock (the tests), all at once.
         local started = debugprofilestop and debugprofilestop() or nil
-        local budget = (ns.Log and ns.Log.isOpen and ns.Log.isOpen()) and INDEX_WAITED_MILLISECONDS or INDEX_SLICE_MILLISECONDS
+        local budget = (ns.Log and ns.Log.isOpen and ns.Log.isOpen()) and INDEX_WAITED_MILLISECONDS
+            or INDEX_SLICE_MILLISECONDS
         local done = 0
         while position < #questIds do
             position = position + 1
             addQuestToIndex(newIndex, questIds[position])
             done = done + 1
-            if done >= QUESTS_PER_STEP or (started and done >= INDEX_MIN_QUESTS and debugprofilestop() - started >= budget) then
+            if
+                done >= QUESTS_PER_STEP
+                or (started and done >= INDEX_MIN_QUESTS and debugprofilestop() - started >= budget)
+            then
                 break
             end
         end
@@ -1102,7 +1200,9 @@ function Availability.prepare(handleReady)
         for dungeonId, questIds in pairs(newIndex.forDungeon) do
             for _, questId in ipairs(questIds) do
                 local known = newIndex.dungeonByQuestId[questId]
-                if not known or dungeonId < known then newIndex.dungeonByQuestId[questId] = dungeonId end
+                if not known or dungeonId < known then
+                    newIndex.dungeonByQuestId[questId] = dungeonId
+                end
             end
         end
         index, isIndexing = newIndex, false
@@ -1172,8 +1272,12 @@ local function composeQuest(questId, zoneId, isHandedInHere, player, position, i
         return nil
     end
     local questLevel = ns.Database.getQuestField(questId, "questLevel") or 0
-    if itemSource and not isOfferedByGame and questLevel > player.level + MAX_ITEM_LEVELS_ABOVE
-        and ns.QuestState.getItemCount(itemSource.itemId) == 0 then
+    if
+        itemSource
+        and not isOfferedByGame
+        and questLevel > player.level + MAX_ITEM_LEVELS_ABOVE
+        and ns.QuestState.getItemCount(itemSource.itemId) == 0
+    then
         -- Starts from an item, and is far above the player: the database often asks no level for these (a
         -- level 60 Craftsman's Writ "from level 1"), but the item comes from places and work far beyond them
         return nil
@@ -1192,7 +1296,9 @@ local function composeQuest(questId, zoneId, isHandedInHere, player, position, i
         leadsTo = getShownLead(questId, player),
         startType = itemSource and "item" or startType or "npc",
         -- From an item: named by the creature worth hunting for it (Drops), else the database's first source
-        starterName = itemSource and ((ns.Drops.getHuntedSource(itemSource.itemId) or {}).name or itemSource.sourceName) or starterName,
+        starterName = itemSource
+                and ((ns.Drops.getHuntedSource(itemSource.itemId) or {}).name or itemSource.sourceName)
+            or starterName,
         itemName = itemSource and itemSource.itemName or nil,
         itemId = itemSource and itemSource.itemId or nil,
         isHandedInHere = isHandedInHere,
@@ -1214,17 +1320,22 @@ local function composeQuest(questId, zoneId, isHandedInHere, player, position, i
     quest.versionCount = 1
     for _, otherQuestId in ipairs(ns.Database.getQuestField(questId, "exclusiveTo") or {}) do
         -- Only the character's own: the other faction's trainer, or another class's, is no choice of theirs
-        if ns.Database.getQuestField(otherQuestId, "name") == quest.englishTitle and isForCharacter(otherQuestId, player) then
+        if
+            ns.Database.getQuestField(otherQuestId, "name") == quest.englishTitle
+            and isForCharacter(otherQuestId, player)
+        then
             quest.versionCount = quest.versionCount + 1
         end
     end
     -- Said on its row: "2 steps, back to back", "any of 3 places" (one machine of three, one trainer of four)
     local stepsParts = {}
     if #quest.instantStepIds > 0 then
-        stepsParts[#stepsParts + 1] = ns.Lp(#quest.instantStepIds + 1, "%d step, back to back", "%d steps, back to back")
+        stepsParts[#stepsParts + 1] =
+            ns.Lp(#quest.instantStepIds + 1, "%d step, back to back", "%d steps, back to back")
     end
     if quest.versionCount > 1 then
-        stepsParts[#stepsParts + 1] = quest.startType == "npc" and ns.L("any of %d givers", quest.versionCount) or ns.L("any of %d places", quest.versionCount)
+        stepsParts[#stepsParts + 1] = quest.startType == "npc" and ns.L("any of %d givers", quest.versionCount)
+            or ns.L("any of %d places", quest.versionCount)
     end
     quest.stepsText = #stepsParts > 0 and table.concat(stepsParts, " · ") or nil
     quest.isItemInBags = itemSource ~= nil and itemSource.isWorldDrop -- a world drop is listed only once looted
@@ -1235,7 +1346,8 @@ local function composeQuest(questId, zoneId, isHandedInHere, player, position, i
     if quest.level <= 0 then
         quest.level = player.level
     end
-    quest.distance, quest.direction, quest.nearestPlace = ns.Geometry.getNearest(quest.places, position, ns.Database.getUiMapId)
+    quest.distance, quest.direction, quest.nearestPlace =
+        ns.Geometry.getNearest(quest.places, position, ns.Database.getUiMapId)
     return quest
 end
 
@@ -1253,12 +1365,17 @@ local function composeGameOffer(offer, zoneId, player, position, wasConsidered)
     end
     local quest = isKnown and composeQuest(questId, zoneId, false, player, position, true) or nil
     if not quest then
-        local englishTitle = offer.title or (C_QuestLog.GetTitleForQuestID and C_QuestLog.GetTitleForQuestID(questId)) or ("Quest " .. questId)
+        local englishTitle = offer.title
+            or (C_QuestLog.GetTitleForQuestID and C_QuestLog.GetTitleForQuestID(questId))
+            or ("Quest " .. questId)
         quest = {
             questId = questId,
             title = ns.QuestText.getTitle(questId, englishTitle),
             englishTitle = englishTitle,
-            level = player.level, startType = "npc", isHandedInHere = false, places = {},
+            level = player.level,
+            startType = "npc",
+            isHandedInHere = false,
+            places = {},
         }
     end
     if #quest.places == 0 then
@@ -1266,7 +1383,8 @@ local function composeGameOffer(offer, zoneId, player, position, wasConsidered)
     end
     quest.isLowLevel = quest.isLowLevel or offer.isTrivial
     quest.isFromGame = true
-    quest.distance, quest.direction, quest.nearestPlace = ns.Geometry.getNearest(quest.places, position, ns.Database.getUiMapId)
+    quest.distance, quest.direction, quest.nearestPlace =
+        ns.Geometry.getNearest(quest.places, position, ns.Database.getUiMapId)
     local reason = not isKnown and "not in the quest database"
         or wasConsidered and "the addon's rules said it was not available"
         or "the quest database starts it in another place"
@@ -1302,7 +1420,9 @@ function Availability.getQuests(zoneId, options)
         return quests, hiddenCount
     end
     local shouldIncludeEntrances = options and options.shouldIncludeEntrances
-    local cacheKey = zoneId .. ((options and options.shouldShowLowLevel) and ":all" or "") .. (shouldIncludeEntrances and ":entrances" or "")
+    local cacheKey = zoneId
+        .. ((options and options.shouldShowLowLevel) and ":all" or "")
+        .. (shouldIncludeEntrances and ":entrances" or "")
     local now = GetTime and GetTime() or 0
     local cached = cache[cacheKey]
     if cached and now - cached.time < CACHE_SECONDS then
@@ -1341,8 +1461,12 @@ function Availability.getQuests(zoneId, options)
             -- quest of its choice taken, the player past its level. Closed now, it was theirs then and is not any
             -- more: forgotten, neither listed nor noted as missed. (Closed already when offered, the data has a
             -- hole there, and the giver's word stands.)
-            if offer.isLearned and not offer.wasClosed and not isLeftOutBySettings(questId)
-                and select(2, Availability.getBlocker(questId, player)) == true then
+            if
+                offer.isLearned
+                and not offer.wasClosed
+                and not isLeftOutBySettings(questId)
+                and select(2, Availability.getBlocker(questId, player)) == true
+            then
                 ns.GameOffers.forgetLearned(questId)
             else
                 quest, reason = composeGameOffer(offer, zoneId, player, position, seen[questId] == true)
@@ -1360,7 +1484,8 @@ function Availability.getQuests(zoneId, options)
     -- In a zone's list, a quest for a dungeon (picked up here, or a lead-in to its chain) says which
     if not ns.Database.getDungeon(zoneId) then
         for _, quest in ipairs(quests) do
-            local dungeon = ns.Database.getDungeon(index.dungeonByQuestId and index.dungeonByQuestId[quest.questId] or 0)
+            local dungeon =
+                ns.Database.getDungeon(index.dungeonByQuestId and index.dungeonByQuestId[quest.questId] or 0)
             quest.leadsToDungeonName = dungeon and dungeon.name or nil
         end
     end
@@ -1381,7 +1506,8 @@ function Availability.getQuests(zoneId, options)
         local exclusiveTo = ns.Database.getQuestField(quest.questId, "exclusiveTo") or {}
         local isListedAlready = isVersionListed[quest.questId] == true
         for _, otherQuestId in ipairs(exclusiveTo) do
-            isListedAlready = isListedAlready or (rowQuestIds[otherQuestId] == true and ns.Database.getQuestField(otherQuestId, "name") == name)
+            isListedAlready = isListedAlready
+                or (rowQuestIds[otherQuestId] == true and ns.Database.getQuestField(otherQuestId, "name") == name)
         end
         if not isListedAlready then
             rows[#rows + 1] = quest
@@ -1413,17 +1539,21 @@ function Availability.describeUnlock(questId, blocker, player)
     if blocker.kind == "quest" then
         local leadInIds = Availability.getLeadIns(questId, player)
         local firstQuestId = leadInIds[1] or blocker.questId
-        local firstName = ns.QuestText.getQuestName(firstQuestId) or ns.Database.getQuestField(firstQuestId, "name") or ("Quest " .. firstQuestId)
+        local firstName = ns.QuestText.getQuestName(firstQuestId)
+            or ns.Database.getQuestField(firstQuestId, "name")
+            or ("Quest " .. firstQuestId)
         local state, extra = nil, 0.5
         if ns.QuestState.isInLog(firstQuestId) then
             state, extra = ns.L("in your log"), 0
         elseif not Availability.getBlocker(firstQuestId, player) then
             state, extra = ns.L("you can take it now"), 0
         end
-        local text = #leadInIds > 1 and ns.L("%d quests first, from %s", #leadInIds, firstName) or ns.L("Needs %s first", firstName)
+        local text = #leadInIds > 1 and ns.L("%d quests first, from %s", #leadInIds, firstName)
+            or ns.L("Needs %s first", firstName)
         return state and (text .. ": " .. state) or text, math.max(#leadInIds, 1) + extra
     elseif blocker.kind == "level" then
-        return blocker.text .. " \194\183 " .. ns.L("you are %d", player.level), UNLOCK_RANK_LEVEL + math.max((blocker.level or 0) - player.level, 0)
+        return blocker.text .. " \194\183 " .. ns.L("you are %d", player.level),
+            UNLOCK_RANK_LEVEL + math.max((blocker.level or 0) - player.level, 0)
     end
     return blocker.text, UNLOCK_RANK_OTHER
 end
@@ -1482,8 +1612,11 @@ function Availability.getBlockedQuests(zoneId, options)
                 local blocker = Availability.getBlocker(questId, player)
                 local isSoon = blocker and blocker.kind == "level" and blocker.level - player.level <= UPCOMING_LEVELS
                 -- A step done straight after the one before is part of that one's row
-                local isWithStepBefore = blocker and blocker.kind == "quest" and Availability.isInstantStep(questId)
-                    and ns.Database.getQuestField(blocker.questId, "name") == ns.Database.getQuestField(questId, "name")
+                local isWithStepBefore = blocker
+                    and blocker.kind == "quest"
+                    and Availability.isInstantStep(questId)
+                    and ns.Database.getQuestField(blocker.questId, "name")
+                        == ns.Database.getQuestField(questId, "name")
                 if blocker and not isSoon and not isWithStepBefore then
                     local quest = composeQuest(questId, zoneId, false, player, position, false, blocker)
                     if quest then
@@ -1610,7 +1743,9 @@ function Availability.getEntranceDungeons(zoneId)
     for dungeonId, count in pairs(countByDungeonId) do
         dungeons[#dungeons + 1] = { dungeonId = dungeonId, name = ns.Database.getZoneName(dungeonId), count = count }
     end
-    table.sort(dungeons, function(first, second) return first.name < second.name end)
+    table.sort(dungeons, function(first, second)
+        return first.name < second.name
+    end)
     return dungeons
 end
 
@@ -1750,8 +1885,11 @@ function Availability.getZoneQuestStates(zoneId)
             end
             if state then
                 states[#states + 1] = {
-                    questId = questId, state = state, blocker = blocker,
-                    isLowLevel = (state == "available" or state == "notYet") and Availability.isLowLevel(questId, player),
+                    questId = questId,
+                    state = state,
+                    blocker = blocker,
+                    isLowLevel = (state == "available" or state == "notYet")
+                        and Availability.isLowLevel(questId, player),
                 }
             end
         end
@@ -1798,7 +1936,16 @@ function Availability.getDungeonRun(dungeonId)
     if cache[cacheKey] then
         return cache[cacheKey]
     end
-    local run = { inLog = {}, pickUp = {}, foundInside = {}, behindLeadIn = {}, notYet = {}, done = {}, doneCount = 0, totalCount = 0 }
+    local run = {
+        inLog = {},
+        pickUp = {},
+        foundInside = {},
+        behindLeadIn = {},
+        notYet = {},
+        done = {},
+        doneCount = 0,
+        totalCount = 0,
+    }
     local player, position = Availability.getPlayer(), ns.Geometry.getPlayerPosition()
     local listedLeadIns = {}
     -- A lead-in that is itself one of the dungeon's quests is listed once, as that, saying what it opens
@@ -1812,19 +1959,31 @@ function Availability.getDungeonRun(dungeonId)
         if zoneQuest.state == "done" then
             run.doneCount = run.doneCount + 1
             run.done[#run.done + 1] = {
-                questId = questId, isDone = true,
-                title = ns.QuestText.getTitle(questId, ns.Database.getQuestField(questId, "name") or ("Quest " .. questId), true),
+                questId = questId,
+                isDone = true,
+                title = ns.QuestText.getTitle(
+                    questId,
+                    ns.Database.getQuestField(questId, "name") or ("Quest " .. questId),
+                    true
+                ),
                 level = ns.Database.getQuestField(questId, "questLevel") or 0,
             }
         elseif zoneQuest.state == "inLog" then
             run.inLog[#run.inLog + 1] = {
-                questId = questId, title = ns.QuestText.getTitle(questId, ns.Database.getQuestField(questId, "name") or ("Quest " .. questId), true),
-                level = ns.Database.getQuestField(questId, "questLevel") or 0, isLowLevel = false,
+                questId = questId,
+                title = ns.QuestText.getTitle(
+                    questId,
+                    ns.Database.getQuestField(questId, "name") or ("Quest " .. questId),
+                    true
+                ),
+                level = ns.Database.getQuestField(questId, "questLevel") or 0,
+                isLowLevel = false,
             }
         elseif zoneQuest.state == "available" then
             local quest = composeQuest(questId, dungeonId, false, player, position)
             if quest then
-                local isFoundInside = ns.Location.getPickupDungeonId(questId) == dungeonId or ns.LearnedDungeons.isPickedUpInside(dungeonId, questId)
+                local isFoundInside = ns.Location.getPickupDungeonId(questId) == dungeonId
+                    or ns.LearnedDungeons.isPickedUpInside(dungeonId, questId)
                 local list = isFoundInside and run.foundInside or run.pickUp
                 list[#list + 1] = quest
             end
@@ -1842,7 +2001,12 @@ function Availability.getDungeonRun(dungeonId)
                 end
                 if firstLeadInId and isDungeonQuest[firstLeadInId] then
                     opensTitleByQuestId[firstLeadInId] = opensTitleByQuestId[firstLeadInId] or quest.title
-                elseif firstLeadInId and not listedLeadIns[firstLeadInId] and not isTaken(firstLeadInId) and Availability.isEligible(firstLeadInId, player) then
+                elseif
+                    firstLeadInId
+                    and not listedLeadIns[firstLeadInId]
+                    and not isTaken(firstLeadInId)
+                    and Availability.isEligible(firstLeadInId, player)
+                then
                     listedLeadIns[firstLeadInId] = true
                     local leadIn = composeQuest(firstLeadInId, dungeonId, false, player, position)
                     if leadIn then
@@ -1854,8 +2018,16 @@ function Availability.getDungeonRun(dungeonId)
                     -- under the quest it opens
                     listedLeadIns[firstLeadInId] = true
                     run.inLog[#run.inLog + 1] = {
-                        questId = firstLeadInId, isLowLevel = false, isLeadIn = true, leadsToTitle = quest.title, leadsToQuestId = questId,
-                        title = ns.QuestText.getTitle(firstLeadInId, ns.Database.getQuestField(firstLeadInId, "name") or ("Quest " .. firstLeadInId), true),
+                        questId = firstLeadInId,
+                        isLowLevel = false,
+                        isLeadIn = true,
+                        leadsToTitle = quest.title,
+                        leadsToQuestId = questId,
+                        title = ns.QuestText.getTitle(
+                            firstLeadInId,
+                            ns.Database.getQuestField(firstLeadInId, "name") or ("Quest " .. firstLeadInId),
+                            true
+                        ),
                         level = ns.Database.getQuestField(firstLeadInId, "questLevel") or 0,
                     }
                 end
@@ -1975,7 +2147,9 @@ function Availability.getZones(options)
         end
         if count > 0 and zoneId > 0 then
             zones[#zones + 1] = {
-                zoneId = zoneId, zoneName = ns.Database.getZoneName(zoneId), count = count,
+                zoneId = zoneId,
+                zoneName = ns.Database.getZoneName(zoneId),
+                count = count,
                 isDungeon = ns.Database.getDungeon(zoneId) ~= nil,
             }
         end
@@ -2021,8 +2195,10 @@ function Availability.findInOtherZones(searchText, exceptZoneId, options)
             for _, questId in ipairs(index.startedInZone[zone.zoneId] or {}) do
                 local englishTitle = ns.Database.getQuestField(questId, "name")
                 local title = ns.QuestText.getTitle(questId, englishTitle)
-                if (type(title) == "string" and title:lower():find(searchText, 1, true))
-                    or (type(englishTitle) == "string" and englishTitle:lower():find(searchText, 1, true)) then
+                if
+                    (type(title) == "string" and title:lower():find(searchText, 1, true))
+                    or (type(englishTitle) == "string" and englishTitle:lower():find(searchText, 1, true))
+                then
                     isCandidate = true
                     break
                 end
@@ -2030,7 +2206,13 @@ function Availability.findInOtherZones(searchText, exceptZoneId, options)
             if isCandidate then
                 local titles = {}
                 for _, quest in ipairs((Availability.getQuests(zone.zoneId, options))) do
-                    if not quest.availableAtLevel and Availability.isSearchMatch({ title = quest.title, englishTitle = quest.englishTitle }, searchText) then
+                    if
+                        not quest.availableAtLevel
+                        and Availability.isSearchMatch(
+                            { title = quest.title, englishTitle = quest.englishTitle },
+                            searchText
+                        )
+                    then
                         titles[#titles + 1] = quest.title
                     end
                 end
@@ -2114,7 +2296,9 @@ settleCharacterChanges = function(isFirst)
     if isReputationStale or isFirst then
         isReputationStale = false
         for factionId, requirement in pairs(index.reputation) do
-            local faction = C_Reputation and C_Reputation.GetFactionDataByID and C_Reputation.GetFactionDataByID(factionId)
+            local faction = C_Reputation
+                and C_Reputation.GetFactionDataByID
+                and C_Reputation.GetFactionDataByID(factionId)
             local band = faction and getBand(requirement.thresholds, faction.currentStanding or 0) or -1
             if requirement.band ~= band then
                 requirement.band = band
@@ -2158,7 +2342,13 @@ local warmRun = 0 -- raised to stop the run under way
 
 startWarmUp = function()
     warmRun = warmRun + 1
-    if not index or not C_Timer or not debugprofilestop or ns.frameNumber == 0 or ns.settings.shouldUseAvailableQuests ~= true then
+    if
+        not index
+        or not C_Timer
+        or not debugprofilestop
+        or ns.frameNumber == 0
+        or ns.settings.shouldUseAvailableQuests ~= true
+    then
         return
     end
     local run = warmRun
@@ -2238,8 +2428,14 @@ function Availability.invalidateForRedraw(isQuiet)
     settleCharacterChanges()
     local settings = ns.settings
     local level = UnitLevel and UnitLevel("player")
-    local kinds = tostring(settings.shouldShowRepeatable) .. tostring(settings.shouldShowPvp) .. tostring(settings.lowLevelGap) .. tostring(settings.shouldShowDungeonLeadIns) .. tostring(settings.shouldShowAnyLeadIns)
-        .. tostring(settings.shouldShowEvents) .. tostring(settings.shouldShowRaid) .. tostring(settings.shouldShowAQWarEffort)
+    local kinds = tostring(settings.shouldShowRepeatable)
+        .. tostring(settings.shouldShowPvp)
+        .. tostring(settings.lowLevelGap)
+        .. tostring(settings.shouldShowDungeonLeadIns)
+        .. tostring(settings.shouldShowAnyLeadIns)
+        .. tostring(settings.shouldShowEvents)
+        .. tostring(settings.shouldShowRaid)
+        .. tostring(settings.shouldShowAQWarEffort)
         .. ns.Events.getChangeKey()
     local logIds = {}
     for _, questId in ipairs(ns.QuestState.getLogQuestIds()) do
@@ -2330,13 +2526,23 @@ ns.registerModule({
     invalidate = Availability.invalidateForRedraw,
     events = {
         -- What a quest may ask of the character besides their level and other quests: looked at when next needed
-        UPDATE_FACTION = function() isReputationStale = true end,
-        SKILL_LINES_CHANGED = function() isSkillStale = true end,
-        SPELLS_CHANGED = function() isSpellStale = true end,
+        UPDATE_FACTION = function()
+            isReputationStale = true
+        end,
+        SKILL_LINES_CHANGED = function()
+            isSkillStale = true
+        end,
+        SPELLS_CHANGED = function()
+            isSpellStale = true
+        end,
         -- Another zone, or back in the world: the quests of the zone the player is in now are asked again (the game
         -- may have marked a quest done meanwhile with no word of it). Only those: they are what the map and the
         -- list show first, and asking all of them again was a second's work in the background at every zone.
-        ZONE_CHANGED_NEW_AREA = function() Availability.forgetPlayerZone() end,
-        PLAYER_ENTERING_WORLD = function() Availability.forgetPlayerZone() end,
+        ZONE_CHANGED_NEW_AREA = function()
+            Availability.forgetPlayerZone()
+        end,
+        PLAYER_ENTERING_WORLD = function()
+            Availability.forgetPlayerZone()
+        end,
     },
 })

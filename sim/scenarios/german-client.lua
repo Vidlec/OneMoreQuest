@@ -24,6 +24,9 @@ wait(0.5)
 trailhead.Focus.set(871)
 local glyph
 for _, mark in ipairs(trailhead.MapMarks.compose(1413)) do
-    if mark.questId == 871 and mark.labels and mark.labels[1] then glyph = mark.labels[1].glyph; break end
+    if mark.questId == 871 and mark.labels and mark.labels[1] then
+        glyph = mark.labels[1].glyph
+        break
+    end
 end
 expect(glyph == "kill", "a German kill objective gets the kill symbol (got " .. tostring(glyph) .. ")")

@@ -81,15 +81,22 @@ function Drops.getSources(itemId)
         local places = {}
         ns.Location.addNpcPlaces(places, npcId)
         sources[#sources + 1] = {
-            npcId = npcId, name = ns.Database.getNpcField(npcId, "name") or ns.L("a creature"), places = places,
+            npcId = npcId,
+            name = ns.Database.getNpcField(npcId, "name") or ns.L("a creature"),
+            places = places,
             chance = Drops.getChance(itemId, npcId),
-            minLevel = ns.Database.getNpcField(npcId, "minLevel"), maxLevel = ns.Database.getNpcField(npcId, "maxLevel"),
+            minLevel = ns.Database.getNpcField(npcId, "minLevel"),
+            maxLevel = ns.Database.getNpcField(npcId, "maxLevel"),
         }
     end
     for _, objectId in ipairs(ns.Database.getItemField(itemId, "objectDrops") or {}) do
         local places = {}
         ns.Location.addObjectPlaces(places, objectId)
-        sources[#sources + 1] = { objectId = objectId, name = ns.Database.getObjectField(objectId, "name") or ns.L("an object"), places = places }
+        sources[#sources + 1] = {
+            objectId = objectId,
+            name = ns.Database.getObjectField(objectId, "name") or ns.L("an object"),
+            places = places,
+        }
     end
     return sources
 end
@@ -127,20 +134,32 @@ local function composeZones(itemId, player, playerLevel)
         for zoneId, places in pairs(placesByZone) do
             local zone = zonesById[zoneId]
             if not zone then
-                zone = { zoneId = zoneId, name = ns.Database.getZoneName(zoneId), sources = {}, places = {}, isDungeon = ns.Database.getDungeon(zoneId) ~= nil }
+                zone = {
+                    zoneId = zoneId,
+                    name = ns.Database.getZoneName(zoneId),
+                    sources = {},
+                    places = {},
+                    isDungeon = ns.Database.getDungeon(zoneId) ~= nil,
+                }
                 zonesById[zoneId] = zone
                 zones[#zones + 1] = zone
             end
             zone.sources[#zone.sources + 1] = {
-                npcId = source.npcId, objectId = source.objectId, name = source.name, chance = source.chance,
-                minLevel = source.minLevel, maxLevel = source.maxLevel, places = places,
+                npcId = source.npcId,
+                objectId = source.objectId,
+                name = source.name,
+                chance = source.chance,
+                minLevel = source.minLevel,
+                maxLevel = source.maxLevel,
+                places = places,
             }
             for _, place in ipairs(places) do
                 zone.places[#zone.places + 1] = place
             end
             if source.minLevel then
                 zone.minLevel = math.min(zone.minLevel or source.minLevel, source.minLevel)
-                zone.maxLevel = math.max(zone.maxLevel or source.maxLevel or source.minLevel, source.maxLevel or source.minLevel)
+                zone.maxLevel =
+                    math.max(zone.maxLevel or source.maxLevel or source.minLevel, source.maxLevel or source.minLevel)
             end
         end
     end

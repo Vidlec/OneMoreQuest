@@ -17,13 +17,17 @@ test("each party member's counts are read from the game's party progress, by obj
     setQuest(state, 301, false, { killObjective(0, 12), itemObjective(1, 4) })
     state.partyMembers.party1 = { name = "Mira Dawnfield", questIds = { [301] = true } }
     state.partyMembers.party2 = { name = "Tor", questIds = {} }
-    C_TooltipInfo = { GetQuestPartyProgress = function()
-        return { lines = {
-            { leftText = "Mira Dawnfield" },
-            { leftText = " - 4/12 Roadside Bandit slain" },
-            { leftText = " - Wolf Fang: 4/4" },
-        } }
-    end }
+    C_TooltipInfo = {
+        GetQuestPartyProgress = function()
+            return {
+                lines = {
+                    { leftText = "Mira Dawnfield" },
+                    { leftText = " - 4/12 Roadside Bandit slain" },
+                    { leftText = " - Wolf Fang: 4/4" },
+                },
+            }
+        end,
+    }
     local quest = ns.QuestState.getQuest(301)
     local members = ns.Party.getProgress(301, quest.objectives)
     expectEqual(#members, 2, "both members")
@@ -33,8 +37,16 @@ test("each party member's counts are read from the game's party progress, by obj
     expectEqual(tor.isOnQuest, false, "Tor does not have it")
     expectEqual(mira.classFile, "WARRIOR", "the member's class file, for the class colour, not only the class's name")
     expectEqual(ns.Party.formatCount(false):find("?", 1, true) ~= nil, true, "an unknown count is a question mark")
-    expectEqual(ns.Party.formatCount({ fulfilled = 4, required = 7 }):find("4/7", 1, true) ~= nil, true, "a count as 4/7")
-    expectEqual(ns.Party.formatCount({ fulfilled = 7, required = 7, isDone = true }):find("ReadyCheck-Ready", 1, true) ~= nil, true, "a tick once done")
+    expectEqual(
+        ns.Party.formatCount({ fulfilled = 4, required = 7 }):find("4/7", 1, true) ~= nil,
+        true,
+        "a count as 4/7"
+    )
+    expectEqual(
+        ns.Party.formatCount({ fulfilled = 7, required = 7, isDone = true }):find("ReadyCheck-Ready", 1, true) ~= nil,
+        true,
+        "a tick once done"
+    )
     -- The tracker draws the table under the focused quest, and the tooltip lists the party
     ns.Tracker.create()
     ns.Focus.set(301)
@@ -46,7 +58,9 @@ test("a quest's row offers to share it only when a party member could take it", 
     local ns, state = createAddon()
     setQuest(state, 301, false, { killObjective(0, 12) })
     local savedPushable = C_QuestLog.IsPushableQuest
-    C_QuestLog.IsPushableQuest = function() return true end
+    C_QuestLog.IsPushableQuest = function()
+        return true
+    end
     expectEqual(ns.Log.canShareWithParty(301), false, "solo: nobody to share with")
     installGroup(state)
     state.partyMembers.party1.questIds = { [301] = true }
@@ -58,7 +72,9 @@ test("a quest's row offers to share it only when a party member could take it", 
     state.partyMembers.party2.level = 1
     expectEqual(ns.Log.canShareWithParty(301), false, "a member too low for it: nothing to share")
     state.partyMembers.party2.level = 30
-    C_QuestLog.IsPushableQuest = function() return false end
+    C_QuestLog.IsPushableQuest = function()
+        return false
+    end
     expectEqual(ns.Log.canShareWithParty(301), false, "a quest the game will not share")
     C_QuestLog.IsPushableQuest = savedPushable
     removeGroup()
@@ -69,10 +85,15 @@ test("a zone's quests a party member could take are shared all at once, a second
     setQuest(state, 301, false, { killObjective(0, 12) })
     setQuest(state, 302, false, { killObjective(0, 5) })
     setQuest(state, 303, false, { killObjective(0, 5) })
-    local savedPushable, savedPush, savedAfter, savedSelect = C_QuestLog.IsPushableQuest, QuestLogPushQuest, C_Timer.After, C_QuestLog.SetSelectedQuest
+    local savedPushable, savedPush, savedAfter, savedSelect =
+        C_QuestLog.IsPushableQuest, QuestLogPushQuest, C_Timer.After, C_QuestLog.SetSelectedQuest
     local selected
-    C_QuestLog.SetSelectedQuest = function(questId) selected = questId end
-    C_QuestLog.IsPushableQuest = function() return true end
+    C_QuestLog.SetSelectedQuest = function(questId)
+        selected = questId
+    end
+    C_QuestLog.IsPushableQuest = function()
+        return true
+    end
     local entries = { { questId = 301 }, { questId = 302 }, { questId = 303 } }
     expectEqual(#ns.Log.getShareableQuestIds(entries), 0, "solo: nothing to share")
     installGroup(state)
@@ -82,18 +103,25 @@ test("a zone's quests a party member could take are shared all at once, a second
     local shareable = ns.Log.getShareableQuestIds(entries)
     expectEqual(table.concat(shareable, ","), "302,303", "only what someone has not got")
     local shared, delays = {}, {}
-    QuestLogPushQuest = function() shared[#shared + 1] = selected end
-    C_Timer.After = function(seconds, callback) delays[#delays + 1] = seconds; callback() end
+    QuestLogPushQuest = function()
+        shared[#shared + 1] = selected
+    end
+    C_Timer.After = function(seconds, callback)
+        delays[#delays + 1] = seconds
+        callback()
+    end
     ns.Log.shareQuests(shareable)
     expectEqual(table.concat(shared, ","), "302,303", "each offered, in order")
     expectEqual(delays[1], 1, "the second a second after the first")
-    C_QuestLog.IsPushableQuest, QuestLogPushQuest, C_Timer.After, C_QuestLog.SetSelectedQuest = savedPushable, savedPush, savedAfter, savedSelect
+    C_QuestLog.IsPushableQuest, QuestLogPushQuest, C_Timer.After, C_QuestLog.SetSelectedQuest =
+        savedPushable, savedPush, savedAfter, savedSelect
     removeGroup()
 end)
 
 test("quest counts go to the group in a short text, and come back the same", function()
     local ns = createAddon()
-    local quest = { objectives = { { fulfilled = 7, required = 12 }, { fulfilled = 4, required = 4 } }, isComplete = false }
+    local quest =
+        { objectives = { { fulfilled = 7, required = 12 }, { fulfilled = 4, required = 4 } }, isComplete = false }
     local entry = ns.Comms.composeEntry(301, quest)
     expectEqual(entry, "301:7/12,4/4:0", "the entry")
     local questId, parsed = ns.Comms.parseEntry(entry)
@@ -131,7 +159,9 @@ test("a member not on the quest: done or able by their addon's answer, unable by
     end
     local function getMember(name)
         for _, member in ipairs(ns.Party.getProgress(QUEST, {})) do
-            if member.name == name then return member end
+            if member.name == name then
+                return member
+            end
         end
     end
     local mira = getMember("Mira Dawnfield")
@@ -142,7 +172,9 @@ test("a member not on the quest: done or able by their addon's answer, unable by
     -- The group was asked, once
     local asked = 0
     for _, message in ipairs(sent) do
-        if message.text == "1|Q|" .. QUEST then asked = asked + 1 end
+        if message.text == "1|Q|" .. QUEST then
+            asked = asked + 1
+        end
     end
     expectEqual(asked, 1, "the group asked about the quest once")
     -- Olen's addon answers; and the player answers a member's question about a quest they did
@@ -150,7 +182,11 @@ test("a member not on the quest: done or able by their addon's answer, unable by
     expectEqual(getMember("Olen Rusk").status.state, "done", "done it, by their addon's word")
     receive(ns, "OneMoreQuest", "1|S|" .. QUEST .. "|n|earlier|Take Test Prelude first", "Mira Dawnfield")
     local status = getMember("Mira Dawnfield").status
-    expectEqual(status.shortReason .. " / " .. status.reason, "earlier / Take Test Prelude first", "their own reason wins")
+    expectEqual(
+        status.shortReason .. " / " .. status.reason,
+        "earlier / Take Test Prelude first",
+        "their own reason wins"
+    )
     state.turnedInQuestIds[QUEST] = true
     receive(ns, "OneMoreQuest", "1|Q|" .. QUEST, "Mira Dawnfield")
     local answer = sent[#sent]
@@ -162,82 +198,129 @@ end)
 
 test("a member on a quest with nothing to count is ready or not yet", function()
     local ns = createAddon()
-    local function member(counts, sharedQuest) return { counts = counts, sharedQuest = sharedQuest } end
+    local function member(counts, sharedQuest)
+        return { counts = counts, sharedQuest = sharedQuest }
+    end
     expectEqual(ns.Party.getReadiness(member({}), false), "ready", "a talk-to quest: nothing before the turn-in")
     expectEqual(ns.Party.getReadiness(member({}), true), "?", "an escort, with nothing from their addon")
-    expectEqual(ns.Party.getReadiness(member({}, { objectives = {}, isComplete = false }), true), "not yet", "their addon says not yet")
-    expectEqual(ns.Party.getReadiness(member({ { fulfilled = 7, required = 7, isDone = true } }), false), "ready", "every count done")
-    expectEqual(ns.Party.getReadiness(member({ { fulfilled = 2, required = 7, isDone = false } }), false), "not yet", "a count to go")
+    expectEqual(
+        ns.Party.getReadiness(member({}, { objectives = {}, isComplete = false }), true),
+        "not yet",
+        "their addon says not yet"
+    )
+    expectEqual(
+        ns.Party.getReadiness(member({ { fulfilled = 7, required = 7, isDone = true } }), false),
+        "ready",
+        "every count done"
+    )
+    expectEqual(
+        ns.Party.getReadiness(member({ { fulfilled = 2, required = 7, isDone = false } }), false),
+        "not yet",
+        "a count to go"
+    )
     expectEqual(ns.Party.getReadiness(member({ false }), false), "?", "a count unknown")
 end)
 
 test("a member's face ring fills with their share of the quest; hovering it gives every count", function()
     local ns = createAddon()
-    local function count(fulfilled, required) return { fulfilled = fulfilled, required = required, isDone = fulfilled >= required } end
+    local function count(fulfilled, required)
+        return { fulfilled = fulfilled, required = required, isDone = fulfilled >= required }
+    end
     local share = ns.Party.getShare({ counts = { count(4, 7), count(10, 10), count(1, 3) } }, false)
     expectEqual(math.floor(share * 100 + 0.5), 75, "15 of 20 things done, each objective up to what it asks")
     expectEqual(ns.Party.getShare({ counts = { count(9, 7) } }, false), 1, "more than asked is still all")
     expectEqual(ns.Party.getShare({ counts = { count(2, 7), false } }, false), nil, "a count unknown: unknown")
     expectEqual(ns.Party.getShare({ counts = {} }, false), 1, "a talk-to quest is ready")
     expectEqual(ns.Party.getShare({ counts = {} }, true), nil, "an escort, nothing from their addon: unknown")
-    expectEqual(ns.Party.getShare({ counts = { count(1, 7) }, sharedQuest = { isComplete = true } }, false), 1, "their addon says complete")
+    expectEqual(
+        ns.Party.getShare({ counts = { count(1, 7) }, sharedQuest = { isComplete = true } }, false),
+        1,
+        "their addon says complete"
+    )
     local lines = {}
     local tooltip = {
-        AddLine = function(_, text) lines[#lines + 1] = text end,
-        AddDoubleLine = function(_, left, right) lines[#lines + 1] = left .. " = " .. right end,
+        AddLine = function(_, text)
+            lines[#lines + 1] = text
+        end,
+        AddDoubleLine = function(_, left, right)
+            lines[#lines + 1] = left .. " = " .. right
+        end,
     }
     ns.Party.addMemberToTooltip(tooltip, {
-        unit = "party1", name = "Garra Windmane", isOnQuest = true, share = 0.5, status = { state = "has" },
-        objectives = { { label = "Plainstrider Beak" }, { label = "Zhevra Hoof" } }, counts = { count(4, 7), count(10, 10) },
+        unit = "party1",
+        name = "Garra Windmane",
+        isOnQuest = true,
+        share = 0.5,
+        status = { state = "has" },
+        objectives = { { label = "Plainstrider Beak" }, { label = "Zhevra Hoof" } },
+        counts = { count(4, 7), count(10, 10) },
     })
     expectEqual(lines[1], "Garra Windmane", "the full name")
     expectEqual(lines[2], "In progress, 50%", "how far")
-    expectEqual(lines[3]:find("Plainstrider Beak = ", 1, true) ~= nil and lines[3]:find("4/7", 1, true) ~= nil, true, "each objective with its count")
+    expectEqual(
+        lines[3]:find("Plainstrider Beak = ", 1, true) ~= nil and lines[3]:find("4/7", 1, true) ~= nil,
+        true,
+        "each objective with its count"
+    )
     expectEqual(lines[4]:find("ReadyCheck-Ready", 1, true) ~= nil, true, "a tick for one done")
     lines = {}
-    ns.Party.addMemberToTooltip(tooltip, { unit = "party2", name = "Olen Rusk", isOnQuest = false, status = { state = "cannot", reason = "Level 9, the quest needs 10" } })
+    ns.Party.addMemberToTooltip(tooltip, {
+        unit = "party2",
+        name = "Olen Rusk",
+        isOnQuest = false,
+        status = { state = "cannot", reason = "Level 9, the quest needs 10" },
+    })
     expectEqual(lines[2], "Level 9, the quest needs 10", "off the quest, why")
 end)
 
-test("in a group a quest item's drops go round between those who need it, so each kill is a share of a chance", function()
-    local ns, state = createAddon()
-    installGroup(state)
-    setQuest(state, 301, false, { killObjective(0, 12), itemObjective(0, 4) })
-    local target = ns.Location.getObjectiveTarget(301, "item", 1)
-    local npcId = (ns.Database.getItemField(target.itemId, "npcDrops") or {})[1]
-    ns.Drops.getChance = function(_, killedNpcId) return killedNpcId == npcId and 0.5 or nil end
-    ns.Drops.getHuntedSource = function() return { npcId = npcId, chance = 0.5, name = "Test Creature" } end
-    local isUnique = false
-    ns.Drops.isForEveryone = function() return isUnique end -- a common creature, with many spawns
-    local function getProgress()
-        return ns.KillCounter.getProgress(301, 2, ns.QuestState.getQuest(301).objectives[2])
+test(
+    "in a group a quest item's drops go round between those who need it, so each kill is a share of a chance",
+    function()
+        local ns, state = createAddon()
+        installGroup(state)
+        setQuest(state, 301, false, { killObjective(0, 12), itemObjective(0, 4) })
+        local target = ns.Location.getObjectiveTarget(301, "item", 1)
+        local npcId = (ns.Database.getItemField(target.itemId, "npcDrops") or {})[1]
+        ns.Drops.getChance = function(_, killedNpcId)
+            return killedNpcId == npcId and 0.5 or nil
+        end
+        ns.Drops.getHuntedSource = function()
+            return { npcId = npcId, chance = 0.5, name = "Test Creature" }
+        end
+        local isUnique = false
+        ns.Drops.isForEveryone = function()
+            return isUnique
+        end -- a common creature, with many spawns
+        local function getProgress()
+            return ns.KillCounter.getProgress(301, 2, ns.QuestState.getQuest(301).objectives[2])
+        end
+        expectEqual(getProgress().remaining, 8, "alone: 4 drops at 50% is 8 kills")
+        -- One of a kind (a named creature, a boss): its drops go to everyone on the quest, so nothing is shared
+        state.partyMembers.party1.questIds[301] = true
+        isUnique = true
+        expectEqual(ns.KillCounter.getSharerCount(301, 2, npcId), 1, "a unique creature drops for everyone")
+        expectEqual(getProgress().remaining, 8, "so a group needs no more kills of it")
+        isUnique = false
+        state.partyMembers.party1.questIds[301] = nil
+        -- Mira takes the quest too: the drops go round between the two of them
+        state.partyMembers.party1.questIds[301] = true
+        expectEqual(ns.KillCounter.getSharerCount(301, 2), 2, "two need the item")
+        expectEqual(getProgress().remaining, 16, "shared by two: 16 kills for the player's 4")
+        for _ = 1, 4 do
+            ns.KillCounter.handleKill(npcId)
+        end
+        state.questLog[301] = { isComplete = false, objectives = { killObjective(0, 12), itemObjective(1, 4) } }
+        local progress = getProgress()
+        expectEqual(progress.expected, 4, "1 drop at a quarter chance a kill is 4 kills on average")
+        expectEqual(progress.isUnlucky, false, "4 kills for 1 drop is just average in a pair")
+        expectEqual(progress.sharerCount, 2, "the loot is shared by 2")
+        -- Mira has all hers now (her addon says so): the rest of the drops are the player's alone
+        receive(ns, "OneMoreQuest", "1|U|301:12/12,4/4:1", "Mira Dawnfield")
+        expectEqual(ns.KillCounter.getSharerCount(301, 2), 1, "a member with all of it takes no turn")
+        expectEqual(getProgress().remaining, 6, "3 drops to go at 50%, alone again")
+        removeGroup()
     end
-    expectEqual(getProgress().remaining, 8, "alone: 4 drops at 50% is 8 kills")
-    -- One of a kind (a named creature, a boss): its drops go to everyone on the quest, so nothing is shared
-    state.partyMembers.party1.questIds[301] = true
-    isUnique = true
-    expectEqual(ns.KillCounter.getSharerCount(301, 2, npcId), 1, "a unique creature drops for everyone")
-    expectEqual(getProgress().remaining, 8, "so a group needs no more kills of it")
-    isUnique = false
-    state.partyMembers.party1.questIds[301] = nil
-    -- Mira takes the quest too: the drops go round between the two of them
-    state.partyMembers.party1.questIds[301] = true
-    expectEqual(ns.KillCounter.getSharerCount(301, 2), 2, "two need the item")
-    expectEqual(getProgress().remaining, 16, "shared by two: 16 kills for the player's 4")
-    for _ = 1, 4 do
-        ns.KillCounter.handleKill(npcId)
-    end
-    state.questLog[301] = { isComplete = false, objectives = { killObjective(0, 12), itemObjective(1, 4) } }
-    local progress = getProgress()
-    expectEqual(progress.expected, 4, "1 drop at a quarter chance a kill is 4 kills on average")
-    expectEqual(progress.isUnlucky, false, "4 kills for 1 drop is just average in a pair")
-    expectEqual(progress.sharerCount, 2, "the loot is shared by 2")
-    -- Mira has all hers now (her addon says so): the rest of the drops are the player's alone
-    receive(ns, "OneMoreQuest", "1|U|301:12/12,4/4:1", "Mira Dawnfield")
-    expectEqual(ns.KillCounter.getSharerCount(301, 2), 1, "a member with all of it takes no turn")
-    expectEqual(getProgress().remaining, 6, "3 drops to go at 50%, alone again")
-    removeGroup()
-end)
+)
 
 test("a member's counts from their addon win over the game's, and show they have the quest", function()
     local ns, state = createAddon()
@@ -257,7 +340,11 @@ test("a member's counts from their addon win over the game's, and show they have
     -- A whole log in two parts: the second does not undo the first
     receive(ns, "OneMoreQuest", "1|L|1/2|301:9/12,3/4:0", "Olen Rusk")
     receive(ns, "OneMoreQuest", "1|L|2/2|302:1/1:1", "Olen Rusk")
-    expectEqual(ns.Comms.getRemoteQuest("Olen Rusk", 301) ~= nil and ns.Comms.getRemoteQuest("Olen Rusk", 302) ~= nil, true, "both parts kept")
+    expectEqual(
+        ns.Comms.getRemoteQuest("Olen Rusk", 301) ~= nil and ns.Comms.getRemoteQuest("Olen Rusk", 302) ~= nil,
+        true,
+        "both parts kept"
+    )
     receive(ns, "OneMoreQuest", "1|R|301", "Olen Rusk")
     expectEqual(ns.Comms.getRemoteQuest("Olen Rusk", 301), nil, "gone when they drop it")
     -- Nonsense never breaks anything
@@ -306,9 +393,20 @@ end)
 test("Questie's serializer reads back what it writes, long and repeated words included", function()
     local ns = createAddon()
     local value = {
-        ver = "9.4.1", msgVer = 5, msgId = 10, big = 70000, negative = -300, edge = { 0, 237, 238, 255, 221, 222 },
+        ver = "9.4.1",
+        msgVer = 5,
+        msgId = 10,
+        big = 70000,
+        negative = -300,
+        edge = { 0, 237, 238, 255, 221, 222 },
         rawQuestList = {
-            [301] = { id = 301, objectives = { { typ = "m", ful = 3, req = 12, fin = false }, { typ = "item", ful = 4, req = 4, fin = true } } },
+            [301] = {
+                id = 301,
+                objectives = {
+                    { typ = "m", ful = 3, req = 12, fin = false },
+                    { typ = "item", ful = 4, req = 4, fin = true },
+                },
+            },
             [302] = { id = 302, objectives = { { typ = "item", ful = 0, req = 1 } } },
         },
     }
@@ -334,8 +432,18 @@ test("a Questie player's progress is read, in one message or several, in either 
     local ns, state = createAddon()
     local sent = installGroup(state)
     -- One quest update, as Questie sends it
-    local update = ns.QuestieBridge.serialize({ ver = "9.4.1", msgVer = 5, msgId = 1,
-        quest = { id = 301, objectives = { { id = 5001, typ = "m", ful = 3, req = 12 }, { id = 7001, typ = "i", ful = 4, req = 4, fin = true } } } })
+    local update = ns.QuestieBridge.serialize({
+        ver = "9.4.1",
+        msgVer = 5,
+        msgId = 1,
+        quest = {
+            id = 301,
+            objectives = {
+                { id = 5001, typ = "m", ful = 3, req = 12 },
+                { id = 7001, typ = "i", ful = 4, req = 4, fin = true },
+            },
+        },
+    })
     receive(ns, "questie", update, "Mira Dawnfield")
     local quest = ns.Comms.getRemoteQuest("Mira Dawnfield", 301)
     expectEqual(quest and quest.objectives[1].fulfilled, 3, "kills from Questie")
@@ -345,14 +453,21 @@ test("a Questie player's progress is read, in one message or several, in either 
     for questId = 400, 430 do
         list[questId] = { id = questId, objectives = { { typ = "m", ful = 1, req = 10 } } }
     end
-    local parts = ns.QuestieBridge.splitMessage(ns.QuestieBridge.serialize({ ver = "9.4.1", msgVer = 5, msgId = 10, rawQuestList = list }))
+    local parts = ns.QuestieBridge.splitMessage(
+        ns.QuestieBridge.serialize({ ver = "9.4.1", msgVer = 5, msgId = 10, rawQuestList = list })
+    )
     expectEqual(#parts > 1, true, "a long message goes in parts")
     for _, part in ipairs(parts) do
         receive(ns, "questie", part, "Olen Rusk")
     end
     expectEqual(ns.Comms.getRemoteQuest("Olen Rusk", 430) ~= nil, true, "put together again")
     -- The flat format: count, then quest, objective count, and id, type, have, need for each objective
-    receive(ns, "questie", ns.QuestieBridge.serialize({ ver = "9.4.1", msgVer = 5, msgId = 12, [1] = { 1, 302, 1, 7001, 105, 2, 6 } }), "Mira Dawnfield")
+    receive(
+        ns,
+        "questie",
+        ns.QuestieBridge.serialize({ ver = "9.4.1", msgVer = 5, msgId = 12, [1] = { 1, 302, 1, 7001, 105, 2, 6 } }),
+        "Mira Dawnfield"
+    )
     expectEqual(ns.Comms.getRemoteQuest("Mira Dawnfield", 302).objectives[1].fulfilled, 2, "from the flat format")
     -- A request for the log is answered with a whisper, in Questie's first format
     setQuest(state, 301, false, { killObjective(5, 12), itemObjective(1, 4) })
@@ -380,10 +495,18 @@ test("broken Questie messages switch the bridge off, and this addon's own channe
     receive(ns, "questie", "\033\010\005", "Mira Dawnfield")
     expectEqual(ns.QuestieBridge.isWorking(), false, "off once they keep failing")
     receive(ns, "OneMoreQuest", "1|U|301:9/12:0", "Mira Dawnfield")
-    expectEqual(ns.Comms.getRemoteQuest("Mira Dawnfield", 301).objectives[1].fulfilled, 9, "our own messages still read")
+    expectEqual(
+        ns.Comms.getRemoteQuest("Mira Dawnfield", 301).objectives[1].fulfilled,
+        9,
+        "our own messages still read"
+    )
     -- Questie itself running here talks for itself
     ns.QuestieBridge.reset()
-    C_AddOns = { IsAddOnLoaded = function(name) return name == "Questie" end }
+    C_AddOns = {
+        IsAddOnLoaded = function(name)
+            return name == "Questie"
+        end,
+    }
     expectEqual(ns.QuestieBridge.isWorking(), false, "the bridge stays out of Questie's way")
     removeGroup()
 end)
@@ -394,12 +517,17 @@ test("a party member's reason is read in this player's own language, quest title
     local phrase = { key = "After %s", args = { { questId = 501 } } }
     local czech = ns.Comms.readPhrase(ns.Comms.writePhrase(phrase))
     ns.Locale.setLanguage("en")
-    local message = ns.Comms.parseMessage(ns.Comms.composePhraseMessage(502, "cannot", phrase, { key = "lvl %d", args = { 12 } }))
+    local message =
+        ns.Comms.parseMessage(ns.Comms.composePhraseMessage(502, "cannot", phrase, { key = "lvl %d", args = { 12 } }))
     expectEqual(message ~= nil and message.kind, "T", "the phrase answer is read")
     expectEqual(message.reason, "After Fresh Start", "said in English here, whatever language the sender reads")
     expectEqual(message.shortReason, "lvl 12", "the short one too")
     expectEqual(czech ~= message.reason, true, "and in Czech for a Czech player")
-    expectEqual(ns.Comms.parseMessage("1|S|502|n|lvl 12|After Fresh Start").reason, "After Fresh Start", "older versions' text answer still read")
+    expectEqual(
+        ns.Comms.parseMessage("1|S|502|n|lvl 12|After Fresh Start").reason,
+        "After Fresh Start",
+        "older versions' text answer still read"
+    )
 end)
 
 test("only the group is listened to: a stranger can neither pull the log nor plant counts", function()
@@ -422,7 +550,11 @@ test("only the group is listened to: a stranger can neither pull the log nor pla
     receive(ns, "OneMoreQuest", "1|U|301:9/12:0", "Somebody Else", "WHISPER")
     expectEqual(ns.Comms.getRemoteQuest("Somebody Else", 301), nil, "and their counts are not kept")
     receive(ns, "OneMoreQuest", "1|U|301:9/12:0", "Mira Dawnfield", "GUILD")
-    expectEqual(ns.Comms.getRemoteQuest("Mira Dawnfield", 301), nil, "a member's message on another channel is let go too")
+    expectEqual(
+        ns.Comms.getRemoteQuest("Mira Dawnfield", 301),
+        nil,
+        "a member's message on another channel is let go too"
+    )
     receive(ns, "OneMoreQuest", "1|U|301:9/12:0", "Mira Dawnfield", "WHISPER")
     expectEqual(ns.Comms.getRemoteQuest("Mira Dawnfield", 301) ~= nil, true, "a member's whisper is read")
     receive(ns, "OneMoreQuest", "1|H", "Mira Dawnfield")
@@ -432,44 +564,75 @@ test("only the group is listened to: a stranger can neither pull the log nor pla
     removeGroup()
 end)
 
-test("joining, the player says hello and sends the log once; someone else joining costs only the answer to them", function()
-    local ns, state = createAddon()
-    local sent = installGroup(state)
-    setQuest(state, 301, false, { killObjective(5, 12) })
-    ns.Comms.handleGroupChange()
-    local hellos, logs = 0, 0
-    for _, message in ipairs(sent) do
-        if message.prefix == "OneMoreQuest" then
-            hellos = hellos + (message.text == "1|H" and 1 or 0)
-            logs = logs + (message.text:find("^1|L|") and message.channel == "PARTY" and 1 or 0)
+test(
+    "joining, the player says hello and sends the log once; someone else joining costs only the answer to them",
+    function()
+        local ns, state = createAddon()
+        local sent = installGroup(state)
+        setQuest(state, 301, false, { killObjective(5, 12) })
+        ns.Comms.handleGroupChange()
+        local hellos, logs = 0, 0
+        for _, message in ipairs(sent) do
+            if message.prefix == "OneMoreQuest" then
+                hellos = hellos + (message.text == "1|H" and 1 or 0)
+                logs = logs + (message.text:find("^1|L|") and message.channel == "PARTY" and 1 or 0)
+            end
         end
+        expectEqual(hellos, 1, "the newcomer says hello")
+        expectEqual(logs, 1, "and sends the log to the group")
+        local before = #sent
+        state.partyMembers.party3 = { name = "Ash Vane", questIds = {} }
+        ns.Comms.handleGroupChange()
+        expectEqual(#sent, before, "another newcomer: nothing sent to the whole group")
+        receive(ns, "OneMoreQuest", "1|H", "Ash Vane")
+        local answer = sent[#sent]
+        expectEqual(#sent, before + 1, "their hello gets one answer")
+        expectEqual(answer.channel .. " " .. tostring(answer.target), "WHISPER Ash Vane", "whispered to them alone")
+        state.partyMembers.party3 = nil
+        removeGroup()
     end
-    expectEqual(hellos, 1, "the newcomer says hello")
-    expectEqual(logs, 1, "and sends the log to the group")
-    local before = #sent
-    state.partyMembers.party3 = { name = "Ash Vane", questIds = {} }
-    ns.Comms.handleGroupChange()
-    expectEqual(#sent, before, "another newcomer: nothing sent to the whole group")
-    receive(ns, "OneMoreQuest", "1|H", "Ash Vane")
-    local answer = sent[#sent]
-    expectEqual(#sent, before + 1, "their hello gets one answer")
-    expectEqual(answer.channel .. " " .. tostring(answer.target), "WHISPER Ash Vane", "whispered to them alone")
-    state.partyMembers.party3 = nil
-    removeGroup()
-end)
+)
 
 test("a crafted Questie message cannot keep the client busy", function()
     local ns, state = createAddon()
     installGroup(state)
     local started = os.clock()
     -- A flat log claiming two billion quests, then a quest claiming two billion objectives
-    receive(ns, "questie", ns.QuestieBridge.serialize({ ver = "9.4.1", msgVer = 5, msgId = 12, [1] = { 2000000000, 302, 1, 7001, 105, 2, 6 } }), "Mira Dawnfield")
-    expectEqual(ns.Comms.getRemoteQuest("Mira Dawnfield", 302).objectives[1].fulfilled, 2, "what the list holds is still read")
-    receive(ns, "questie", ns.QuestieBridge.serialize({ ver = "9.4.1", msgVer = 5, msgId = 12, [1] = { 1, 303, 2000000000, 7001 } }), "Mira Dawnfield")
+    receive(
+        ns,
+        "questie",
+        ns.QuestieBridge.serialize({
+            ver = "9.4.1",
+            msgVer = 5,
+            msgId = 12,
+            [1] = { 2000000000, 302, 1, 7001, 105, 2, 6 },
+        }),
+        "Mira Dawnfield"
+    )
+    expectEqual(
+        ns.Comms.getRemoteQuest("Mira Dawnfield", 302).objectives[1].fulfilled,
+        2,
+        "what the list holds is still read"
+    )
+    receive(
+        ns,
+        "questie",
+        ns.QuestieBridge.serialize({ ver = "9.4.1", msgVer = 5, msgId = 12, [1] = { 1, 303, 2000000000, 7001 } }),
+        "Mira Dawnfield"
+    )
     expectEqual(ns.Comms.getRemoteQuest("Mira Dawnfield", 303), nil, "a quest with no end of objectives is left out")
     -- One quest whose objective sits at index two billion
-    receive(ns, "questie", ns.QuestieBridge.serialize({ ver = "9.4.1", msgVer = 5, msgId = 1,
-        quest = { id = 304, objectives = { [2000000000] = { ful = 1, req = 2 } } } }), "Mira Dawnfield")
+    receive(
+        ns,
+        "questie",
+        ns.QuestieBridge.serialize({
+            ver = "9.4.1",
+            msgVer = 5,
+            msgId = 1,
+            quest = { id = 304, objectives = { [2000000000] = { ful = 1, req = 2 } } },
+        }),
+        "Mira Dawnfield"
+    )
     expectEqual(#ns.Comms.getRemoteQuest("Mira Dawnfield", 304).objectives, 0, "the far index is ignored")
     -- Endless middle parts of one long message are dropped, not kept
     receive(ns, "questie", "\001" .. string.rep("x", 200), "Mira Dawnfield")

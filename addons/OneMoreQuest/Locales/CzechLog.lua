@@ -71,7 +71,11 @@ ns.Locale.add("cs", {
     ["At the end, %s: choose one"] = "Na konci, %s: vyber si jedno",
     ["At the end, %s:"] = "Na konci, %s:",
     ["%s experience"] = "%s zkušeností",
-    ["%d more item on the way"] = { "%d další předmět cestou", "%d další předměty cestou", "%d dalších předmětů cestou" },
+    ["%d more item on the way"] = {
+        "%d další předmět cestou",
+        "%d další předměty cestou",
+        "%d dalších předmětů cestou",
+    },
     ["Left in the chain:"] = "Zbývá v řetězci:",
     ["(asking the game for the rest)"] = "(zbytek hra ještě posílá)",
     ["Drag to move this window"] = "Táhni a okno přesuneš", -- (the quest window's title strip)
@@ -95,8 +99,7 @@ ns.Locale.add("cs", {
     ["Your quest log is empty."] = "Quest log je prázdný.",
     ["No quest matches."] = "Žádný quest neodpovídá.",
     ["%d of %d done"] = "%d z %d hotovo",
-    ["Select a quest to open its page and highlight it on the map. Click it again to let go of it."] =
-        "Vyber quest: otevře se jeho stránka a ukáže se na mapě. Dalším kliknutím ho pustíš.",
+    ["Select a quest to open its page and highlight it on the map. Click it again to let go of it."] = "Vyber quest: otevře se jeho stránka a ukáže se na mapě. Dalším kliknutím ho pustíš.",
 
     -- The quest page
     ["Rewards"] = "Odměny",
@@ -143,7 +146,11 @@ ns.Locale.add("cs", {
     ["Show fewer"] = "Méně",
     ["Inside %s, entrance in"] = "Uvnitř %s, vchod v",
     ["in"] = "v",
-    ["Drops from %d creature in %d zones"] = { "Dropí z %d moba v %d zónách", "Dropí z %d mobů v %d zónách", "Dropí z %d mobů v %d zónách" },
+    ["Drops from %d creature in %d zones"] = {
+        "Dropí z %d moba v %d zónách",
+        "Dropí z %d mobů v %d zónách",
+        "Dropí z %d mobů v %d zónách",
+    },
     ["level %d"] = "level %d",
     ["levels %d-%d"] = "lvl %d-%d",
     ["on the map"] = "na mapě",
@@ -151,7 +158,11 @@ ns.Locale.add("cs", {
     ["+ %d more zone"] = { "+ %d další zóna", "+ %d další zóny", "+ %d dalších zón" },
     ["Show fewer zones"] = "Méně zón",
     ["Hide zones for higher levels"] = "Skrýt zóny pro vyšší level",
-    ["+ %d zone for higher levels"] = { "+ %d zóna pro vyšší level", "+ %d zóny pro vyšší level", "+ %d zón pro vyšší level" },
+    ["+ %d zone for higher levels"] = {
+        "+ %d zóna pro vyšší level",
+        "+ %d zóny pro vyšší level",
+        "+ %d zón pro vyšší level",
+    },
     ["(levels %d+)"] = "(level %d+)",
 
     -- Profit
@@ -183,14 +194,26 @@ ns.Locale.add("cs", {
     ["Not counted: coins dropped by creatures, travel and repair costs."] = "Nepočítá se: goldy z mobů, cestování a opravy.",
 
     -- A zone's page
-    ["%d quest with the next step here"] = { "%d quest s dalším krokem tady", "%d questy s dalším krokem tady", "%d questů s dalším krokem tady" },
+    ["%d quest with the next step here"] = {
+        "%d quest s dalším krokem tady",
+        "%d questy s dalším krokem tady",
+        "%d questů s dalším krokem tady",
+    },
     ["Quests that start here: %d done, %d in your log, %d available, %d not yet"] = "Questy, které tu začínají: %d hotovo, %d v logu, %d dostupné, %d zatím ne",
     ["Still to do here"] = "Zbývá tady",
-    ["%d more quest can be picked up in %s"] = { "Ještě %d quest můžeš vzít v %s", "Ještě %d questy můžeš vzít v %s", "Ještě %d questů můžeš vzít v %s" },
+    ["%d more quest can be picked up in %s"] = {
+        "Ještě %d quest můžeš vzít v %s",
+        "Ještě %d questy můžeš vzít v %s",
+        "Ještě %d questů můžeš vzít v %s",
+    },
     ["See available"] = "Ukázat dostupné",
 
     -- An available quest's page
-    ["%d step at one stop"] = { "%d krok na jednom místě", "%d kroky na jednom místě", "%d kroků na jednom místě" },
+    ["%d step at one stop"] = {
+        "%d krok na jednom místě",
+        "%d kroky na jednom místě",
+        "%d kroků na jednom místě",
+    },
     ["starts from an item"] = "začíná z itemu",
     ["ends in %s"] = "končí v %s",
     ["Available at level %d"] = "Dostupné od levelu %d",
@@ -264,7 +287,11 @@ ns.Locale.add("cs", {
     ["Zones with quests for you"] = "Zóny s questy pro tebe",
     ["Dungeons with quests for you"] = "Dungeony s questy pro tebe",
     ["%d done%s%d in your log%s%d available%s%d not yet"] = "%d hotovo%s%d v logu%s%d dostupné%s%d zatím ne",
-    ["%d waiting%s%d of %d done"] = { "%d čeká%s%d z %d hotovo", "%d čekají%s%d z %d hotovo", "%d čeká%s%d z %d hotovo" },
+    ["%d waiting%s%d of %d done"] = {
+        "%d čeká%s%d z %d hotovo",
+        "%d čekají%s%d z %d hotovo",
+        "%d čeká%s%d z %d hotovo",
+    },
     ["Show low-level quests"] = "Ukázat low-level questy",
     ["(%d hidden)"] = { "(%d skrytý)", "(%d skryté)", "(%d skrytých)" },
     ["Reading the quest database..."] = "Načítám databázi questů...",
@@ -282,9 +309,8 @@ ns.Locale.add("cs", {
     ["Nothing to pick up here right now."] = "Tady teď není co vzít.",
     ["In other zones"] = "V jiných zónách",
     ["%s walks here"] = "%s tudy chodí",
-    ["No quest to pick up matches \"%s\"."] = "Žádný quest k vzetí neodpovídá „%s“.",
-    ["Select a quest to see how to start it and to mark its giver and turn-in on the map. Click it again to let go of it."] =
-        "Vyber quest: uvidíš, jak ho začít, a na mapě se označí questgiver a odevzdání. Dalším kliknutím ho pustíš.",
+    ['No quest to pick up matches "%s".'] = "Žádný quest k vzetí neodpovídá „%s“.",
+    ["Select a quest to see how to start it and to mark its giver and turn-in on the map. Click it again to let go of it."] = "Vyber quest: uvidíš, jak ho začít, a na mapě se označí questgiver a odevzdání. Dalším kliknutím ho pustíš.",
 
     -- The settings' own words in this window
     ["SETTINGS"] = "NASTAVENÍ",
@@ -293,11 +319,9 @@ ns.Locale.add("cs", {
     ["Quests"] = "Questy",
     ["What %s replaces"] = "Co %s nahrazuje",
     ["Quick setups"] = "Rychlé nastavení",
-    ["Quests grouped by where you have to go next, in the game's own look. Made for WoW: Forever."] =
-        "Questy seskupené podle toho, kam musíš dál, ve vzhledu samotné hry. Pro WoW: Forever.",
+    ["Quests grouped by where you have to go next, in the game's own look. Made for WoW: Forever."] = "Questy seskupené podle toho, kam musíš dál, ve vzhledu samotné hry. Pro WoW: Forever.",
     ["Language"] = "Jazyk",
-    ["OneMoreQuest's own words. Quests, places, people and items keep the names the game gives them."] =
-        "Slova OneMoreQuestu. Questy, místa, postavy a itemy si nechávají jména ze hry.",
+    ["OneMoreQuest's own words. Quests, places, people and items keep the names the game gives them."] = "Slova OneMoreQuestu. Questy, místa, postavy a itemy si nechávají jména ze hry.",
     ["Quests the game showed"] = "Questy, které ukázala hra",
     ["Every quest the game offered was already listed."] = "Každý quest, který hra nabídla, už v seznamu byl.",
     ["%d quest the game offered that the quest database or the addon's rules missed. Type /omq missing to see it, and send it so the hole can be fixed."] = {
@@ -339,36 +363,40 @@ ns.Locale.add("cs", {
     ["Experience in all"] = "Zkušeností celkem",
     ["Of your level"] = "Z tvého levelu",
     ["From the %d quest still to do here, at your level"] = {
-        "Z %d questu, který tu zbývá, na tvém levelu", "Ze %d questů, které tu zbývají, na tvém levelu", "Z %d questů, které tu zbývají, na tvém levelu",
+        "Z %d questu, který tu zbývá, na tvém levelu",
+        "Ze %d questů, které tu zbývají, na tvém levelu",
+        "Z %d questů, které tu zbývají, na tvém levelu",
     },
     ["The quests still to do here, handed in"] = "Questy, které tu zbývají, až je odevzdáš",
     ["No items among the rewards"] = "V odměnách nejsou žádné itemy",
     ["The dungeon's quests you can have, lead-ins left out"] = "Questy dungeonu, které můžeš mít, bez prequestů",
-    ["What is left here, what the quests for later would give, and what the done ones gave"] =
-        "Co tu zbývá, co dají questy na později a co daly ty hotové",
+    ["What is left here, what the quests for later would give, and what the done ones gave"] = "Co tu zbývá, co dají questy na později a co daly ty hotové",
     ["How much of your current level the experience left would fill"] = "Kolik z tvého současného levelu by zbývající zkušenosti naplnily",
     ["Raid"] = "Raid",
     ["Dungeon"] = "Dungeon",
     ["Way in: %s %d, %d"] = "Vchod: %s %d, %d",
     ["Way in not known yet: it is noted when you go in"] = "Vchod zatím neznámý: zapíše se, až půjdeš dovnitř",
-    ["Not in the quest database: known from another addon or your own runs, so more quests may be done here."] =
-        "Není v databázi questů: známý z jiného addonu nebo z tvých runů, takže tu může být víc questů.",
+    ["Not in the quest database: known from another addon or your own runs, so more quests may be done here."] = "Není v databázi questů: známý z jiného addonu nebo z tvých runů, takže tu může být víc questů.",
     ["No dungeon has quests for you right now."] = "Teď pro tebe žádný dungeon nemá questy.",
-    ["Select a dungeon to see its quests, where its way in is, and what to pick up before you go."] =
-        "Vyber dungeon a uvidíš jeho questy, kde je vchod a co vzít před cestou.",
-    ["Its dungeons and their quests fill in what the quest database lacks: Forever's own dungeons are listed with their quests and entrances from the start."] =
-        "Jeho dungeony a jejich questy doplní, co databázi questů chybí: Foreverovské dungeony jsou vidět s questy a vchody hned od začátku.",
+    ["Select a dungeon to see its quests, where its way in is, and what to pick up before you go."] = "Vyber dungeon a uvidíš jeho questy, kde je vchod a co vzít před cestou.",
+    ["Its dungeons and their quests fill in what the quest database lacks: Forever's own dungeons are listed with their quests and entrances from the start."] = "Jeho dungeony a jejich questy doplní, co databázi questů chybí: Foreverovské dungeony jsou vidět s questy a vchody hned od začátku.",
     ["Credits"] = "Poděkování",
-    ["Quest data from QuestieDB (GPL-3.0). The list of quests that are not in the game comes from Questie (GPL-3.0). Drop rates from Tnny's Mob Loot when it is installed. Free software under the GNU GPL v3."] =
-        "Data questů z QuestieDB (GPL-3.0). Seznam questů, které ve hře nejsou, je z Questie (GPL-3.0). Drop rate z Tnny's Mob Loot, když je nainstalovaný. Svobodný software pod GNU GPL v3.",
-    ["Logo: the sealed scroll is painted by MELLE (Fantasy parchment set, OpenGameArt, CC0)."] =
-        "Logo: zapečetěný svitek namaloval MELLE (Fantasy parchment set, OpenGameArt, CC0).",
+    ["Quest data from QuestieDB (GPL-3.0). The list of quests that are not in the game comes from Questie (GPL-3.0). Drop rates from Tnny's Mob Loot when it is installed. Free software under the GNU GPL v3."] = "Data questů z QuestieDB (GPL-3.0). Seznam questů, které ve hře nejsou, je z Questie (GPL-3.0). Drop rate z Tnny's Mob Loot, když je nainstalovaný. Svobodný software pod GNU GPL v3.",
+    ["Logo: the sealed scroll is painted by MELLE (Fantasy parchment set, OpenGameArt, CC0)."] = "Logo: zapečetěný svitek namaloval MELLE (Fantasy parchment set, OpenGameArt, CC0).",
     -- Spoilers: the quest window
     ["Later in the story"] = "Později v příběhu",
     ["A lead-in: lost once you take the quest it leads to"] = "Úvodní quest: přijde se o něj, jakmile přijmeš quest, ke kterému vede",
-    ["A lead-in to this is still open: it is lost once you take this"] = { "Úvodní quest k tomuto je ještě otevřený: přijdeš o něj, jakmile tento přijmeš", "Úvodní questy k tomuto jsou ještě otevřené: přijdeš o ně, jakmile tento přijmeš", "Několik úvodních questů k tomuto je ještě otevřených: přijdeš o ně, jakmile tento přijmeš" },
-    ["Choose one: it locks out %d other quest"] = { "Vyber jeden: zavře %d další quest", "Vyber jeden: zavře %d další questy", "Vyber jeden: zavře %d dalších questů" },
-    ["the missed-quests report names quests to pick up, which your Spoilers choice keeps back; it waits until quests to pick up are \"All\" again."] = "přehled propásnutých questů jmenuje questy k přijetí, které tvoje volba spoilerů tají; počká, dokud questy k přijetí nebudou znovu \"Všechny\".",
+    ["A lead-in to this is still open: it is lost once you take this"] = {
+        "Úvodní quest k tomuto je ještě otevřený: přijdeš o něj, jakmile tento přijmeš",
+        "Úvodní questy k tomuto jsou ještě otevřené: přijdeš o ně, jakmile tento přijmeš",
+        "Několik úvodních questů k tomuto je ještě otevřených: přijdeš o ně, jakmile tento přijmeš",
+    },
+    ["Choose one: it locks out %d other quest"] = {
+        "Vyber jeden: zavře %d další quest",
+        "Vyber jeden: zavře %d další questy",
+        "Vyber jeden: zavře %d dalších questů",
+    },
+    ['the missed-quests report names quests to pick up, which your Spoilers choice keeps back; it waits until quests to pick up are "All" again.'] = 'přehled propásnutých questů jmenuje questy k přijetí, které tvoje volba spoilerů tají; počká, dokud questy k přijetí nebudou znovu "Všechny".',
     ["Low-level, but its story leads on into your levels"] = "Nízké úrovně, ale jeho příběh pokračuje do tvých úrovní",
     ["In %d zone"] = { "V %d zóně", "Ve %d zónách", "V %d zónách" },
     ["You have not found any yet"] = "Zatím jsi žádné nenašel",

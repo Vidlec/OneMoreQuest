@@ -4,9 +4,12 @@ local CreateFrame = ns.CreateFrame -- (Core: frames made inside an open gamepad 
 -- The map's marks: laying them out (each mark's footprint, keeping crowded marks apart).
 local MapMarks = ns.MapMarks
 local Style, State = ns.MapMarksStyle, ns.MapMarksState
-local Compose, Look, Layout, Shapes, Areas, Draw = ns.MapMarksCompose, ns.MapMarksLook, ns.MapMarksLayout, ns.MapMarksShapes, ns.MapMarksAreas, ns.MapMarksDraw
-local BANG_SIZE, ITEM_MARK_REACH, MARK_GAP, MARK_SIZE, acquire = Look.BANG_SIZE, Look.ITEM_MARK_REACH, Look.MARK_GAP, Look.MARK_SIZE, Look.acquire
-local FALLBACK_GROUP_LEVEL, FALLBACK_QUEST_BLOB_LEVEL, LEVELS_UNDER_GROUP = Style.FALLBACK_GROUP_LEVEL, Style.FALLBACK_QUEST_BLOB_LEVEL, Style.LEVELS_UNDER_GROUP
+local Compose, Look, Layout, Shapes, Areas, Draw =
+    ns.MapMarksCompose, ns.MapMarksLook, ns.MapMarksLayout, ns.MapMarksShapes, ns.MapMarksAreas, ns.MapMarksDraw
+local BANG_SIZE, ITEM_MARK_REACH, MARK_GAP, MARK_SIZE =
+    Look.BANG_SIZE, Look.ITEM_MARK_REACH, Look.MARK_GAP, Look.MARK_SIZE
+local FALLBACK_GROUP_LEVEL, FALLBACK_QUEST_BLOB_LEVEL, LEVELS_UNDER_GROUP =
+    Style.FALLBACK_GROUP_LEVEL, Style.FALLBACK_QUEST_BLOB_LEVEL, Style.LEVELS_UNDER_GROUP
 
 ---@param map table? The map asked about; the world map when left out
 ---@return table drawn What a map shows now, for hovering: map, width, height, scale, areas (spawns and reach in the
@@ -217,8 +220,14 @@ function MapMarks.arrangeMarks(items, obstacles, bounds)
                 local left = item.spotLeft + math.cos(angle) * ring * NUDGE_STEP
                 local top = item.spotTop + math.sin(angle) * ring * NUDGE_STEP
                 local overlap = grid.getOverlap(getRect(left, top, item.width, item.height))
-                local isOnMap = not bounds or ring == 0 or (left - item.width / 2 >= bounds.left and left + item.width / 2 <= bounds.right
-                    and top - item.height / 2 >= bounds.top and top + item.height / 2 <= bounds.bottom)
+                local isOnMap = not bounds
+                    or ring == 0
+                    or (
+                        left - item.width / 2 >= bounds.left
+                        and left + item.width / 2 <= bounds.right
+                        and top - item.height / 2 >= bounds.top
+                        and top + item.height / 2 <= bounds.bottom
+                    )
                 if isOnMap and overlap < bestOverlap then
                     bestLeft, bestTop, bestOverlap = left, top, overlap
                     if overlap == 0 then

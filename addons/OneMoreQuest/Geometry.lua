@@ -95,5 +95,7 @@ function Geometry.getNearest(places, player, getUiMapId)
     if not nearestPlace then
         return nil
     end
-    return nearestDistance, Geometry.getDirection(player.north, player.west, nearestPlace.north, nearestPlace.west), nearestPlace
+    return nearestDistance,
+        Geometry.getDirection(player.north, player.west, nearestPlace.north, nearestPlace.west),
+        nearestPlace
 end

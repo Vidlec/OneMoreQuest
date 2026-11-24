@@ -3,7 +3,8 @@ local addonName, ns = ...
 -- The map's marks: the geometry of quest areas (their outline from the spawns, simplified and cut into triangles).
 local MapMarks = ns.MapMarks
 local Style, State = ns.MapMarksStyle, ns.MapMarksState
-local Compose, Look, Layout, Shapes, Areas, Draw = ns.MapMarksCompose, ns.MapMarksLook, ns.MapMarksLayout, ns.MapMarksShapes, ns.MapMarksAreas, ns.MapMarksDraw
+local Compose, Look, Layout, Shapes, Areas, Draw =
+    ns.MapMarksCompose, ns.MapMarksLook, ns.MapMarksLayout, ns.MapMarksShapes, ns.MapMarksAreas, ns.MapMarksDraw
 
 local AREA_SOFTNESS = 0.85 -- how widely each spawn's glow spreads, against the reach: wider melts spawns together rounder
 
@@ -111,12 +112,18 @@ function MapMarks.composeAreaShape(points, reach, cell, shouldYield)
         for column = 0, columns - 1 do
             local x0, y0 = minX + column * cell, minY + row * cell
             local corners = {
-                { x = x0, y = y0 }, { x = x0 + cell, y = y0 }, { x = x0 + cell, y = y0 + cell }, { x = x0, y = y0 + cell },
+                { x = x0, y = y0 },
+                { x = x0 + cell, y = y0 },
+                { x = x0 + cell, y = y0 + cell },
+                { x = x0, y = y0 + cell },
             }
-            local cornerValues = { values[row][column], values[row][column + 1], values[row + 1][column + 1], values[row + 1][column] }
+            local cornerValues =
+                { values[row][column], values[row][column + 1], values[row + 1][column + 1], values[row + 1][column] }
             local insideCount = 0
             for _, value in ipairs(cornerValues) do
-                if value > 0 then insideCount = insideCount + 1 end
+                if value > 0 then
+                    insideCount = insideCount + 1
+                end
             end
             if insideCount == 4 then
                 runStart = runStart or column
@@ -128,7 +135,8 @@ function MapMarks.composeAreaShape(points, reach, cell, shouldYield)
                     for side = 1, 4 do
                         local nextSide = side % 4 + 1
                         if (cornerValues[side] > 0) ~= (cornerValues[nextSide] > 0) then
-                            crossings[side] = crossing(corners[side], corners[nextSide], cornerValues[side], cornerValues[nextSide])
+                            crossings[side] =
+                                crossing(corners[side], corners[nextSide], cornerValues[side], cornerValues[nextSide])
                         end
                     end
                     local isSaddle = insideCount == 2 and (cornerValues[1] > 0) == (cornerValues[3] > 0)
@@ -146,8 +154,12 @@ function MapMarks.composeAreaShape(points, reach, cell, shouldYield)
                         -- One piece: the corners inside and the crossings, in order round the cell
                         local polygon = {}
                         for side = 1, 4 do
-                            if cornerValues[side] > 0 then polygon[#polygon + 1] = corners[side] end
-                            if crossings[side] then polygon[#polygon + 1] = crossings[side] end
+                            if cornerValues[side] > 0 then
+                                polygon[#polygon + 1] = corners[side]
+                            end
+                            if crossings[side] then
+                                polygon[#polygon + 1] = crossings[side]
+                            end
                         end
                         addPolygon(polygon)
                         if isSaddle then
@@ -160,7 +172,9 @@ function MapMarks.composeAreaShape(points, reach, cell, shouldYield)
                         else
                             local found = {}
                             for side = 1, 4 do
-                                if crossings[side] then found[#found + 1] = crossings[side] end
+                                if crossings[side] then
+                                    found[#found + 1] = crossings[side]
+                                end
                             end
                             edges[#edges + 1] = { found[1], found[2] }
                         end
@@ -222,13 +236,22 @@ function MapMarks.simplifyEdges(edges, tolerance)
                     local tip = atEnd and chain[#chain] or chain[1]
                     local nextIndex
                     for _, candidate in ipairs(byEnd[keyOf(tip)] or {}) do
-                        if not isUsed[candidate] then nextIndex = candidate break end
+                        if not isUsed[candidate] then
+                            nextIndex = candidate
+                            break
+                        end
                     end
-                    if not nextIndex then break end
+                    if not nextIndex then
+                        break
+                    end
                     isUsed[nextIndex] = true
                     local nextEdge = edges[nextIndex]
                     local other = keyOf(nextEdge[1]) == keyOf(tip) and nextEdge[2] or nextEdge[1]
-                    if atEnd then chain[#chain + 1] = other else table.insert(chain, 1, other) end
+                    if atEnd then
+                        chain[#chain + 1] = other
+                    else
+                        table.insert(chain, 1, other)
+                    end
                 end
             end
             chains[#chains + 1] = chain
@@ -239,13 +262,19 @@ function MapMarks.simplifyEdges(edges, tolerance)
         local isLoop = #chain > 3 and keyOf(chain[1]) == keyOf(chain[#chain])
         for _ = 1, MapMarks.EDGE_SMOOTHING do
             local cut = {}
-            if not isLoop then cut[1] = chain[1] end
+            if not isLoop then
+                cut[1] = chain[1]
+            end
             for index = 1, #chain - 1 do
                 local a, b = chain[index], chain[index + 1]
                 cut[#cut + 1] = { x = a.x * 0.75 + b.x * 0.25, y = a.y * 0.75 + b.y * 0.25 }
                 cut[#cut + 1] = { x = a.x * 0.25 + b.x * 0.75, y = a.y * 0.25 + b.y * 0.75 }
             end
-            if isLoop then cut[#cut + 1] = cut[1] else cut[#cut + 1] = chain[#chain] end
+            if isLoop then
+                cut[#cut + 1] = cut[1]
+            else
+                cut[#cut + 1] = chain[#chain]
+            end
             chain = cut
         end
         return chain
@@ -337,14 +366,18 @@ end
 local function joinHole(outer, hole, others)
     local rightmost = 1
     for index, point in ipairs(hole) do
-        if point.x > hole[rightmost].x then rightmost = index end
+        if point.x > hole[rightmost].x then
+            rightmost = index
+        end
     end
     local from = hole[rightmost]
     local candidates = {}
     for index, point in ipairs(outer) do
         candidates[#candidates + 1] = { index = index, distance = (point.x - from.x) ^ 2 + (point.y - from.y) ^ 2 }
     end
-    table.sort(candidates, function(first, second) return first.distance < second.distance end)
+    table.sort(candidates, function(first, second)
+        return first.distance < second.distance
+    end)
     for _, candidate in ipairs(candidates) do
         local to = outer[candidate.index]
         local isClear = true
@@ -356,13 +389,21 @@ local function joinHole(outer, hole, others)
                     break
                 end
             end
-            if not isClear then break end
+            if not isClear then
+                break
+            end
         end
         if isClear then
             local joined = {}
-            for index = 1, candidate.index do joined[#joined + 1] = outer[index] end
-            for step = 0, #hole do joined[#joined + 1] = hole[(rightmost - 1 + step) % #hole + 1] end
-            for index = candidate.index, #outer do joined[#joined + 1] = outer[index] end
+            for index = 1, candidate.index do
+                joined[#joined + 1] = outer[index]
+            end
+            for step = 0, #hole do
+                joined[#joined + 1] = hole[(rightmost - 1 + step) % #hole + 1]
+            end
+            for index = candidate.index, #outer do
+                joined[#joined + 1] = outer[index]
+            end
             return joined
         end
     end
@@ -373,10 +414,14 @@ end
 ---@return table[]? triangles nil when the loop cannot be cut (it crosses itself)
 local function cutEars(loop)
     local points = {}
-    for index, point in ipairs(loop) do points[index] = point end
+    for index, point in ipairs(loop) do
+        points[index] = point
+    end
     if getSignedArea(points) < 0 then
         local reversed = {}
-        for index = #points, 1, -1 do reversed[#reversed + 1] = points[index] end
+        for index = #points, 1, -1 do
+            reversed[#reversed + 1] = points[index]
+        end
         points = reversed
     end
     local function cross(a, b, c)
@@ -422,7 +467,9 @@ function MapMarks.triangulateLoops(loops)
     for index, loop in ipairs(loops) do
         local depth = 0
         for other, around in ipairs(loops) do
-            if other ~= index and isInsideLoop(around, loop[1].x, loop[1].y) then depth = depth + 1 end
+            if other ~= index and isInsideLoop(around, loop[1].x, loop[1].y) then
+                depth = depth + 1
+            end
         end
         depths[index] = depth
     end
@@ -433,7 +480,9 @@ function MapMarks.triangulateLoops(loops)
             local outer, holes = loop, {}
             if getSignedArea(outer) < 0 then
                 local reversed = {}
-                for step = #outer, 1, -1 do reversed[#reversed + 1] = outer[step] end
+                for step = #outer, 1, -1 do
+                    reversed[#reversed + 1] = outer[step]
+                end
                 outer = reversed
             end
             for other, hole in ipairs(loops) do
@@ -441,7 +490,9 @@ function MapMarks.triangulateLoops(loops)
                     local opposite = hole
                     if getSignedArea(hole) > 0 then
                         opposite = {}
-                        for step = #hole, 1, -1 do opposite[#opposite + 1] = hole[step] end
+                        for step = #hole, 1, -1 do
+                            opposite[#opposite + 1] = hole[step]
+                        end
                     end
                     holes[#holes + 1] = opposite
                 end
@@ -449,8 +500,12 @@ function MapMarks.triangulateLoops(loops)
             -- Holes furthest right first, each joined into the loop as it then is
             table.sort(holes, function(first, second)
                 local firstX, secondX = -math.huge, -math.huge
-                for _, point in ipairs(first) do firstX = math.max(firstX, point.x) end
-                for _, point in ipairs(second) do secondX = math.max(secondX, point.x) end
+                for _, point in ipairs(first) do
+                    firstX = math.max(firstX, point.x)
+                end
+                for _, point in ipairs(second) do
+                    secondX = math.max(secondX, point.x)
+                end
                 return firstX > secondX
             end)
             for _, hole in ipairs(holes) do
@@ -463,7 +518,9 @@ function MapMarks.triangulateLoops(loops)
             if not cut then
                 return nil
             end
-            for _, triangle in ipairs(cut) do triangles[#triangles + 1] = triangle end
+            for _, triangle in ipairs(cut) do
+                triangles[#triangles + 1] = triangle
+            end
         end
     end
     return triangles

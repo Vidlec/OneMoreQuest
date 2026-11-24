@@ -177,9 +177,13 @@ local function watchContext()
     end
     local owner = state.owner
     local isOwnerGone = type(owner) == "table" and owner.IsVisible ~= nil and not owner:IsVisible()
-    if not ns.Gamepad.isGamepadUI() or ns.Gamepad.getGameFocus() ~= state.openedFocus or isOwnerGone
+    if
+        not ns.Gamepad.isGamepadUI()
+        or ns.Gamepad.getGameFocus() ~= state.openedFocus
+        or isOwnerGone
         or (state.openedWithPad and not ns.Gamepad.hasPad())
-        or (state.openedWithTracker and not ns.GamepadTracker.isFocused()) then
+        or (state.openedWithTracker and not ns.GamepadTracker.isFocused())
+    then
         GamepadMenu.close()
     end
 end
@@ -189,7 +193,7 @@ local function makeFrame()
     frame:SetFrameStrata("FULLSCREEN_DIALOG")
     frame:SetClampedToScreen(true)
     frame:EnableMouse(true)
-    frame:SetScript("OnUpdate", watchContext)
+    frame:SetScript("OnUpdate", ns.Timing.timed("pad menu watch (each frame)", watchContext))
     local background = frame:CreateTexture(nil, "BACKGROUND")
     background:SetAtlas("common-dropdown-c-bg")
     background:SetPoint("TOPLEFT", frame, "TOPLEFT", -17, 12)
@@ -219,7 +223,8 @@ end
 
 local function getMarkAtlas(entry)
     if entry.kind == "radio" then
-        return isEntrySelected(entry) and "common-dropdown-icon-radialtick-yellow-classic" or "common-dropdown-tickradial-classic"
+        return isEntrySelected(entry) and "common-dropdown-icon-radialtick-yellow-classic"
+            or "common-dropdown-tickradial-classic"
     elseif entry.kind == "checkbox" and isEntrySelected(entry) then
         return "common-dropdown-icon-checkmark-yellow-classic-2"
     end
@@ -273,7 +278,11 @@ function GamepadMenu.draw()
     local isSubmenu = #state.levels > 1
     frame.prompts.setPrompts({
         { key = "PAD1", label = ACTION_LABEL_SELECT or ns.L("Select") },
-        { key = "PAD2", label = isSubmenu and (FRAME_ACTION_BACK or BACK or ns.L("Back")) or (FRAME_ACTION_CLOSE or CLOSE or ns.L("Close")) },
+        {
+            key = "PAD2",
+            label = isSubmenu and (FRAME_ACTION_BACK or BACK or ns.L("Back"))
+                or (FRAME_ACTION_CLOSE or CLOSE or ns.L("Close")),
+        },
     })
 end
 
@@ -290,7 +299,8 @@ local function findChoosable(entries, from, step)
 end
 
 local function pushLevel(entries, title)
-    state.levels[#state.levels + 1] = { entries = entries, index = findChoosable(entries, 1, 1), offset = 0, title = title }
+    state.levels[#state.levels + 1] =
+        { entries = entries, index = findChoosable(entries, 1, 1), offset = 0, title = title }
 end
 
 ---@return string? text The words of the entry under the menu's cursor (for tests)
@@ -354,7 +364,9 @@ local function redescribe()
 end
 
 local function isKeptOpen(response)
-    return type(MenuResponse) == "table" and response ~= nil and (response == MenuResponse.Open or response == MenuResponse.Refresh)
+    return type(MenuResponse) == "table"
+        and response ~= nil
+        and (response == MenuResponse.Open or response == MenuResponse.Refresh)
 end
 
 ---A: the entry under the cursor chosen, as a click on the game's menu chooses it.

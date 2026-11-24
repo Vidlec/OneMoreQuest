@@ -291,28 +291,70 @@ local function readFloat(reader)
 end
 
 local READERS = {
-    [1] = function() return nil end,
-    [2] = function(reader) return reader.readInt() end,
-    [3] = function(reader) return -reader.readInt() end,
-    [4] = function(reader) return reader.readLong() end,
-    [5] = function(reader) return -reader.readLong() end,
+    [1] = function()
+        return nil
+    end,
+    [2] = function(reader)
+        return reader.readInt()
+    end,
+    [3] = function(reader)
+        return -reader.readInt()
+    end,
+    [4] = function(reader)
+        return reader.readLong()
+    end,
+    [5] = function(reader)
+        return -reader.readLong()
+    end,
     [6] = readFloat,
-    [7] = function(reader) return reader.readString(reader.readByte()) end,
-    [8] = function(reader) return reader.readString(reader.readShort()) end,
-    [9] = function(reader, hashes) return hashes.byHash[reader.readInt()] end,
-    [10] = function(reader, hashes) return readEntries(reader, hashes, reader.readByte(), true) end,
-    [11] = function(reader, hashes) return readEntries(reader, hashes, reader.readShort(), true) end,
-    [12] = function(reader) return reader.readByte() end,
-    [13] = function(reader) return -reader.readByte() end,
-    [14] = function(reader) return reader.readShort() end,
-    [15] = function(reader) return -reader.readShort() end,
-    [16] = function() return false end,
-    [17] = function() return true end,
-    [18] = function() return nil end,
-    [19] = function() return nil end,
-    [20] = function(reader, hashes) return readEntries(reader, hashes, reader.readByte(), false) end,
-    [21] = function(reader, hashes) return readEntries(reader, hashes, reader.readShort(), false) end,
-    [22] = function(reader, hashes) return readEntries(reader, hashes, reader.readInt(), false) end,
+    [7] = function(reader)
+        return reader.readString(reader.readByte())
+    end,
+    [8] = function(reader)
+        return reader.readString(reader.readShort())
+    end,
+    [9] = function(reader, hashes)
+        return hashes.byHash[reader.readInt()]
+    end,
+    [10] = function(reader, hashes)
+        return readEntries(reader, hashes, reader.readByte(), true)
+    end,
+    [11] = function(reader, hashes)
+        return readEntries(reader, hashes, reader.readShort(), true)
+    end,
+    [12] = function(reader)
+        return reader.readByte()
+    end,
+    [13] = function(reader)
+        return -reader.readByte()
+    end,
+    [14] = function(reader)
+        return reader.readShort()
+    end,
+    [15] = function(reader)
+        return -reader.readShort()
+    end,
+    [16] = function()
+        return false
+    end,
+    [17] = function()
+        return true
+    end,
+    [18] = function()
+        return nil
+    end,
+    [19] = function()
+        return nil
+    end,
+    [20] = function(reader, hashes)
+        return readEntries(reader, hashes, reader.readByte(), false)
+    end,
+    [21] = function(reader, hashes)
+        return readEntries(reader, hashes, reader.readShort(), false)
+    end,
+    [22] = function(reader, hashes)
+        return readEntries(reader, hashes, reader.readInt(), false)
+    end,
 }
 
 readValue = function(reader, hashes)

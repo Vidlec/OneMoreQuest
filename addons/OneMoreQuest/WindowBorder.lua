@@ -63,7 +63,11 @@ local function createIconButton(parent, size, texture, atlas)
     icon:SetAllPoints(button)
     local hover = button:CreateTexture(nil, "HIGHLIGHT")
     hover:SetAllPoints(button)
-    local hasAtlas = atlas and icon.SetAtlas and C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(atlas) ~= nil
+    local hasAtlas = atlas
+        and icon.SetAtlas
+        and C_Texture
+        and C_Texture.GetAtlasInfo
+        and C_Texture.GetAtlasInfo(atlas) ~= nil
     for _, layer in ipairs({ icon, hover }) do
         if hasAtlas then
             layer:SetAtlas(atlas)
@@ -105,31 +109,51 @@ function WindowBorder.create(window, layout)
     title:SetText(ns.ADDON_TITLE)
 
     settingsButton = createIconButton(chrome, 17, "Interface\\Buttons\\UI-OptionsButton", "questlog-icon-setting")
-    settingsButton:SetScript("OnClick", function() options.handleSettingsClick() end)
-    settingsButton:SetScript("OnEnter", function(self) showTooltip(self, options.getSettingsTooltip()) end)
-    settingsButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    settingsButton:SetScript("OnClick", function()
+        options.handleSettingsClick()
+    end)
+    settingsButton:SetScript("OnEnter", function(self)
+        showTooltip(self, options.getSettingsTooltip())
+    end)
+    settingsButton:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
 
     -- The chronicle's book, always just left of the cog, wherever the look puts the cog
     if options.handleChronicleClick then
         chronicleButton = createIconButton(chrome, 18, "Interface\\Icons\\INV_Misc_Book_09")
         chronicleButton.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
         chronicleButton:SetPoint("RIGHT", settingsButton, "LEFT", -6, 0)
-        chronicleButton:SetScript("OnClick", function() options.handleChronicleClick() end)
-        chronicleButton:SetScript("OnEnter", function(self) showTooltip(self, options.getChronicleTooltip and options.getChronicleTooltip() or ns.L("Chronicle")) end)
-        chronicleButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        chronicleButton:SetScript("OnClick", function()
+            options.handleChronicleClick()
+        end)
+        chronicleButton:SetScript("OnEnter", function(self)
+            showTooltip(self, options.getChronicleTooltip and options.getChronicleTooltip() or ns.L("Chronicle"))
+        end)
+        chronicleButton:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+        end)
     end
 
     -- The game's own close button for its own frame; a flat cross for the drawn ones
     local isCreated, button = pcall(CreateFrame, "Button", nil, chrome, "UIPanelCloseButton")
     if isCreated and type(button) == "table" then
         gameCloseButton = button
-        gameCloseButton:SetScript("OnClick", function() options.handleCloseClick() end)
+        gameCloseButton:SetScript("OnClick", function()
+            options.handleCloseClick()
+        end)
     end
     flatCloseButton = createIconButton(chrome, 16, MEDIA .. "Close")
     flatCloseButton.icon:SetVertexColor(0.85, 0.85, 0.85)
-    flatCloseButton:SetScript("OnClick", function() options.handleCloseClick() end)
-    flatCloseButton:SetScript("OnEnter", function(self) showTooltip(self, ns.L("Close")) end)
-    flatCloseButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    flatCloseButton:SetScript("OnClick", function()
+        options.handleCloseClick()
+    end)
+    flatCloseButton:SetScript("OnEnter", function(self)
+        showTooltip(self, ns.L("Close"))
+    end)
+    flatCloseButton:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
 end
 
 local isLeftEdgeShown = true
@@ -240,7 +264,9 @@ createDragHandle = function()
         GameTooltip:Hide()
         passDrag("OnDragStart")
     end)
-    dragHandle:SetScript("OnDragStop", function() passDrag("OnDragStop") end)
+    dragHandle:SetScript("OnDragStop", function()
+        passDrag("OnDragStop")
+    end)
     dragHandle:SetScript("OnEnter", function(self)
         local hint = options.getMoveHint and options.getMoveHint()
         if not hint then
@@ -251,7 +277,9 @@ createDragHandle = function()
         GameTooltip:AddLine(hint, 0.6, 0.6, 0.6, true)
         GameTooltip:Show()
     end)
-    dragHandle:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    dragHandle:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
     dragHandle:Hide()
 end
 

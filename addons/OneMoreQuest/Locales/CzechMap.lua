@@ -34,7 +34,11 @@ ns.Locale.add("cs", {
     ["%s (the step before)"] = "%s (předchozí krok)",
     ["Finish %s first"] = "Nejdřív dokonči %s",
     ["Take %s first"] = "Nejdřív vezmi %s",
-    [" (or %d other)"] = { " (nebo %d další)", " (nebo kterýkoli z %d dalších)", " (nebo kterýkoli z %d dalších)" },
+    [" (or %d other)"] = {
+        " (nebo %d další)",
+        " (nebo kterýkoli z %d dalších)",
+        " (nebo kterýkoli z %d dalších)",
+    },
     ["Needs %s with %s"] = "Potřeba %s u %s",
     ["a profession"] = "profese",
     ["Needs %s %s"] = "Potřeba %s %s",
@@ -89,7 +93,7 @@ ns.Locale.add("cs", {
 
     -- Warnings before taking a quest (Warnings)
     [" and %d more"] = { " a %d další", " a %d další", " a %d dalších" },
-    ["Lead-in to \"%s\": lost once you take that quest"] = "Prequest k \"%s\", vezmi ho dřív",
+    ['Lead-in to "%s": lost once you take that quest'] = 'Prequest k "%s", vezmi ho dřív',
     ["Do %s first, or it is lost once you take this"] = "Nejdřív %s, pak už nejde",
     ["Choose one: locks out %s"] = "Vyber jen jeden: zablokuje %s",
     ["Your quest log is full."] = "Quest log je plný.",
@@ -139,7 +143,7 @@ ns.Locale.add("cs", {
     ["Turn in to %s, %s"] = "Odevzdat: %s, %s",
     ["Show quests to pick up"] = "Ukázat questy k přijetí",
     ["Hide quests to pick up"] = "Skrýt questy k přijetí",
-    ["The \"!\" of quest givers on this map; the minimap keeps them."] = "\"!\" zadavatelů questů na této mapě; minimapa je ponechá.",
+    ['The "!" of quest givers on this map; the minimap keeps them.'] = '"!" zadavatelů questů na této mapě; minimapa je ponechá.',
     ["Somewhere here"] = "Někde tady",
     ["Found by you"] = "Našel jsi sám",
     ["Dropped by %s"] = "Padá z: %s",

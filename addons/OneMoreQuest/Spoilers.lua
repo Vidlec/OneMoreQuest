@@ -31,14 +31,50 @@ local CATEGORIES = {
 Spoilers.CATEGORIES = CATEGORIES
 
 local PRESETS = {
-    guide = { pickup = "all", objectives = "exact", turnIn = "shown", drops = "chances", creatures = "always",
-        chains = "all", rewards = "shown", dungeons = "shown", hints = "asked" },
-    hints = { pickup = "all", objectives = "rough", turnIn = "shown", drops = "names", creatures = "always",
-        chains = "count", rewards = "shown", dungeons = "shown", hints = "asked" },
-    explorer = { pickup = "met", objectives = "found", turnIn = "met", drops = "found", creatures = "killed",
-        chains = "count", rewards = "shown", dungeons = "entered", hints = "offered" },
-    purist = { pickup = "none", objectives = "hidden", turnIn = "hidden", drops = "hidden", creatures = "hidden",
-        chains = "hidden", rewards = "quest", dungeons = "hidden", hints = "asked" },
+    guide = {
+        pickup = "all",
+        objectives = "exact",
+        turnIn = "shown",
+        drops = "chances",
+        creatures = "always",
+        chains = "all",
+        rewards = "shown",
+        dungeons = "shown",
+        hints = "asked",
+    },
+    hints = {
+        pickup = "all",
+        objectives = "rough",
+        turnIn = "shown",
+        drops = "names",
+        creatures = "always",
+        chains = "count",
+        rewards = "shown",
+        dungeons = "shown",
+        hints = "asked",
+    },
+    explorer = {
+        pickup = "met",
+        objectives = "found",
+        turnIn = "met",
+        drops = "found",
+        creatures = "killed",
+        chains = "count",
+        rewards = "shown",
+        dungeons = "entered",
+        hints = "offered",
+    },
+    purist = {
+        pickup = "none",
+        objectives = "hidden",
+        turnIn = "hidden",
+        drops = "hidden",
+        creatures = "hidden",
+        chains = "hidden",
+        rewards = "quest",
+        dungeons = "hidden",
+        hints = "asked",
+    },
 }
 Spoilers.PRESETS = PRESETS
 Spoilers.PRESET_ORDER = { "guide", "hints", "explorer", "purist" }
@@ -175,7 +211,13 @@ end
 ---A step of the hint ladder lifts one quest's choice: 2 at least a rough area and the turn-in, 3 everything.
 local HINT_LIFTS = {
     [HINT_ROUGH] = { objectives = "rough", turnIn = "shown", drops = "names", creatures = "always" },
-    [HINT_EXACT] = { objectives = "exact", turnIn = "shown", drops = "chances", creatures = "always", dungeons = "shown" },
+    [HINT_EXACT] = {
+        objectives = "exact",
+        turnIn = "shown",
+        drops = "chances",
+        creatures = "always",
+        dungeons = "shown",
+    },
 }
 
 ---@param questId number? The quest it is for, whose hints count; nil for the choice alone
@@ -299,7 +341,11 @@ local function noteFound(questId, objectiveIndex, place)
     local places = found[questId][objectiveIndex] or {}
     found[questId][objectiveIndex] = places
     for _, known in ipairs(places) do
-        if known.zoneId == place.zoneId and math.abs(known.x - place.x) < FOUND_APART and math.abs(known.y - place.y) < FOUND_APART then
+        if
+            known.zoneId == place.zoneId
+            and math.abs(known.x - place.x) < FOUND_APART
+            and math.abs(known.y - place.y) < FOUND_APART
+        then
             return
         end
     end
@@ -361,10 +407,13 @@ local function lookAtLoot()
     for slot = 1, GetNumLootItems() do
         local link = GetLootSlotLink and GetLootSlotLink(slot)
         local itemId = link and tonumber(link:match("item:(%d+)"))
-        local classId = itemId and GetItemInfoInstant and select(6, GetItemInfoInstant(itemId))
+        local getItemInfoInstant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant -- luacheck: ignore 113 (an older client's fallback)
+        local classId = itemId and getItemInfoInstant and select(6, getItemInfoInstant(itemId))
         if itemId and classId == ITEM_CLASS_QUEST then
             local guid = GetLootSourceInfo(slot)
-            local sourceId = guid and not (issecretvalue and issecretvalue(guid)) and tonumber(guid:match("^%a+%-%d+%-%d+%-%d+%-%d+%-(%d+)"))
+            local sourceId = guid
+                and not (issecretvalue and issecretvalue(guid))
+                and tonumber(guid:match("^%a+%-%d+%-%d+%-%d+%-%d+%-(%d+)"))
             if sourceId then
                 drops[itemId] = drops[itemId] or {}
                 if not drops[itemId][sourceId] then
@@ -469,7 +518,12 @@ local function readExplored(uiMapId)
     for _, texture in ipairs(textures) do
         local left = texture.offsetX / layer.layerWidth * 100
         local top = texture.offsetY / layer.layerHeight * 100
-        rects[#rects + 1] = { left, top, left + texture.textureWidth / layer.layerWidth * 100, top + texture.textureHeight / layer.layerHeight * 100 }
+        rects[#rects + 1] = {
+            left,
+            top,
+            left + texture.textureWidth / layer.layerWidth * 100,
+            top + texture.textureHeight / layer.layerHeight * 100,
+        }
     end
     return rects
 end
@@ -511,7 +565,10 @@ function Spoilers.handleCommand(word)
         Spoilers.setPreset(word)
         ns.print(ns.L("Spoilers: %s", ns.L(Spoilers.getPresetName(word))))
     else
-        ns.print(ns.L("Spoilers: %s", ns.L(Spoilers.getPresetName(Spoilers.getPreset()))) .. "  (/omq spoilers guide | hints | explorer | purist)")
+        ns.print(
+            ns.L("Spoilers: %s", ns.L(Spoilers.getPresetName(Spoilers.getPreset())))
+                .. "  (/omq spoilers guide | hints | explorer | purist)"
+        )
     end
 end
 
@@ -545,20 +602,38 @@ ns.registerModule({
         end
     end,
     events = {
-        GOSSIP_SHOW = function() noteMet(getUnitNpcId("npc")) end,
-        QUEST_GREETING = function() noteMet(getUnitNpcId("npc")) end,
-        QUEST_DETAIL = function() noteMet(getUnitNpcId("npc")) end,
-        QUEST_PROGRESS = function() noteMet(getUnitNpcId("npc")) end,
-        QUEST_COMPLETE = function() noteMet(getUnitNpcId("npc")) end,
+        GOSSIP_SHOW = function()
+            noteMet(getUnitNpcId("npc"))
+        end,
+        QUEST_GREETING = function()
+            noteMet(getUnitNpcId("npc"))
+        end,
+        QUEST_DETAIL = function()
+            noteMet(getUnitNpcId("npc"))
+        end,
+        QUEST_PROGRESS = function()
+            noteMet(getUnitNpcId("npc"))
+        end,
+        QUEST_COMPLETE = function()
+            noteMet(getUnitNpcId("npc"))
+        end,
         PLAYER_TARGET_CHANGED = function()
-            if isActive and UnitExists and UnitExists("target") and not (UnitCanAttack and UnitCanAttack("player", "target")) then
+            if
+                isActive
+                and UnitExists
+                and UnitExists("target")
+                and not (UnitCanAttack and UnitCanAttack("player", "target"))
+            then
                 noteMet(getUnitNpcId("target"))
             end
         end,
         LOOT_OPENED = lookAtLoot,
         PLAYER_ENTERING_WORLD = lookAtInstance,
         ZONE_CHANGED_NEW_AREA = lookAtInstance,
-        MAP_EXPLORATION_UPDATED = function() exploredRects = {} remembered() end,
+        MAP_EXPLORATION_UPDATED = function()
+            exploredRects = {}
+            remembered()
+        end,
     },
     -- What was found for a quest goes once it leaves the log; met, killed, drops and dungeons stay (they are few)
     prune = function(isInLog)

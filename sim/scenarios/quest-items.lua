@@ -17,7 +17,9 @@ if button then
     local casts = 0
     local listener = G.CreateFrame("Frame")
     listener:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
-    listener:SetScript("OnEvent", function() casts = casts + 1 end)
+    listener:SetScript("OnEvent", function()
+        casts = casts + 1
+    end)
     click("TrailheadItemButton1")
     wait(0.2)
     expect(game.lastUsedItemId == 5059 and casts == 1, "clicking it uses the item")

@@ -38,7 +38,11 @@ ns.Locale.add("cs", {
     ["Drag: wider, narrower, taller or shorter"] = "Táhni: širší, užší, vyšší nebo nižší",
     ["No quest ready to hand in"] = "Žádný quest k odevzdání",
     ["No quest in this zone"] = "Žádný quest v této zóně",
-    ["%d more hidden by the filter"] = { "%d další skrytý filtrem", "%d další skryté filtrem", "%d dalších skrytých filtrem" },
+    ["%d more hidden by the filter"] = {
+        "%d další skrytý filtrem",
+        "%d další skryté filtrem",
+        "%d dalších skrytých filtrem",
+    },
     ["Log %d/%d"] = "Log %d/%d", -- (the list's slim line as the log fills)
     ["%d to drop"] = { "%d k opuštění", "%d k opuštění", "%d k opuštění" },
     ["Grey: no experience left in it"] = "Šedý: už nedá žádné zkušenosti",
@@ -106,17 +110,13 @@ ns.Locale.add("cs", {
     ["The quest database: where quests start, what they ask, where their mobs and items are."] = "Databáze questů: kde questy začínají, co chtějí a kde jsou jejich moby a itemy.",
     ["The map stays where you moved it when OneMoreQuest's window opens beside it."] = "Mapa zůstane tam, kam jsi ji posunul, i když se vedle ní otevře okno OneMoreQuest.",
     ["Waypoints to quests go to TomTom's arrow."] = "Waypointy ke questům jdou do šipky TomTomu.",
-    ["On its one map, quest marks show on every zone in view. The map stays where you moved it when OneMoreQuest's window opens beside it, and its dungeon entrances carry OneMoreQuest's dungeon marks. Its own quest givers and turn-ins would double OneMoreQuest's: OneMoreQuest asks once whether to turn them off."] =
-        "Na jeho spojené mapě se značky questů ukazují ve všech zónách v záběru. Mapa zůstane tam, kam jsi ji posunul, i když se vedle ní otevře okno OneMoreQuest, a na jeho vchodech do dungeonů jsou značky dungeonů OneMoreQuest. Jeho vlastní questgiveři a odevzdávání by zdvojili ty od OneMoreQuest: OneMoreQuest se jednou zeptá, jestli je vypnout.",
+    ["On its one map, quest marks show on every zone in view. The map stays where you moved it when OneMoreQuest's window opens beside it, and its dungeon entrances carry OneMoreQuest's dungeon marks. Its own quest givers and turn-ins would double OneMoreQuest's: OneMoreQuest asks once whether to turn them off."] = "Na jeho spojené mapě se značky questů ukazují ve všech zónách v záběru. Mapa zůstane tam, kam jsi ji posunul, i když se vedle ní otevře okno OneMoreQuest, a na jeho vchodech do dungeonů jsou značky dungeonů OneMoreQuest. Jeho vlastní questgiveři a odevzdávání by zdvojili ty od OneMoreQuest: OneMoreQuest se jednou zeptá, jestli je vypnout.",
     ["Its quest givers are on."] = "Jeho questgiveři jsou zapnutí.",
     ["Its quest givers are off."] = "Jeho questgiveři jsou vypnutí.",
-    ["%s: MapUtils draws quest givers and turn-ins on the map too, so you would see them twice.\n\nTurn off MapUtils' quest givers and turn-ins? Its other icons stay."] =
-        "%s: MapUtils kreslí na mapu také questgivery a odevzdávání, takže bys je viděl dvakrát.\n\nVypnout questgivery a odevzdávání v MapUtils? Jeho ostatní ikony zůstanou.",
+    ["%s: MapUtils draws quest givers and turn-ins on the map too, so you would see them twice.\n\nTurn off MapUtils' quest givers and turn-ins? Its other icons stay."] = "%s: MapUtils kreslí na mapu také questgivery a odevzdávání, takže bys je viděl dvakrát.\n\nVypnout questgivery a odevzdávání v MapUtils? Jeho ostatní ikony zůstanou.",
     ["Turn them off"] = "Vypnout je",
-    ["MapUtils' quest givers and turn-ins are off; they leave the map as it is drawn again."] =
-        "Questgiveři a odevzdávání v MapUtils jsou vypnutí; z mapy zmizí, až se znovu vykreslí.",
-    ["Quest marks show on every zone in view on its joined-up map, not only the zone under it."] =
-        "Značky questů se na jeho spojené mapě ukazují ve všech zónách v záběru, ne jen v té pod ní.",
+    ["MapUtils' quest givers and turn-ins are off; they leave the map as it is drawn again."] = "Questgiveři a odevzdávání v MapUtils jsou vypnutí; z mapy zmizí, až se znovu vykreslí.",
+    ["Quest marks show on every zone in view on its joined-up map, not only the zone under it."] = "Značky questů se na jeho spojené mapě ukazují ve všech zónách v záběru, ne jen v té pod ní.",
     ["Auction prices for rewards and drops, in the quests' worth (the Use auction prices setting)."] = "Aukční ceny odměn a dropů v hodnotě questů (nastavení Používat ceny z aukce).",
     ["Drop rates of quest items: how many kills an item takes, and your luck so far."] = "Šance na drop questových itemů: kolik killů item stojí a jaké máš zatím štěstí.",
     ["Learned from your runs: the quest database does not know this dungeon yet, so only the quests you picked up, worked on or handed in inside are listed. More may be done here. The QuestieTrace addon helps the database learn it."] = "Naučeno z tvých runů: databáze questů tenhle dungeon ještě nezná, takže jsou tu jen questy, které jsi uvnitř vzal, plnil nebo odevzdal. Může jich tu být víc. Addon QuestieTrace pomáhá databázi ho naučit.",

@@ -4,19 +4,31 @@ local CreateFrame = ns.CreateFrame -- (Core: frames made inside an open gamepad 
 -- The map's marks: how each mark looks (the button, its tooltip and clicks, the looks of quests, givers and dungeons).
 local MapMarks = ns.MapMarks
 local Style, State = ns.MapMarksStyle, ns.MapMarksState
-local Compose, Look, Layout, Shapes, Areas, Draw = ns.MapMarksCompose, ns.MapMarksLook, ns.MapMarksLayout, ns.MapMarksShapes, ns.MapMarksAreas, ns.MapMarksDraw
-local CIRCLE_MASK, DARK, FOCUS_GOLD, GLYPHS, GOLD, MEDIA = Style.CIRCLE_MASK, Style.DARK, Style.FOCUS_GOLD, Style.GLYPHS, Style.GOLD, Style.MEDIA
+local Compose, Look, Layout, Shapes, Areas, Draw =
+    ns.MapMarksCompose, ns.MapMarksLook, ns.MapMarksLayout, ns.MapMarksShapes, ns.MapMarksAreas, ns.MapMarksDraw
+local CIRCLE_MASK, DARK, FOCUS_GOLD, GLYPHS, GOLD, MEDIA =
+    Style.CIRCLE_MASK, Style.DARK, Style.FOCUS_GOLD, Style.GLYPHS, Style.GOLD, Style.MEDIA
 local QUEST_SHADES, SOFT_DOT = Style.QUEST_SHADES, Style.SOFT_DOT
-local FADED_ICON_ALPHA, FADED_ICON_GLOW_ALPHA, FOCUSED_ICON_GLOW_ALPHA = Style.FADED_ICON_ALPHA, Style.FADED_ICON_GLOW_ALPHA, Style.FOCUSED_ICON_GLOW_ALPHA
+local FADED_ICON_ALPHA, FADED_ICON_GLOW_ALPHA, FOCUSED_ICON_GLOW_ALPHA =
+    Style.FADED_ICON_ALPHA, Style.FADED_ICON_GLOW_ALPHA, Style.FOCUSED_ICON_GLOW_ALPHA
 
 ---------------------------------------------------------------------------------------------------------------
 -- Drawing
 
 --[[shared: State.areaLayer, State.markLayer]]
 local function createPools()
-    return { strips = { usedCount = 0 }, dots = { usedCount = 0 }, rings = { usedCount = 0 }, marks = { usedCount = 0 },
-        halos = { usedCount = 0 }, glows = { usedCount = 0 }, icons = { usedCount = 0 }, triangles = { usedCount = 0 },
-        lines = { usedCount = 0 }, pills = { usedCount = 0 } }
+    return {
+        strips = { usedCount = 0 },
+        dots = { usedCount = 0 },
+        rings = { usedCount = 0 },
+        marks = { usedCount = 0 },
+        halos = { usedCount = 0 },
+        glows = { usedCount = 0 },
+        icons = { usedCount = 0 },
+        triangles = { usedCount = 0 },
+        lines = { usedCount = 0 },
+        pills = { usedCount = 0 },
+    }
 end
 State.pools = createPools()
 -- What the last drawing laid out, for keeping the party clear between drawings: the map, its size and zoom, and
@@ -181,7 +193,8 @@ end
 -- questIcon...): the game's own art where it has that colour, else its gold one greyed and tinted. Each a texture set
 -- and one vertex colour, both remembered (Widgets.remember), so a mark dressed again the same asks nothing of the game.
 -- Clients without the atlases get the older gold pictures, tinted.
-local AVAILABLE_FILE, ACTIVE_FILE = "Interface\\GossipFrame\\AvailableQuestIcon", "Interface\\GossipFrame\\ActiveQuestIcon"
+local AVAILABLE_FILE, ACTIVE_FILE =
+    "Interface\\GossipFrame\\AvailableQuestIcon", "Interface\\GossipFrame\\ActiveQuestIcon"
 local ICON_COLOURS = {
     gold = { bang = "QuestNormal", ask = "QuestTurnin" },
     blue = { bang = "QuestDaily", ask = "QuestTurnin", askTint = { 0.35, 0.72, 1 }, fileTint = { 0.35, 0.72, 1 } },
@@ -190,16 +203,44 @@ local ICON_COLOURS = {
     purple = { bang = "QuestNormal", ask = "QuestTurnin", tint = { 0.82, 0.55, 1 } },
     pink = { bang = "QuestNormal", ask = "QuestTurnin", tint = { 1, 0.5, 0.82 } },
     red = { bang = "QuestNormal", ask = "QuestTurnin", tint = { 1, 0.42, 0.34 } },
-    grey = { bang = "TrivialQuests", ask = "QuestTurnin", askTint = { 0.66, 0.66, 0.66 }, fileTint = { 0.66, 0.66, 0.66 } },
+    grey = {
+        bang = "TrivialQuests",
+        ask = "QuestTurnin",
+        askTint = { 0.66, 0.66, 0.66 },
+        fileTint = { 0.66, 0.66, 0.66 },
+    },
 }
 MapMarks.ICON_COLOUR_ORDER = { "gold", "blue", "green", "orange", "purple", "pink", "red", "grey" }
 -- The kinds, the first that fits a quest deciding its colour; and the setting that holds each one's
 MapMarks.ICON_KINDS = { "event", "pvp", "raid", "dungeon", "repeatable", "lowLevel", "normal" }
-MapMarks.ICON_SETTINGS = { event = "questIconEvent", raid = "questIconRaid", dungeon = "questIconDungeon", pvp = "questIconPvP",
-    repeatable = "questIconRepeatable", lowLevel = "questIconLowLevel", normal = "questIconNormal" }
+MapMarks.ICON_SETTINGS = {
+    event = "questIconEvent",
+    raid = "questIconRaid",
+    dungeon = "questIconDungeon",
+    pvp = "questIconPvP",
+    repeatable = "questIconRepeatable",
+    lowLevel = "questIconLowLevel",
+    normal = "questIconNormal",
+}
 -- As the game colours them (it has no colour of its own for events, dungeons and raids), and as they start
-MapMarks.GAME_ICON_COLOURS = { event = "gold", raid = "gold", dungeon = "gold", pvp = "gold", repeatable = "blue", lowLevel = "grey", normal = "gold" }
-MapMarks.DEFAULT_ICON_COLOURS = { event = "green", raid = "orange", dungeon = "gold", pvp = "red", repeatable = "blue", lowLevel = "grey", normal = "gold" }
+MapMarks.GAME_ICON_COLOURS = {
+    event = "gold",
+    raid = "gold",
+    dungeon = "gold",
+    pvp = "gold",
+    repeatable = "blue",
+    lowLevel = "grey",
+    normal = "gold",
+}
+MapMarks.DEFAULT_ICON_COLOURS = {
+    event = "green",
+    raid = "orange",
+    dungeon = "gold",
+    pvp = "red",
+    repeatable = "blue",
+    lowLevel = "grey",
+    normal = "gold",
+}
 
 ---@return string colour The colour chosen for a kind of quest's icons ("gold", "blue", ...)
 function MapMarks.getIconColour(kind)
@@ -236,8 +277,12 @@ local function getFixedKind(questId)
     if kind == nil then
         local Availability = ns.Availability
         -- (PvP before the instances: the database files battlegrounds among them)
-        kind = ns.Events.isEventQuest(questId) and "event" or Availability.isPvp(questId) and "pvp" or Availability.isRaid(questId) and "raid"
-            or Availability.isDungeon(questId) and "dungeon" or Availability.isRepeatable(questId) and "repeatable" or false
+        kind = ns.Events.isEventQuest(questId) and "event"
+            or Availability.isPvp(questId) and "pvp"
+            or Availability.isRaid(questId) and "raid"
+            or Availability.isDungeon(questId) and "dungeon"
+            or Availability.isRepeatable(questId) and "repeatable"
+            or false
         fixedKinds[questId] = kind
     end
     return kind
@@ -253,11 +298,23 @@ function MapMarks.getQuestIconColour(questId, isLowLevel, isTurnIn)
 end
 
 -- Each colour as text, for a "!" or "?" written in a tooltip's line
-local ICON_TEXT_COLOURS = { gold = "ffd100", blue = "59b8ff", green = "6bff6b", orange = "ff9429", purple = "d18cff", pink = "ff85d1", red = "ff6b57", grey = "a8a8a8" }
+local ICON_TEXT_COLOURS = {
+    gold = "ffd100",
+    blue = "59b8ff",
+    green = "6bff6b",
+    orange = "ff9429",
+    purple = "d18cff",
+    pink = "ff85d1",
+    red = "ff6b57",
+    grey = "a8a8a8",
+}
 
 ---@return string text A "!" or "?" in the colour of its quest's kind, for a tooltip's line
 function MapMarks.formatQuestSign(questId, isTurnIn)
-    return "|cff" .. ICON_TEXT_COLOURS[MapMarks.getQuestIconColour(questId, false, isTurnIn)] .. (isTurnIn and "?" or "!") .. "|r"
+    return "|cff"
+        .. ICON_TEXT_COLOURS[MapMarks.getQuestIconColour(questId, false, isTurnIn)]
+        .. (isTurnIn and "?" or "!")
+        .. "|r"
 end
 
 ---Forgets the quests' kinds (the game told of quests' tags since, or the cities' donations were found).
@@ -298,12 +355,22 @@ end
 -- every quest's, "colour" in the kind's colour (the colour of its "!" and "?", MapMarks.getIconColour), "icon" struck
 -- with the kind's own icon in place of what to do, "both"
 MapMarks.MARK_KINDS = { "dungeon", "raid", "pvp", "event", "repeatable" }
-MapMarks.MARK_SETTINGS = { event = "questMarkEvent", raid = "questMarkRaid", dungeon = "questMarkDungeon", pvp = "questMarkPvP", repeatable = "questMarkRepeatable" }
+MapMarks.MARK_SETTINGS = {
+    event = "questMarkEvent",
+    raid = "questMarkRaid",
+    dungeon = "questMarkDungeon",
+    pvp = "questMarkPvP",
+    repeatable = "questMarkRepeatable",
+}
 MapMarks.MARK_STYLES = { "plain", "colour", "icon", "both" }
 -- The game's own icon for each kind, as its quest log puts it before a title (the event's: the horn of its map)
-local MARK_KIND_ICONS = { dungeon = "questlog-questtypeicon-dungeon", raid = "questlog-questtypeicon-raid",
+local MARK_KIND_ICONS = {
+    dungeon = "questlog-questtypeicon-dungeon",
+    raid = "questlog-questtypeicon-raid",
     pvp = "questlog-questtypeicon-pvp",
-    event = "minimap-genericevent-hornicon-small", repeatable = "questlog-questtypeicon-recurring" }
+    event = "minimap-genericevent-hornicon-small",
+    repeatable = "questlog-questtypeicon-recurring",
+}
 MapMarks.MARK_KIND_ICONS = MARK_KIND_ICONS
 -- A coin in each colour of the quest icons: its face, its rim and the ink struck on it, darker shades of the face
 local COIN_COLOURS = {
@@ -364,7 +431,12 @@ local WHITE = { 1, 1, 1 }
 ---@return boolean isAdded
 local function addPadLine(button)
     local GamepadMap = ns.GamepadMap
-    if not GamepadMap or GamepadMap.getMark() ~= button or not GameTooltip_AddLineWithInputIcon or not GAMEPAD_FACE_BOTTOM then
+    if
+        not GamepadMap
+        or GamepadMap.getMark() ~= button
+        or not GameTooltip_AddLineWithInputIcon
+        or not GAMEPAD_FACE_BOTTOM
+    then
         return false
     end
     GamepadMap.addPressLines(GameTooltip, button) -- (A, and held A, as the areas' tooltip says them)
@@ -381,11 +453,19 @@ local function showTooltip(button)
         -- level, group mark and experience (and with Shift held, what it asks)
         GameTooltip:AddLine(mark.lines[1], 1, 0.82, 0)
         for _, member in ipairs(mark.members) do
-            local prefix = (member.kind == "giver" or member.kind == "turnIn") and (MapMarks.formatQuestSign(member.questId, member.kind == "turnIn") .. " ") or ""
+            local prefix = (member.kind == "giver" or member.kind == "turnIn")
+                    and (MapMarks.formatQuestSign(member.questId, member.kind == "turnIn") .. " ")
+                or ""
             if member.questIds then
                 -- A shared "!" or "?": each of its quests (its first line names the NPC)
                 for lineIndex = 2, #member.questIds + 1 do
-                    ns.QuestTooltip.addTitle(GameTooltip, prefix .. member.lines[lineIndex], member.questIds[lineIndex - 1], WHITE, true)
+                    ns.QuestTooltip.addTitle(
+                        GameTooltip,
+                        prefix .. member.lines[lineIndex],
+                        member.questIds[lineIndex - 1],
+                        WHITE,
+                        true
+                    )
                     ns.QuestTooltip.addDetails(GameTooltip, member.questIds[lineIndex - 1], { isBrief = true })
                 end
             else
@@ -407,8 +487,11 @@ local function showTooltip(button)
         return
     end
     local isFollowed = mark.questId == ns.Focus.get()
-    local hint = not mark.isPreview and (isFollowed and ns.L("Click to open this quest, shift-click to link it in chat, right-click to stop following it")
-        or ns.L("Click to open this quest, shift-click to link it in chat, right-click to follow it")) or nil
+    local hint = not mark.isPreview
+            and (isFollowed and ns.L(
+                "Click to open this quest, shift-click to link it in chat, right-click to stop following it"
+            ) or ns.L("Click to open this quest, shift-click to link it in chat, right-click to follow it"))
+        or nil
     if mark.kind == "giver" then
         hint = mark.isFocused and ns.L("Click to stop highlighting") or ns.L("Click for details")
     end
@@ -444,7 +527,11 @@ function MapMarks.addMarkLines(tooltip, mark)
             ns.QuestTooltip.addTitle(tooltip, line, mark.questId)
         elseif sharedId and isOneQuest then
             ns.QuestTooltip.addTitle(tooltip, line, sharedId)
-            ns.QuestTooltip.addDetails(tooltip, sharedId, { isBrief = mark.kind == "giver", hasTurnIn = mark.kind == "turnIn" })
+            ns.QuestTooltip.addDetails(
+                tooltip,
+                sharedId,
+                { isBrief = mark.kind == "giver", hasTurnIn = mark.kind == "turnIn" }
+            )
         elseif sharedId then
             ns.QuestTooltip.addTitle(tooltip, line, sharedId, WHITE, true)
             ns.QuestTooltip.addDetails(tooltip, sharedId, { isBrief = true })
@@ -457,12 +544,19 @@ function MapMarks.addMarkLines(tooltip, mark)
     -- What to do at this mark, when it is the quest in focus: a symbol in its objective's shade, then the line;
     -- a line the tooltip already has is not said twice
     local isShown = {}
-    for _, line in ipairs(mark.lines) do isShown[line] = true end
+    for _, line in ipairs(mark.lines) do
+        isShown[line] = true
+    end
     for _, label in ipairs(mark.labels or {}) do
         if not isShown[label.text] then
             local shade = QUEST_SHADES[label.shade] or GOLD
-            local icon = string.format("|T%s:12:12:0:0:64:64:0:64:0:64:%d:%d:%d|t ", GLYPHS[label.glyph] or GLYPHS.use,
-                math.floor(shade[1] * 255), math.floor(shade[2] * 255), math.floor(shade[3] * 255))
+            local icon = string.format(
+                "|T%s:12:12:0:0:64:64:0:64:0:64:%d:%d:%d|t ",
+                GLYPHS[label.glyph] or GLYPHS.use,
+                math.floor(shade[1] * 255),
+                math.floor(shade[2] * 255),
+                math.floor(shade[3] * 255)
+            )
             tooltip:AddLine(icon .. label.text, 1, 1, 1)
         end
     end
@@ -471,7 +565,11 @@ function MapMarks.addMarkLines(tooltip, mark)
     end
     -- With Shift held, the quest's details: a giver's quest the short way, as several share a tooltip
     if not sharedIds and mark.questId then
-        ns.QuestTooltip.addDetails(tooltip, mark.questId, { isBrief = mark.kind == "giver", hasTurnIn = mark.kind == "turnIn" })
+        ns.QuestTooltip.addDetails(
+            tooltip,
+            mark.questId,
+            { isBrief = mark.kind == "giver", hasTurnIn = mark.kind == "turnIn" }
+        )
     end
     return sharedIds
 end
@@ -488,7 +586,9 @@ local function openGiverMenu(button, mark)
         root:CreateTitle(offset > 0 and mark.lines and mark.lines[1] or ns.L("Quests to pick up"))
         for _, questId in ipairs(questIds) do
             local name = ns.QuestText.getQuestName(questId) or ("Quest " .. questId)
-            root:CreateButton(#questIds > 1 and ns.L("Hide %s", name) or ns.L("Hide this quest"), function() ns.QuestHiding.hide(questId) end)
+            root:CreateButton(#questIds > 1 and ns.L("Hide %s", name) or ns.L("Hide this quest"), function()
+                ns.QuestHiding.hide(questId)
+            end)
         end
     end)
 end
@@ -615,8 +715,21 @@ local function ensureItemParts(button)
 end
 
 -- The parts of a mark that a look may show, each hidden before the mark is dressed (those made so far)
-local MARK_PARTS = { "edge", "fill", "shine", "bang", "dashedRing", "itemEdge", "itemRing", "itemIcon", "badgeEdge", "badgeFace",
-    "badgeBang", "entranceIcon", "objectiveIcon" }
+local MARK_PARTS = {
+    "edge",
+    "fill",
+    "shine",
+    "bang",
+    "dashedRing",
+    "itemEdge",
+    "itemRing",
+    "itemIcon",
+    "badgeEdge",
+    "badgeFace",
+    "badgeBang",
+    "entranceIcon",
+    "objectiveIcon",
+}
 
 ---A mark button: a quest's coin, ring or pin, or a quest giver's "!". The minimap makes its marks with this too.
 ---@param parent table? The world map's mark layer when omitted
@@ -741,7 +854,8 @@ local function dressMark(button, mark, size, isGiver, isReady)
     -- A gold coin: dark rim, a gleam at its upper left, and what the quest wants there struck in dark ink. A quest of a
     -- kind may have it otherwise (settings questMark...): the coin in the kind's colour, the kind's own icon struck on it
     local kind, style = MapMarks.getMarkStyle(mark)
-    local coinColour = (style == "colour" or style == "both") and COIN_COLOURS[MapMarks.getIconColour(kind)] or COIN_COLOURS.gold
+    local coinColour = (style == "colour" or style == "both") and COIN_COLOURS[MapMarks.getIconColour(kind)]
+        or COIN_COLOURS.gold
     local kindAtlas = (style == "icon" or style == "both") and MARK_KIND_ICONS[kind]
     ensureCoinParts(button)
     button.edge:SetSize(size, size)
@@ -795,7 +909,9 @@ function MapMarks.applyMarkLook(button, mark, baseLevel)
     local hideLater = ns.Widgets.hideLater
     for index = 1, #MARK_PARTS do
         local part = button[MARK_PARTS[index]]
-        if type(part) == "table" then hideLater(part) end
+        if type(part) == "table" then
+            hideLater(part)
+        end
     end
     for _, orbiting in ipairs(button.orbiting or {}) do
         orbiting:Hide()
@@ -839,7 +955,9 @@ function MapMarks.applyMarkLook(button, mark, baseLevel)
     local hideWaiting = ns.Widgets.hideWaiting
     for index = 1, #MARK_PARTS do
         local part = button[MARK_PARTS[index]]
-        if type(part) == "table" then hideWaiting(part) end
+        if type(part) == "table" then
+            hideWaiting(part)
+        end
     end
     if type(button.secondBang) == "table" then
         hideWaiting(button.secondBang)
@@ -931,26 +1049,26 @@ function MapMarks.chooseOrbitAngles(mark, center, pinRects)
     end
     -- The whole set evenly spaced on free spots, starting as near the top as it can, as near the entrance as it can
     for _, widening in ipairs(ORBIT_WIDENINGS) do
-      radius = baseRadius + widening
-      for _, gap in ipairs(ORBIT_GAPS) do
-        for distance = 0, isClearGap(gap) and ORBIT_SPOTS - 1 or -1 do
-            local start = (distance % 2 == 0 and distance / 2 or ORBIT_SPOTS - (distance + 1) / 2) % ORBIT_SPOTS
-            local spots, isAllFree = {}, count * gap <= ORBIT_SPOTS
-            for index = 1, count do
-                spots[index] = (start + (index - 1) * gap) % ORBIT_SPOTS
-                isAllFree = isAllFree and isFree(spots[index])
-            end
-            if isAllFree then
-                table.sort(spots)
-                local angles = {}
-                for index, spot in ipairs(spots) do
-                    angles[index] = spot * 2 * math.pi / ORBIT_SPOTS
+        radius = baseRadius + widening
+        for _, gap in ipairs(ORBIT_GAPS) do
+            for distance = 0, isClearGap(gap) and ORBIT_SPOTS - 1 or -1 do
+                local start = (distance % 2 == 0 and distance / 2 or ORBIT_SPOTS - (distance + 1) / 2) % ORBIT_SPOTS
+                local spots, isAllFree = {}, count * gap <= ORBIT_SPOTS
+                for index = 1, count do
+                    spots[index] = (start + (index - 1) * gap) % ORBIT_SPOTS
+                    isAllFree = isAllFree and isFree(spots[index])
                 end
-                mark.orbitRadius = widening > 0 and radius or nil
-                return angles
+                if isAllFree then
+                    table.sort(spots)
+                    local angles = {}
+                    for index, spot in ipairs(spots) do
+                        angles[index] = spot * 2 * math.pi / ORBIT_SPOTS
+                    end
+                    mark.orbitRadius = widening > 0 and radius or nil
+                    return angles
+                end
             end
         end
-      end
     end
     radius = baseRadius
     -- No room for them all on free spots: as many as fit there, the rest wherever is left
@@ -1015,7 +1133,14 @@ function MapMarks.applyDungeonLook(button, mark, size)
         MapMarks.applyMarkLook(orbiting, member, (button:GetFrameLevel() or 1) + (member.isFocused and 4 or 1))
         orbiting.glow:SetShown(member.isFocused == true)
         local angle = mark.orbitAngles and mark.orbitAngles[index] or (index - 1) * ORBIT_STEP
-        ns.Widgets.place(orbiting, "CENTER", button, "CENTER", radius * math.sin(angle) / scale, radius * math.cos(angle) / scale)
+        ns.Widgets.place(
+            orbiting,
+            "CENTER",
+            button,
+            "CENTER",
+            radius * math.sin(angle) / scale,
+            radius * math.cos(angle) / scale
+        )
         orbiting:Show()
     end
     -- Only the entrance in the middle answers the mouse: the quests round it have their own buttons, and what lies

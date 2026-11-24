@@ -91,8 +91,13 @@ function MapPins.getVisibleBounds(map, margin)
     local containerRight, containerBottom = container:GetRight(), container:GetBottom()
     local canvasLeft, canvasTop = canvas:GetLeft(), canvas:GetTop()
     local canvasWidth, canvasHeight = canvas:GetWidth(), canvas:GetHeight()
-    if not (containerLeft and containerTop and containerRight and containerBottom and canvasLeft and canvasTop)
-        or not canvasWidth or canvasWidth <= 0 or not canvasHeight or canvasHeight <= 0 then
+    if
+        not (containerLeft and containerTop and containerRight and containerBottom and canvasLeft and canvasTop)
+        or not canvasWidth
+        or canvasWidth <= 0
+        or not canvasHeight
+        or canvasHeight <= 0
+    then
         return nil
     end
     local width, height = canvasWidth * canvasScale, canvasHeight * canvasScale
@@ -194,7 +199,12 @@ function MapPins.applyGameFilter(isSwitching)
         if GetCVar("questPOI") ~= "1" then
             SetCVar("questPOI", 1)
         end
-    elseif isSwitching and wasOurs == false and ns.settings.shouldHideBuiltInMapPins and ns.settings.shouldHideBuiltInTracker then
+    elseif
+        isSwitching
+        and wasOurs == false
+        and ns.settings.shouldHideBuiltInMapPins
+        and ns.settings.shouldHideBuiltInTracker
+    then
         if GetCVar("questPOI") ~= "0" then
             SetCVar("questPOI", 0)
         end
@@ -265,7 +275,8 @@ local drawnHoverKey -- the quests hovered in the list when the marks were last d
 
 local function getHoverKey()
     local Log = ns.Log
-    return tostring(Log.getHoveredQuestId and Log.getHoveredQuestId()) .. ":"
+    return tostring(Log.getHoveredQuestId and Log.getHoveredQuestId())
+        .. ":"
         .. tostring(Log.getHighlightedAvailableQuestId and Log.getHighlightedAvailableQuestId())
 end
 
@@ -282,7 +293,12 @@ end
 ---quest in focus (Log.setDocked), which may be another
 local function isWorldMapCurrent()
     local drawn = drawnWorldMap
-    if isWorldMapStale or not drawn or drawn.mapId ~= WorldMapFrame:GetMapID() or drawn.view ~= getWorldMapViewKey() then
+    if
+        isWorldMapStale
+        or not drawn
+        or drawn.mapId ~= WorldMapFrame:GetMapID()
+        or drawn.view ~= getWorldMapViewKey()
+    then
         return false
     end
     if MapPins.getDataKey() ~= drawnDataKey or getHoverKey() ~= drawnHoverKey then
@@ -293,7 +309,8 @@ local function isWorldMapCurrent()
         return position == drawn.position
     end
     return position.uiMapId == drawn.position.uiMapId
-        and ns.Geometry.getDistance(position.north, position.west, drawn.position.north, drawn.position.west) < STALE_AFTER_YARDS
+        and ns.Geometry.getDistance(position.north, position.west, drawn.position.north, drawn.position.west)
+            < STALE_AFTER_YARDS
 end
 
 ---The world map opened: its marks are drawn only when they are not what it would show now.
@@ -405,7 +422,9 @@ local function handleBuiltInPin(_, template)
     lastPinAt = GetTime and GetTime() or 0
     if not isPinCheckQueued and C_Timer then
         isPinCheckQueued = true
-        C_Timer.After(PIN_SETTLE_SECONDS, function() ns.Timing.measure("other addons' pins checked", checkPins) end)
+        C_Timer.After(PIN_SETTLE_SECONDS, function()
+            ns.Timing.measure("other addons' pins checked", checkPins)
+        end)
     end
 end
 
@@ -416,8 +435,16 @@ end
 ---"guide" while nothing is held back), and whether Alt is held over the world map to see everything.
 local function getDataKey()
     local focusedQuestId = ns.MapMarks.getFocusedQuestId()
-    return ns.Model.getStructureKey(focusedQuestId) .. "|" .. tostring(focusedQuestId) .. "|" .. tostring(ns.Focus.get())
-        .. "|" .. ns.Availability.getChangeKey() .. "|" .. ns.Spoilers.getKey() .. (ns.MapMarks.isPeeking() and "+" or "")
+    return ns.Model.getStructureKey(focusedQuestId)
+        .. "|"
+        .. tostring(focusedQuestId)
+        .. "|"
+        .. tostring(ns.Focus.get())
+        .. "|"
+        .. ns.Availability.getChangeKey()
+        .. "|"
+        .. ns.Spoilers.getKey()
+        .. (ns.MapMarks.isPeeking() and "+" or "")
 end
 MapPins.getDataKey = getDataKey
 
@@ -449,7 +476,8 @@ function MapPins.refresh()
     drawnEntranceKey = getEntranceKey()
     lastDrawnAt = GetTime and GetTime() or 0
     isWorldMapStale = false
-    drawnWorldMap = { mapId = WorldMapFrame:GetMapID(), view = getWorldMapViewKey(), position = ns.Geometry.getPlayerPosition() }
+    drawnWorldMap =
+        { mapId = WorldMapFrame:GetMapID(), view = getWorldMapViewKey(), position = ns.Geometry.getPlayerPosition() }
     drawnHoverKey = getHoverKey()
 end
 
@@ -495,8 +523,14 @@ function MapPins.handleViewMoved()
     end
     local drawnBounds = ns.MapMarks.getDrawn(map).viewBounds
     local visible = MapPins.getVisibleBounds(map, 0)
-    if not drawnBounds or not visible or visible.left < drawnBounds.left or visible.right > drawnBounds.right
-        or visible.top < drawnBounds.top or visible.bottom > drawnBounds.bottom then
+    if
+        not drawnBounds
+        or not visible
+        or visible.left < drawnBounds.left
+        or visible.right > drawnBounds.right
+        or visible.top < drawnBounds.top
+        or visible.bottom > drawnBounds.bottom
+    then
         MapPins.queueSettledRefresh() -- once the view stops moving, not at every step of a glide
     end
 end
@@ -536,8 +570,11 @@ local function isViewCovered()
         return true -- drawn for the whole map (no addon joins other zones on): whatever part shows is covered
     end
     local visible = MapPins.getVisibleBounds(map, 0)
-    return visible ~= nil and visible.left >= drawnBounds.left and visible.right <= drawnBounds.right
-        and visible.top >= drawnBounds.top and visible.bottom <= drawnBounds.bottom
+    return visible ~= nil
+        and visible.left >= drawnBounds.left
+        and visible.right <= drawnBounds.right
+        and visible.top >= drawnBounds.top
+        and visible.bottom <= drawnBounds.bottom
 end
 
 function MapPins.queueSettledRefresh()
@@ -594,5 +631,12 @@ function MapPins.create()
     end)
 end
 
-ns.on("FOCUS_CHANGED", function() MapPins.queueRefresh() end) -- the quest in focus stands out on the map
-ns.registerModule({ name = "MapPins", create = MapPins.create, needsWorldMap = true, refresh = MapPins.refreshAfterChange })
+ns.on("FOCUS_CHANGED", function()
+    MapPins.queueRefresh()
+end) -- the quest in focus stands out on the map
+ns.registerModule({
+    name = "MapPins",
+    create = MapPins.create,
+    needsWorldMap = true,
+    refresh = MapPins.refreshAfterChange,
+})

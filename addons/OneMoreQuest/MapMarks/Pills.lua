@@ -85,10 +85,20 @@ function MapMarks.gatherZonePills(marks, mapId, pixelsAcross)
             local pill = pillByZone[areaId]
             if not pill then
                 pill = {
-                    kind = "zonePill", zoneId = areaId, zoneMapId = zoneMapId, name = ns.Database.getZoneName(areaId) or "?",
-                    x = (box.left + box.right) / 2, y = (box.top + box.bottom) / 2,
-                    questIds = {}, readyIds = {}, giverIds = {}, questCount = 0, readyCount = 0, giverCount = 0,
-                    lines = {}, isFocused = false,
+                    kind = "zonePill",
+                    zoneId = areaId,
+                    zoneMapId = zoneMapId,
+                    name = ns.Database.getZoneName(areaId) or "?",
+                    x = (box.left + box.right) / 2,
+                    y = (box.top + box.bottom) / 2,
+                    questIds = {},
+                    readyIds = {},
+                    giverIds = {},
+                    questCount = 0,
+                    readyCount = 0,
+                    giverCount = 0,
+                    lines = {},
+                    isFocused = false,
                 }
                 pillByZone[areaId] = pill
                 pills[#pills + 1] = pill
@@ -145,8 +155,12 @@ function MapMarks.getEntranceRects(mapId, pixelsAcross, pixelsDown)
             local x, y = ns.MapPins.getMapPosition(place, mapId)
             if x then
                 local left, top = x * pixelsAcross, y * pixelsDown
-                rects[#rects + 1] = { left = left - ENTRANCE_HALF_WIDTH, right = left + ENTRANCE_HALF_WIDTH,
-                    top = top - ENTRANCE_ABOVE, bottom = top + ENTRANCE_BELOW }
+                rects[#rects + 1] = {
+                    left = left - ENTRANCE_HALF_WIDTH,
+                    right = left + ENTRANCE_HALF_WIDTH,
+                    top = top - ENTRANCE_ABOVE,
+                    bottom = top + ENTRANCE_BELOW,
+                }
             end
         end
     end
@@ -184,7 +198,12 @@ local function showPillTooltip(pill)
     if mark.giverCount > 0 then
         GameTooltip:AddLine(ns.Lp(mark.giverCount, "%d quest to pick up", "%d quests to pick up"), 0.85, 0.81, 0.66)
     end
-    if ns.GamepadMap and ns.GamepadMap.getMark() == pill and GameTooltip_AddLineWithInputIcon and GAMEPAD_FACE_BOTTOM then
+    if
+        ns.GamepadMap
+        and ns.GamepadMap.getMark() == pill
+        and GameTooltip_AddLineWithInputIcon
+        and GAMEPAD_FACE_BOTTOM
+    then
         -- The map's gamepad cursor on it: A, with its icon, as the game's own pins say it
         ns.GamepadMap.addPressLines(GameTooltip, pill)
     else
@@ -202,7 +221,10 @@ end
 
 ---A count after its sign: the sign's picture and the number.
 local function createCount(pill)
-    local count = { icon = pill:CreateTexture(nil, "OVERLAY"), text = ns.Widgets.createFontString(pill, "OVERLAY", "GameFontHighlightSmall") }
+    local count = {
+        icon = pill:CreateTexture(nil, "OVERLAY"),
+        text = ns.Widgets.createFontString(pill, "OVERLAY", "GameFontHighlightSmall"),
+    }
     count.icon:SetSize(SIGN_SIZE, SIGN_SIZE)
     return count
 end
@@ -213,7 +235,9 @@ function MapMarks.createPill(parent)
     pill:SetHeight(PILL_HEIGHT)
     if pill.SetBackdrop then
         pill:SetBackdrop({
-            bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 12,
+            bgFile = "Interface\\Buttons\\WHITE8X8",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            edgeSize = 12,
             insets = { left = 3, right = 3, top = 3, bottom = 3 },
         })
     end
@@ -226,7 +250,9 @@ function MapMarks.createPill(parent)
     pill.ready.icon:SetTexture(READY_SIGN)
     pill.givers.icon:SetTexture(GIVER_SIGN)
     pill:SetScript("OnEnter", showPillTooltip)
-    pill:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    pill:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
     pill:SetScript("OnClick", handlePillClick)
     return pill
 end
@@ -263,8 +289,12 @@ function MapMarks.applyPillLook(pill, mark, frameLevel)
     if mark.questCount > 0 then
         x = x + PILL_GAP
         MapMarks.applyMarkLook(pill.coin, {
-            kind = "objective", questId = mark.focusedQuestId, glyph = mark.glyph or "use", progress = mark.progress or 0,
-            isFocused = false, lines = {},
+            kind = "objective",
+            questId = mark.focusedQuestId,
+            glyph = mark.glyph or "use",
+            progress = mark.progress or 0,
+            isFocused = false,
+            lines = {},
         }, (pill:GetFrameLevel() or 1) + 1)
         -- The coin is scaled down: its offsets are in its own units
         pill.coin:ClearAllPoints()
@@ -275,7 +305,10 @@ function MapMarks.applyPillLook(pill, mark, frameLevel)
         pill.questCount:SetTextColor(COUNT_COLOR[1], COUNT_COLOR[2], COUNT_COLOR[3])
         place(pill.questCount, textWidth(pill.questCount))
     end
-    for _, part in ipairs({ { count = pill.ready, value = mark.readyCount }, { count = pill.givers, value = mark.giverCount } }) do
+    for _, part in ipairs({
+        { count = pill.ready, value = mark.readyCount },
+        { count = pill.givers, value = mark.giverCount },
+    }) do
         part.count.icon:Hide()
         part.count.text:Hide()
         if part.value > 0 then

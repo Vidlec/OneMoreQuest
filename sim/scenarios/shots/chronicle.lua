@@ -13,7 +13,8 @@ local function crop(name, frames, margin, extraTop)
     end
     margin = margin or 10
     left, top = math.max(0, math.floor(left - margin)), math.max(0, math.floor(top - margin - (extraTop or 0)))
-    right, bottom = math.min(sim.screenWidth, math.ceil(right + margin)), math.min(sim.screenHeight, math.ceil(bottom + margin))
+    right, bottom =
+        math.min(sim.screenWidth, math.ceil(right + margin)), math.min(sim.screenHeight, math.ceil(bottom + margin))
     print(string.format("CROP\t%s\t%d,%d,%d,%d", name, left, top, right - left, bottom - top))
     saveScene(name)
 end
@@ -23,8 +24,12 @@ moveTo(1412, 0.47, 0.6) -- Mulgore
 -- A day of questing: taken, done and handed in
 for _, questId in ipairs({ 747, 750, 761, 743, 766, 745, 767, 3376, 744, 748 }) do
     accept(questId)
-    for _ = 1, 4 do kill(2955) end -- Plainstriders on the way
-    for _ = 1, 3 do kill(2958) end -- Prairie Wolves
+    for _ = 1, 4 do
+        kill(2955)
+    end -- Plainstriders on the way
+    for _ = 1, 3 do
+        kill(2958)
+    end -- Prairie Wolves
     complete(questId)
     wait(20) -- a little time between quests
     turnIn(questId)
@@ -34,7 +39,7 @@ wait(1.5)
 key("M")
 wait(1)
 addon.Log.toggleChronicle()
-for index, chapter in ipairs({ "glance" }) do
+for index in ipairs({ "glance" }) do
     addon.ChroniclePage.chapterIndex = index
     addon.Log.refresh()
     wait(1)
