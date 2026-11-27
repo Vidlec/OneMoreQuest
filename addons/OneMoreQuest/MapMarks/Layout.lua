@@ -4,9 +4,12 @@ local CreateFrame = ns.CreateFrame -- (Core: frames made inside an open gamepad 
 -- The map's marks: laying them out (each mark's footprint, keeping crowded marks apart).
 local MapMarks = ns.MapMarks
 local Style, State = ns.MapMarksStyle, ns.MapMarksState
-local Compose, Look, Layout, Shapes, Areas, Draw = ns.MapMarksCompose, ns.MapMarksLook, ns.MapMarksLayout, ns.MapMarksShapes, ns.MapMarksAreas, ns.MapMarksDraw
-local BANG_SIZE, ITEM_MARK_REACH, MARK_GAP, MARK_SIZE, acquire = Look.BANG_SIZE, Look.ITEM_MARK_REACH, Look.MARK_GAP, Look.MARK_SIZE, Look.acquire
-local FALLBACK_GROUP_LEVEL, FALLBACK_QUEST_BLOB_LEVEL, LEVELS_UNDER_GROUP = Style.FALLBACK_GROUP_LEVEL, Style.FALLBACK_QUEST_BLOB_LEVEL, Style.LEVELS_UNDER_GROUP
+local Compose, Look, Layout, Shapes, Areas, Draw =
+    ns.MapMarksCompose, ns.MapMarksLook, ns.MapMarksLayout, ns.MapMarksShapes, ns.MapMarksAreas, ns.MapMarksDraw
+local BANG_SIZE, ITEM_MARK_REACH, MARK_GAP, MARK_SIZE =
+    Look.BANG_SIZE, Look.ITEM_MARK_REACH, Look.MARK_GAP, Look.MARK_SIZE
+local FALLBACK_GROUP_LEVEL, FALLBACK_QUEST_BLOB_LEVEL, LEVELS_UNDER_GROUP =
+    Style.FALLBACK_GROUP_LEVEL, Style.FALLBACK_QUEST_BLOB_LEVEL, Style.LEVELS_UNDER_GROUP
 
 ---@param map table? The map asked about; the world map when left out
 ---@return table drawn What a map shows now, for hovering: map, width, height, scale, areas (spawns and reach in the
@@ -71,6 +74,35 @@ function MapMarks.getAreaFrameLevel(map)
     return level
 end
 
+-- A layer holds every mark (or every glow, every old area) of the map: what is done to it is done to all of them.
+-- Each drawing gave every layer its level, its scale and a Show again, the same as it had. Nothing of ours changes
+-- by that (the simulator's hover-blink audit), but players saw every quest's marks and areas blink at a drawing
+-- with nothing new on it (a quest pointed at in the list, a setting moved), and these calls were all such a
+-- drawing did to the other quests' pieces. So a layer is told only what it does not have already. (Whether that
+-- was the blink is the game's to show: it does not happen in the simulator either way.)
+
+---Gives a layer a frame level, unless it has it.
+function MapMarks.setLayerLevel(layer, level)
+    if layer:GetFrameLevel() ~= level then
+        layer:SetFrameLevel(level)
+    end
+end
+
+---Gives a layer a scale, unless it has it (to within what shows on screen).
+function MapMarks.setLayerScale(layer, scale)
+    local current = layer:GetScale()
+    if type(current) ~= "number" or math.abs(current - scale) > scale * 0.0001 then
+        layer:SetScale(scale)
+    end
+end
+
+---Shows a layer, unless it is shown.
+function MapMarks.showLayer(layer)
+    if not layer:IsShown() then
+        layer:Show()
+    end
+end
+
 local function ensureLayers(map, canvas)
     State.frameLevel = MapMarks.getFrameLevel(map)
     if not State.areaLayer then
@@ -80,8 +112,10 @@ local function ensureLayers(map, canvas)
         State.markLayer:SetPoint("TOPLEFT", canvas, "TOPLEFT", 0, 0)
         State.markLayer:SetSize(1, 1)
     end
-    State.areaLayer:SetFrameLevel(MapMarks.getAreaFrameLevel(map))
-    State.markLayer:SetFrameLevel(State.frameLevel + 1)
+    -- (with the kept drawing: over its areas' five levels, World.styleSet, so the walks' dashes, the marks' glows and
+    -- the party's patches lie on the areas as they always did)
+    MapMarks.setLayerLevel(State.areaLayer, MapMarks.getAreaFrameLevel(map) + (ns.MapMarksWorld.isOn() and 5 or 0))
+    MapMarks.setLayerLevel(State.markLayer, State.frameLevel + 1)
 end
 
 ---The room a mark takes on the map, the same whether or not it is in focus, so that picking a quest never
@@ -217,8 +251,14 @@ function MapMarks.arrangeMarks(items, obstacles, bounds)
                 local left = item.spotLeft + math.cos(angle) * ring * NUDGE_STEP
                 local top = item.spotTop + math.sin(angle) * ring * NUDGE_STEP
                 local overlap = grid.getOverlap(getRect(left, top, item.width, item.height))
-                local isOnMap = not bounds or ring == 0 or (left - item.width / 2 >= bounds.left and left + item.width / 2 <= bounds.right
-                    and top - item.height / 2 >= bounds.top and top + item.height / 2 <= bounds.bottom)
+                local isOnMap = not bounds
+                    or ring == 0
+                    or (
+                        left - item.width / 2 >= bounds.left
+                        and left + item.width / 2 <= bounds.right
+                        and top - item.height / 2 >= bounds.top
+                        and top + item.height / 2 <= bounds.bottom
+                    )
                 if isOnMap and overlap < bestOverlap then
                     bestLeft, bestTop, bestOverlap = left, top, overlap
                     if overlap == 0 then

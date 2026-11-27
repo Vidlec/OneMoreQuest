@@ -12,8 +12,13 @@ local HIGH_LEVEL_MARGIN = 8 -- a zone whose weakest creature is more levels abov
 local MAX_SHADED_SOURCES = 3 -- creatures in a zone with a colour each; the rest share one
 local MIN_CHANCE = 0.01 -- for counting kills: a rarer drop than this would ask for an absurd number of them
 local CACHE_SECONDS = 10
+-- ...and for this long while the player stands where the zones were worked out from (within STILL_YARDS): their
+-- order goes by how far each is, which only walking changes. Looking at the map is standing still, and there the
+-- quest window, the map's marks and a tooltip under the cursor all ask, at every map dragged into view; worked out
+-- anew every few seconds, an item a hundred creatures drop was most of a redraw.
+local STILL_CACHE_SECONDS, STILL_YARDS = 120, 15
 
-local zonesCache = {} -- [itemId:level:zoneId] = { zones, time }
+local zonesCache = {} -- [itemId:level:zoneId] = { zones, time, where the player stood, who answered }
 
 ---Chance that one kill of a creature drops an item: the quest database's rate for quest items, else the loot
 ---table's.
@@ -81,15 +86,22 @@ function Drops.getSources(itemId)
         local places = {}
         ns.Location.addNpcPlaces(places, npcId)
         sources[#sources + 1] = {
-            npcId = npcId, name = ns.Database.getNpcField(npcId, "name") or ns.L("a creature"), places = places,
+            npcId = npcId,
+            name = ns.Database.getNpcField(npcId, "name") or ns.L("a creature"),
+            places = places,
             chance = Drops.getChance(itemId, npcId),
-            minLevel = ns.Database.getNpcField(npcId, "minLevel"), maxLevel = ns.Database.getNpcField(npcId, "maxLevel"),
+            minLevel = ns.Database.getNpcField(npcId, "minLevel"),
+            maxLevel = ns.Database.getNpcField(npcId, "maxLevel"),
         }
     end
     for _, objectId in ipairs(ns.Database.getItemField(itemId, "objectDrops") or {}) do
         local places = {}
         ns.Location.addObjectPlaces(places, objectId)
-        sources[#sources + 1] = { objectId = objectId, name = ns.Database.getObjectField(objectId, "name") or ns.L("an object"), places = places }
+        sources[#sources + 1] = {
+            objectId = objectId,
+            name = ns.Database.getObjectField(objectId, "name") or ns.L("an object"),
+            places = places,
+        }
     end
     return sources
 end
@@ -127,20 +139,32 @@ local function composeZones(itemId, player, playerLevel)
         for zoneId, places in pairs(placesByZone) do
             local zone = zonesById[zoneId]
             if not zone then
-                zone = { zoneId = zoneId, name = ns.Database.getZoneName(zoneId), sources = {}, places = {}, isDungeon = ns.Database.getDungeon(zoneId) ~= nil }
+                zone = {
+                    zoneId = zoneId,
+                    name = ns.Database.getZoneName(zoneId),
+                    sources = {},
+                    places = {},
+                    isDungeon = ns.Database.getDungeon(zoneId) ~= nil,
+                }
                 zonesById[zoneId] = zone
                 zones[#zones + 1] = zone
             end
             zone.sources[#zone.sources + 1] = {
-                npcId = source.npcId, objectId = source.objectId, name = source.name, chance = source.chance,
-                minLevel = source.minLevel, maxLevel = source.maxLevel, places = places,
+                npcId = source.npcId,
+                objectId = source.objectId,
+                name = source.name,
+                chance = source.chance,
+                minLevel = source.minLevel,
+                maxLevel = source.maxLevel,
+                places = places,
             }
             for _, place in ipairs(places) do
                 zone.places[#zone.places + 1] = place
             end
             if source.minLevel then
                 zone.minLevel = math.min(zone.minLevel or source.minLevel, source.minLevel)
-                zone.maxLevel = math.max(zone.maxLevel or source.maxLevel or source.minLevel, source.maxLevel or source.minLevel)
+                zone.maxLevel =
+                    math.max(zone.maxLevel or source.maxLevel or source.minLevel, source.maxLevel or source.minLevel)
             end
         end
     end
@@ -177,7 +201,8 @@ end
 ---The zones an item drops in, in the order worth going: the player's own zone, then zones whose creatures fit
 ---the player's level, nearest first, then zones for much higher levels, lowest first. In each zone its
 ---creatures, likeliest first, the first few with a colour each and the rest sharing one, as their spawn points
----are drawn on that zone's map. Kept for a few seconds, as the page, the map and the tracker all ask.
+---are drawn on that zone's map. Kept for a few seconds, as the page, the map and the tracker all ask; longer while
+---the player stands still.
 ---@return DropZone[] zones
 function Drops.getZones(itemId)
     local player = ns.Model.getPlayer()
@@ -185,11 +210,32 @@ function Drops.getZones(itemId)
     local cacheKey = itemId .. ":" .. playerLevel .. ":" .. tostring(player.zoneId)
     local now = GetTime and GetTime() or 0
     local cached = zonesCache[cacheKey]
-    if cached and now - cached.time < CACHE_SECONDS then
-        return cached.zones
+    local position = player.position
+    if cached then
+        local age = now - cached.time
+        if age < CACHE_SECONDS then
+            return cached.zones
+        end
+        if
+            age < STILL_CACHE_SECONDS
+            and position
+            and cached.north
+            and cached.continentId == position.continentId
+            and ns.Geometry.getDistance(cached.north, cached.west, position.north, position.west) <= STILL_YARDS
+            and cached.providersKey == ns.Database.getProvidersKey()
+        then
+            return cached.zones
+        end
     end
     local zones = composeZones(itemId, player, playerLevel)
-    zonesCache[cacheKey] = { zones = zones, time = now }
+    zonesCache[cacheKey] = {
+        zones = zones,
+        time = now,
+        continentId = position and position.continentId,
+        north = position and position.north,
+        west = position and position.west,
+        providersKey = ns.Database.getProvidersKey(),
+    }
     return zones
 end
 

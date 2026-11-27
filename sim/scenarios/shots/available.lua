@@ -13,14 +13,17 @@ local function crop(name, frames, margin, extraTop)
     end
     margin = margin or 10
     left, top = math.max(0, math.floor(left - margin)), math.max(0, math.floor(top - margin - (extraTop or 0)))
-    right, bottom = math.min(sim.screenWidth, math.ceil(right + margin)), math.min(sim.screenHeight, math.ceil(bottom + margin))
+    right, bottom =
+        math.min(sim.screenWidth, math.ceil(right + margin)), math.min(sim.screenHeight, math.ceil(bottom + margin))
     print(string.format("CROP\t%s\t%d,%d,%d,%d", name, left, top, right - left, bottom - top))
     saveScene(name)
 end
 local addon = require("addons").byName["onemorequest"].private
 setProfile({ level = 14 })
 moveTo(1413, 0.52, 0.31) -- The Barrens, by the Crossroads
-for _, questId in ipairs({ 869, 855 }) do accept(questId) end
+for _, questId in ipairs({ 869, 855 }) do
+    accept(questId)
+end
 wait(1.5)
 key("M")
 wait(1)
@@ -29,4 +32,4 @@ wait(1)
 local quests = addon.Availability.getQuests(addon.Log.getAvailableZoneId())
 addon.Log.showAvailable(quests[3] and quests[3].questId or quests[1].questId)
 wait(1)
-crop("available", { G.WorldMapFrame, G.TrailheadLog }, 6)
+crop("available", { G.WorldMapFrame, G.OneMoreQuestLog }, 6)

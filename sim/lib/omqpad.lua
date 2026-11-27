@@ -25,16 +25,22 @@ local READS = { "^Get", "^Is", "^Can", "^Has", "^Should", "^Find" }
 -- (only reads, and calls on to what is watched when it would change something: RefreshButtonGroups)
 local PASSED = { UpdateParent = true }
 local function isRead(name)
-    if PASSED[name] then return true end
+    if PASSED[name] then
+        return true
+    end
     for _, pattern in ipairs(READS) do
-        if name:find(pattern) then return true end
+        if name:find(pattern) then
+            return true
+        end
     end
     return false
 end
 
 ---Every function of a table of the game's that changes something, wrapped: a call from OneMoreQuest's code is kept.
 local function watchTable(target, label, calls, names)
-    if type(target) ~= "table" then return end
+    if type(target) ~= "table" then
+        return
+    end
     local wrapped = {}
     for name, value in pairs(target) do
         if type(name) == "string" and type(value) == "function" and not isRead(name) and (not names or names[name]) then
@@ -47,9 +53,15 @@ local function watchTable(target, label, calls, names)
                 local own = {}
                 for level = 2, 60 do
                     local info = debug.getinfo(level, "Sln")
-                    if not info then break end
+                    if not info then
+                        break
+                    end
                     if info.source and info.source:find("OneMoreQuest", 1, true) then
-                        own[#own + 1] = info.short_src .. ":" .. tostring(info.currentline) .. " " .. tostring(info.name)
+                        own[#own + 1] = info.short_src
+                            .. ":"
+                            .. tostring(info.currentline)
+                            .. " "
+                            .. tostring(info.name)
                     end
                 end
                 calls[#calls + 1] = label .. "." .. name .. "\n  from " .. table.concat(own, "\n  from ")
@@ -63,44 +75,80 @@ end
 ---@return table pad { addon, window, blocked(), navCalls, madeInPanel, cursor(), isOwn(key), menu(), report() }
 function omqpad.start()
     local addon = require("addons").byName["onemorequest"].private
-    local pad = { addon = addon, window = G.TrailheadLog, navCalls = {}, madeInPanel = {} }
+    local pad = { addon = addon, window = G.OneMoreQuestLog, navCalls = {}, madeInPanel = {} }
     local blocked = 0
-    G.hooksecurefunc("DisplayInterfaceActionBlockedMessage", function() blocked = blocked + 1 end)
-    function pad.blocked() return blocked end
+    G.hooksecurefunc("DisplayInterfaceActionBlockedMessage", function()
+        blocked = blocked + 1
+    end)
+    function pad.blocked()
+        return blocked
+    end
     watchTable(G.SmartNavigation, "SmartNavigation", pad.navCalls)
     watchTable(G.GamepadMode and G.GamepadMode.FrameControlsManager, "FrameControlsManager", pad.navCalls)
-    watchTable(G.GamepadSharedUtility and G.GamepadSharedUtility.InputBindingManager, "InputBindingManager", pad.navCalls)
+    watchTable(
+        G.GamepadSharedUtility and G.GamepadSharedUtility.InputBindingManager,
+        "InputBindingManager",
+        pad.navCalls
+    )
     watchTable(G.WorldMapFrame, "WorldMapFrame", pad.navCalls, {
-        FocusMap = true, FocusQuests = true, FocusDetails = true, FocusQuestLog = true, FocusQuestLogFromMap = true,
-        ClearBindings = true, UpdateStateChangeIndicators = true, SetMapID = true, FocusGamepad = true, UnfocusGamepad = true,
+        FocusMap = true,
+        FocusQuests = true,
+        FocusDetails = true,
+        FocusQuestLog = true,
+        FocusQuestLogFromMap = true,
+        ClearBindings = true,
+        UpdateStateChangeIndicators = true,
+        SetMapID = true,
+        FocusGamepad = true,
+        UnfocusGamepad = true,
     })
-    watchTable(G, "", pad.navCalls, { ShowUIPanel = true, HideUIPanel = true, SmartNavigation_MarkFrameIgnored = true,
-        SmartNavigation_ClearIgnoreStatus = true, SmartNavigation_MarkFrameSubSection = true })
+    watchTable(G, "", pad.navCalls, {
+        ShowUIPanel = true,
+        HideUIPanel = true,
+        SmartNavigation_MarkFrameIgnored = true,
+        SmartNavigation_ClearIgnoreStatus = true,
+        SmartNavigation_MarkFrameSubSection = true,
+    })
     G.hooksecurefunc("CreateFrame", function(_, _, parent)
-        if not parent or not isOneMoreQuestRunning() then return end
+        if not parent or not isOneMoreQuestRunning() then
+            return
+        end
         local frame = parent
         while frame and frame ~= G.UIParent do
             for _, info in ipairs(G.SmartNavigation.activePanels or {}) do
-                if info.frame == frame then pad.madeInPanel[#pad.madeInPanel + 1] = debug.traceback() return end
+                if info.frame == frame then
+                    pad.madeInPanel[#pad.madeInPanel + 1] = debug.traceback()
+                    return
+                end
             end
             frame = frame:GetParent()
         end
     end)
     ---@return Frame? cursor OneMoreQuest's cursor in its window
-    function pad.cursor() return addon.Gamepad.getCursor() end
+    function pad.cursor()
+        return addon.Gamepad.getCursor()
+    end
     ---@return boolean isOwn The pad's button is bound to one of OneMoreQuest's (its window's, tracker's or menu's)
-    function pad.isOwn(key) return tostring(G.GetBindingAction(key)):find("^CLICK OneMoreQuest") ~= nil end
+    function pad.isOwn(key)
+        return tostring(G.GetBindingAction(key)):find("^CLICK OneMoreQuest") ~= nil
+    end
     ---@return boolean isOpen OneMoreQuest's menu shows
     ---@return string texts Its entries' words, joined by "|"
     function pad.menu()
         local frame = G.OneMoreQuestGamepadMenu
-        if not addon.GamepadMenu.isOpen() or not frame then return false, "" end
+        if not addon.GamepadMenu.isOpen() or not frame then
+            return false, ""
+        end
         local texts = {}
         local function collect(each)
             for _, region in ipairs({ each:GetRegions() }) do
-                if region.GetText and region:IsVisible() and region:GetText() and region:GetText() ~= "" then texts[#texts + 1] = region:GetText() end
+                if region.GetText and region:IsVisible() and region:GetText() and region:GetText() ~= "" then
+                    texts[#texts + 1] = region:GetText()
+                end
             end
-            for _, child in ipairs({ each:GetChildren() }) do collect(child) end
+            for _, child in ipairs({ each:GetChildren() }) do
+                collect(child)
+            end
         end
         collect(frame)
         return true, table.concat(texts, "|")
@@ -109,7 +157,9 @@ function omqpad.start()
     function pad.menuIndexOf(text)
         local frame = G.OneMoreQuestGamepadMenu
         for _, row in ipairs({ frame and frame:GetChildren() or nil }) do
-            if row.text and row:IsVisible() and tostring(row.text:GetText()):find(text, 1, true) then return row end
+            if row.text and row:IsVisible() and tostring(row.text:GetText()):find(text, 1, true) then
+                return row
+            end
         end
         return nil
     end
@@ -118,11 +168,15 @@ function omqpad.start()
     function pad.framesInMapWalk()
         local found = {}
         local function isOwn(frame)
-            if frame == G.TrailheadLog then return true end
+            if frame == G.OneMoreQuestLog then
+                return true
+            end
             for _, script in ipairs({ "OnClick", "OnEnter", "OnShow", "OnUpdate", "OnMouseUp", "OnMouseDown", "OnLoad" }) do
                 local handler = frame.HasScript and frame:HasScript(script) and frame:GetScript(script)
                 local info = type(handler) == "function" and debug.getinfo(handler, "S")
-                if info and info.source and info.source:find("OneMoreQuest", 1, true) then return true end
+                if info and info.source and info.source:find("OneMoreQuest", 1, true) then
+                    return true
+                end
             end
             return false
         end
@@ -142,16 +196,27 @@ function omqpad.start()
     end
     ---@return string? problem What OneMoreQuest did that it must not (nil: nothing)
     function pad.report()
-        if blocked > 0 then return blocked .. " action(s) blocked" end
+        if blocked > 0 then
+            return blocked .. " action(s) blocked"
+        end
         if #pad.navCalls > 0 then
             local names, seen = {}, {}
             for _, call in ipairs(pad.navCalls) do
                 local name = call:match("^[^\n]*")
-                if not seen[name] then seen[name] = true; names[#names + 1] = name end
+                if not seen[name] then
+                    seen[name] = true
+                    names[#names + 1] = name
+                end
             end
-            return #pad.navCalls .. " call(s) from OneMoreQuest into the game's navigation (" .. table.concat(names, ", ") .. "), first: " .. pad.navCalls[1]
+            return #pad.navCalls
+                .. " call(s) from OneMoreQuest into the game's navigation ("
+                .. table.concat(names, ", ")
+                .. "), first: "
+                .. pad.navCalls[1]
         end
-        if #pad.madeInPanel > 0 then return #pad.madeInPanel .. " frame(s) made inside a window of the navigation's: " .. pad.madeInPanel[1] end
+        if #pad.madeInPanel > 0 then
+            return #pad.madeInPanel .. " frame(s) made inside a window of the navigation's: " .. pad.madeInPanel[1]
+        end
         return nil
     end
     return pad

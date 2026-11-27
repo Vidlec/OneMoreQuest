@@ -12,8 +12,13 @@ local isHooked = false
 
 local function getApi()
     local api = _G.OpenMapAPI
-    if type(api) == "table" and api.major == 1 and type(api.IsStitched) == "function"
-        and type(api.WorldFromMap) == "function" and type(api.MapFromWorld) == "function" then
+    if
+        type(api) == "table"
+        and api.major == 1
+        and type(api.IsStitched) == "function"
+        and type(api.WorldFromMap) == "function"
+        and type(api.MapFromWorld) == "function"
+    then
         return api
     end
     return nil
@@ -43,7 +48,14 @@ local function getWorldZoneMapIds(mapId)
     end
     -- Up to the world the map is part of
     local topId, info, steps = mapId, ns.Database.getMapInfo(mapId), 0
-    while info and info.mapType and info.mapType > WORLD_MAP_TYPE and info.parentMapID and info.parentMapID > 0 and steps < 10 do
+    while
+        info
+        and info.mapType
+        and info.mapType > WORLD_MAP_TYPE
+        and info.parentMapID
+        and info.parentMapID > 0
+        and steps < 10
+    do
         topId, info, steps = info.parentMapID, ns.Database.getMapInfo(info.parentMapID), steps + 1
     end
     if not zoneMapIdsByTop[topId] then
@@ -70,8 +82,16 @@ local function getZoneMapIds(mapId, bounds)
         for _, zoneMapId in ipairs(worldZoneMapIds) do
             local left, top = project(zoneMapId, 0, 0, mapId)
             local right, bottom = project(zoneMapId, 1, 1, mapId)
-            if left and top and right and bottom and left <= bounds.right and right >= bounds.left
-                and top <= bounds.bottom and bottom >= bounds.top then
+            if
+                left
+                and top
+                and right
+                and bottom
+                and left <= bounds.right
+                and right >= bounds.left
+                and top <= bounds.bottom
+                and bottom >= bounds.top
+            then
                 mapIds[#mapIds + 1] = zoneMapId
             end
         end
@@ -114,8 +134,12 @@ local function hookOpenMap()
         return
     end
     isHooked = true
-    api.RegisterCallback(OWNER, "OpenMap_ViewChanged", function() ns.MapPins.handleViewMoved() end)
-    api.RegisterCallback(OWNER, "OpenMap_StitchedChanged", function() ns.MapPins.queueRefresh() end)
+    api.RegisterCallback(OWNER, "OpenMap_ViewChanged", function()
+        ns.MapPins.handleViewMoved()
+    end)
+    api.RegisterCallback(OWNER, "OpenMap_StitchedChanged", function()
+        ns.MapPins.queueRefresh()
+    end)
 end
 
 ns.Compatibility.register({

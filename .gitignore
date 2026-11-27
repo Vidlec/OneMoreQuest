@@ -10,3 +10,4 @@ sim/scenarios/.visual/
 sim/scenarios/.api-budget*.txt
 sim/scenarios/.mock-export*.json
 sim/scenarios/.profile*.txt
+sim/lib/mapcost.options

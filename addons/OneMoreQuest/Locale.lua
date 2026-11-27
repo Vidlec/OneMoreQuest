@@ -120,4 +120,9 @@ end
 
 -- Before every redraw of everything, ahead of the modules that draw (this file loads second): a language changed by
 -- any way is told before anything is drawn in it
-ns.registerModule({ name = "Locale", invalidate = function() Locale.applyLanguage() end })
+ns.registerModule({
+    name = "Locale",
+    invalidate = function()
+        Locale.applyLanguage()
+    end,
+})

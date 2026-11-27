@@ -27,20 +27,41 @@ gamepadInterface(true)
 addon.MapDock.open() -- (the window by itself)
 wait(0.5)
 expect(window:IsVisible() and omq.isOwn("PADDDOWN"), "the window has the pad")
-local function isIn(frame, parent) while frame do if frame == parent then return true end frame = frame:GetParent() end return false end
-local function inList(frame) return isIn(frame, Log.getListCanvas().frame) end
-local function cursor() return omq.cursor() end
+local function isIn(frame, parent)
+    while frame do
+        if frame == parent then
+            return true
+        end
+        frame = frame:GetParent()
+    end
+    return false
+end
+local function inList(frame)
+    return isIn(frame, Log.getListCanvas().frame)
+end
+local function cursor()
+    return omq.cursor()
+end
 
 -- The settings
 Log.openSettings(1)
 wait(0.4)
-expect(Log.getView() == "settings" and inList(cursor()) and cursor().data == 1, "the settings open with the cursor on their first section")
+expect(
+    Log.getView() == "settings" and inList(cursor()) and cursor().data == 1,
+    "the settings open with the cursor on their first section"
+)
 expectText("Sections", "LB/RB: the sections")
 pad("PAD4")
 wait(0.3)
 local isOpen, texts = omq.menu()
-expect(not isOpen or (texts:find("Reset to defaults", 1, true) and not texts:find("Abandon", 1, true)), "Y on a section: the settings' options, never a quest's menu: " .. texts)
-if isOpen then pad("PAD2") wait(0.3) end
+expect(
+    not isOpen or (texts:find("Reset to defaults", 1, true) and not texts:find("Abandon", 1, true)),
+    "Y on a section: the settings' options, never a quest's menu: " .. texts
+)
+if isOpen then
+    pad("PAD2")
+    wait(0.3)
+end
 pad("PADDDOWN")
 wait(0.5)
 expect(cursor() and cursor().data == 2 and Log.isChosenSectionRow(2), "the cursor resting on a section shows it")
@@ -61,7 +82,10 @@ saveScene("pad-settings")
 -- A checkbox of the page: A turns it, as a click does
 local checkbox
 for _, stop in ipairs(addon.Gamepad.getStops()) do
-    if stop:GetObjectType() == "CheckButton" and Log.isInPage(stop) then checkbox = stop break end
+    if stop:GetObjectType() == "CheckButton" and Log.isInPage(stop) then
+        checkbox = stop
+        break
+    end
 end
 if checkbox then
     addon.Gamepad.setCursor(checkbox)
@@ -76,15 +100,24 @@ pad("PAD4")
 wait(0.3)
 local isMenu, joined = omq.menu()
 expect(isMenu, "Y: the settings' options")
-expect(joined:find("Reset to defaults", 1, true) ~= nil and not joined:find("Done", 1, true), "with Reset to defaults, not Done (B is that): " .. joined)
+expect(
+    joined:find("Reset to defaults", 1, true) ~= nil and not joined:find("Done", 1, true),
+    "with Reset to defaults, not Done (B is that): " .. joined
+)
 pad("PAD2")
 wait(0.3)
 pad("PAD2")
 wait(0.3)
-expect(Log.getView() == "settings" and inList(cursor()) and cursor().data == 2, "B on the page: back to its section's row")
+expect(
+    Log.getView() == "settings" and inList(cursor()) and cursor().data == 2,
+    "B on the page: back to its section's row"
+)
 pad("PAD2")
 wait(0.3)
-expect(Log.getView() == "quests" and cursor() and cursor().isQuestRow, "B on the sections: out of the settings, on a quest's row")
+expect(
+    Log.getView() == "quests" and cursor() and cursor().isQuestRow,
+    "B on the sections: out of the settings, on a quest's row"
+)
 
 -- The chronicle
 Log.toggleChronicle()
@@ -94,7 +127,10 @@ local journal
 for _ = 1, 5 do
     pad("PADRSHOULDER")
     wait(0.2)
-    if addon.ChroniclePage.isChosenRow(3) then journal = true break end
+    if addon.ChroniclePage.isChosenRow(3) then
+        journal = true
+        break
+    end
 end
 expect(journal, "RB through the chapters to the Journal")
 pad("PAD1")
@@ -103,7 +139,10 @@ expect(Log.isInPage(cursor()), "A: into the journal")
 local entryRow
 local pool = Log.getPageCanvas().pools.buttons
 for index = 1, pool.usedCount do
-    if type(pool[index].data) == "number" and pool[index].data > 0 and pool[index]:IsVisible() then entryRow = pool[index] break end
+    if type(pool[index].data) == "number" and pool[index].data > 0 and pool[index]:IsVisible() then
+        entryRow = pool[index]
+        break
+    end
 end
 expect(entryRow ~= nil, "the journal lists the quest handed in")
 if entryRow then
@@ -115,7 +154,10 @@ if entryRow then
     saveScene("pad-chronicle-story")
     pad("PAD2")
     wait(0.3)
-    expect(not addon.ChroniclePage.isEntryOpen() and Log.getView() == "chronicle", "B: back to the journal's list, still in the chronicle")
+    expect(
+        not addon.ChroniclePage.isEntryOpen() and Log.getView() == "chronicle",
+        "B: back to the journal's list, still in the chronicle"
+    )
     expect(cursor() and cursor().data == entry and Log.isInPage(cursor()), "the cursor on that quest in the list")
 end
 pad("PAD2")
@@ -130,24 +172,26 @@ expect(Log.getView() == "quests", "B: out of the chronicle")
 Log.closeWindow()
 wait(0.5)
 expect(not omq.isOwn("PADDDOWN"), "the window closed: the pad the game's")
-local tracker = G.TrailheadTracker
+local tracker = G.OneMoreQuestTracker
 expect(tracker:IsVisible() and not G.ObjectiveTrackerFrame:IsShown(), "OneMoreQuest's tracker stands in for the game's")
 local shortcut = G.GamepadMainActionBarFrame.PageUnit.ShortcutsActionBar.dpadTopButton
 shortcut:Click("LeftButton", true)
 wait(0.3)
 local Tracker = addon.GamepadTracker
-expect(Tracker.isFocused() and tostring(G.GetBindingAction("PADDDOWN")):find("TrackerPad", 1, true), "the quests shortcut gives the tracker the pad")
+expect(
+    Tracker.isFocused() and tostring(G.GetBindingAction("PADDDOWN")):find("TrackerPad", 1, true),
+    "the quests shortcut gives the tracker the pad"
+)
 expectText("Open in the quest log", "X: open it in the quest log, on its prompts")
 saveScene("pad-tracker")
 local rows, count = addon.Tracker.getRows()
-local function trackerCursor()
-    for index = 1, count do
-        local row = rows[index]
-        if row:IsVisible() and row.isTitle and row.entry and addon.Tracker.isFocused(row.entry.questId) then return row end
+local firstTitle
+for index = 1, count do
+    if rows[index]:IsVisible() and rows[index].isTitle then
+        firstTitle = rows[index]
+        break
     end
 end
-local firstTitle
-for index = 1, count do if rows[index]:IsVisible() and rows[index].isTitle then firstTitle = rows[index] break end end
 local questId = firstTitle and firstTitle.entry and firstTitle.entry.questId
 if questId then
     local before = addon.Focus.get()
@@ -158,7 +202,10 @@ if questId then
     pad("PAD4")
     wait(0.3)
     local isTrackerMenu, trackerTexts = omq.menu()
-    expect(isTrackerMenu and trackerTexts:find("Untrack", 1, true) ~= nil, "Y: the quest's menu (OneMoreQuest's): " .. trackerTexts)
+    expect(
+        isTrackerMenu and trackerTexts:find("Untrack", 1, true) ~= nil,
+        "Y: the quest's menu (OneMoreQuest's): " .. trackerTexts
+    )
     pad("PAD2")
     wait(0.3)
     expect(not addon.GamepadMenu.isOpen() and Tracker.isFocused(), "B closes the menu, back in the tracker")
@@ -169,7 +216,12 @@ if questId then
     pad("PAD3")
     wait(0.8)
     expect(window:IsShown() and Log.isAlone(), "X opens the quest in the quest log (the window by itself)")
-    expect(not Tracker.isFocused() and omq.isOwn("PADDDOWN") and tostring(G.GetBindingAction("PADDDOWN")):find("OneMoreQuestPad", 1, true), "the window has the pad now, not the tracker")
+    expect(
+        not Tracker.isFocused()
+            and omq.isOwn("PADDDOWN")
+            and tostring(G.GetBindingAction("PADDDOWN")):find("OneMoreQuestPad", 1, true),
+        "the window has the pad now, not the tracker"
+    )
     Log.closeWindow()
     wait(0.5)
 end
@@ -192,7 +244,10 @@ local marks = addon.MapMarksState.pools.marks
 local target
 for index = 1, marks.usedCount do
     local button = marks[index]
-    if button:IsVisible() and button.mark and button.mark.kind == "objective" and button.mark.questId == 871 then target = button break end
+    if button:IsVisible() and button.mark and button.mark.kind == "objective" and button.mark.questId == 871 then
+        target = button
+        break
+    end
 end
 expect(target ~= nil, "Disrupt the Attacks has its mark on the map")
 if target and soft then
@@ -207,22 +262,37 @@ if target and soft then
     saveScene("pad-map-mark")
     pad("PAD1")
     wait(0.5)
-    expect(Log.getSelectedQuestId() == 871 and window:IsShown() and G.WorldMapFrame:IsShown(), "A opens its quest in the window")
+    expect(
+        Log.getSelectedQuestId() == 871 and window:IsShown() and G.WorldMapFrame:IsShown(),
+        "A opens its quest in the window"
+    )
     do
         local cursor = addon.Gamepad.getCursor()
         local view = Log.getListCanvas().frame
         local middle = (view:GetTop() + view:GetBottom()) / 2
-        expect(cursor and cursor.data == 871 and cursor.isQuestRow, "its row has the window's cursor, there when the window takes the pad again")
+        expect(
+            cursor and cursor.data == 871 and cursor.isQuestRow,
+            "its row has the window's cursor, there when the window takes the pad again"
+        )
         local isAtTop = Log.getListCanvas():getScroll() < 1
-        expect(cursor and (isAtTop or math.abs((cursor:GetTop() + cursor:GetBottom()) / 2 - middle) < 30), "in the middle of the list (unless the list cannot scroll that far)")
+        expect(
+            cursor and (isAtTop or math.abs((cursor:GetTop() + cursor:GetBottom()) / 2 - middle) < 30),
+            "in the middle of the list (unless the list cannot scroll that far)"
+        )
     end
     wait(0.2)
-    expect(omq.isOwn("PADDDOWN") and addon.Gamepad.hasPad() and G.WorldMapFrame:IsMapFocused(), "and the window has the pad, on that quest (the map keeping its own focus)")
+    expect(
+        omq.isOwn("PADDDOWN") and addon.Gamepad.hasPad() and G.WorldMapFrame:IsMapFocused(),
+        "and the window has the pad, on that quest (the map keeping its own focus)"
+    )
     expect(G.SoftCursor:GetAlpha() == 0, "the map's cursor out of sight meanwhile")
     pad("PADDDOWN")
     pad("PADDLEFT")
     wait(0.2)
-    expect(not addon.Gamepad.hasPad() and not omq.isOwn("PADDDOWN") and G.SoftCursor:GetAlpha() == 1, "d-pad left with nothing to the left: the pad back to the map, its cursor again")
+    expect(
+        not addon.Gamepad.hasPad() and not omq.isOwn("PADDDOWN") and G.SoftCursor:GetAlpha() == 1,
+        "d-pad left with nothing to the left: the pad back to the map, its cursor again"
+    )
     -- Held A on the mark: its quest in focus (or let go of), nothing opened; the tooltip says both, as on the areas
     soft:ClearAllPoints()
     soft:SetPoint("CENTER", G.UIParent, "BOTTOMLEFT", x * scale + 1, y * scale - 1)
@@ -231,11 +301,17 @@ if target and soft then
     local focusBefore = addon.Focus.get()
     pad("PAD1", 0.8)
     wait(0.2)
-    expect(addon.Focus.get() ~= focusBefore and not addon.Gamepad.hasPad(), "held A on the mark: its quest's focus changes, the map keeps the pad")
+    expect(
+        addon.Focus.get() ~= focusBefore and not addon.Gamepad.hasPad(),
+        "held A on the mark: its quest's focus changes, the map keeps the pad"
+    )
     soft:ClearAllPoints()
     soft:SetPoint("CENTER", G.UIParent, "BOTTOMLEFT", x * scale + 60, y * scale + 60)
     wait(0.3)
-    expect(addon.GamepadMap.getMark() == nil and G.GameTooltip:GetOwner() ~= target, "moved away: the mark let go of, its tooltip gone")
+    expect(
+        addon.GamepadMap.getMark() == nil and G.GameTooltip:GetOwner() ~= target,
+        "moved away: the mark let go of, its tooltip gone"
+    )
 end
 pad("PAD2")
 wait(0.5)

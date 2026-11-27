@@ -13,7 +13,8 @@ local function crop(name, frames, margin, extraTop)
     end
     margin = margin or 10
     left, top = math.max(0, math.floor(left - margin)), math.max(0, math.floor(top - margin - (extraTop or 0)))
-    right, bottom = math.min(sim.screenWidth, math.ceil(right + margin)), math.min(sim.screenHeight, math.ceil(bottom + margin))
+    right, bottom =
+        math.min(sim.screenWidth, math.ceil(right + margin)), math.min(sim.screenHeight, math.ceil(bottom + margin))
     print(string.format("CROP\t%s\t%d,%d,%d,%d", name, left, top, right - left, bottom - top))
     saveScene(name)
 end
@@ -26,9 +27,13 @@ setfenv(wowfData, G)
 wowfData()
 G.WowfCZ_DB = {}
 local isLoaded = G.C_AddOns.IsAddOnLoaded
-G.C_AddOns.IsAddOnLoaded = function(name) return name == "WowfCZ" or isLoaded(name) end
+G.C_AddOns.IsAddOnLoaded = function(name)
+    return name == "WowfCZ" or isLoaded(name)
+end
 addon.QuestText.start()
-for _, questId in ipairs({ 869, 865, 872, 891, 870, 871 }) do accept(questId) end
+for _, questId in ipairs({ 869, 865, 872, 891, 870, 871 }) do
+    accept(questId)
+end
 complete(869)
 addon.Locale.setLanguage("cs")
 wait(1.5)
@@ -36,4 +41,4 @@ key("M")
 wait(1)
 addon.Log.selectQuest(870)
 wait(1)
-crop("czech", { G.WorldMapFrame, G.TrailheadLog }, 6)
+crop("czech", { G.WorldMapFrame, G.OneMoreQuestLog }, 6)

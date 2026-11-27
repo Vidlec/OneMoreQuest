@@ -1,7 +1,7 @@
 local _, ns = ...
 
 -- What creatures drop, read from the loot tables that the Tnny's Mob Loot addon ships as globals when it is
--- installed. Trailhead bundles no loot data of its own.
+-- installed. OneMoreQuest bundles no loot data of its own.
 --   TnnysMobLoot_Forever.npc[npcId] = { "name", "itemId:percent:drops:kills,..." }   (recorded Forever kills)
 --   TnnysMobLoot_Starter.npc[npcId] = { "itemId:percent[:q],...", skinning, worldDrops, "Name", ... }   (Classic estimates)
 local Loot = {}

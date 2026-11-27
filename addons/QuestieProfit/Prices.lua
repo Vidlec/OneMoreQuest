@@ -6,7 +6,7 @@ ns.Prices = Prices
 local AUCTION_CUT = 0.05
 local BIND_ON_PICKUP = 1
 
-local getItemInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+local getItemInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo -- luacheck: ignore 113 (an older client's fallback)
 
 ---@return string? name, number? vendorPrice, number? bindType nil while the client has not loaded the item
 local function getItemDetails(itemId)

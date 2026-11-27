@@ -57,6 +57,7 @@ OneMoreQuest/Log/AvailableTab.lua
 OneMoreQuest/Log/Base.lua
 OneMoreQuest/Log/DungeonsTab.lua
 OneMoreQuest/Log/List.lua
+OneMoreQuest/Log/Diagram.lua
 OneMoreQuest/Log/QuestPage.lua
 OneMoreQuest/Log/QuestsTab.lua
 OneMoreQuest/Log/SettingsView.lua
@@ -71,8 +72,16 @@ OneMoreQuest/MapMarks/Layout.lua
 OneMoreQuest/MapMarks/Look.lua
 OneMoreQuest/MapMarks/Pills.lua
 OneMoreQuest/MapMarks/Shapes.lua
+OneMoreQuest/MapMarks/World.lua
 OneMoreQuest/MapPins.lua
 OneMoreQuest/Media/
+OneMoreQuest/Media/AreaDisc.tga
+OneMoreQuest/Media/AreaEdge1.tga
+OneMoreQuest/Media/AreaEdge2.tga
+OneMoreQuest/Media/AreaEdge3.tga
+OneMoreQuest/Media/AreaEdge4.tga
+OneMoreQuest/Media/AreaEdge5.tga
+OneMoreQuest/Media/AreaEdge6.tga
 OneMoreQuest/Media/AreaRing.tga
 OneMoreQuest/Media/Chain.tga
 OneMoreQuest/Media/ChevronDown.tga
@@ -105,6 +114,7 @@ OneMoreQuest/Media/Plus.tga
 OneMoreQuest/Media/RingDashed.tga
 OneMoreQuest/Media/SoftDot.tga
 OneMoreQuest/Media/Tilde.tga
+OneMoreQuest/Media/Unlock.tga
 OneMoreQuest/MinimapPins.lua
 OneMoreQuest/MissedReport.lua
 OneMoreQuest/Model.lua

@@ -186,13 +186,22 @@ function Widgets.place(region, point, relativeTo, relativePoint, x, y)
         region:SetPoint(point, relativeTo, relativePoint, x, y)
         return
     end
-    if region.omqPoint == point and region.omqRelativeTo == relativeTo and region.omqRelativePoint == relativePoint
-        and region.omqX == x and region.omqY == y then
+    if
+        region.omqPoint == point
+        and region.omqRelativeTo == relativeTo
+        and region.omqRelativePoint == relativePoint
+        and region.omqX == x
+        and region.omqY == y
+    then
         return
     end
-    raw.ClearAllPoints(region)
+    -- (the same point against the same thing, only moved: set again, it takes the old one's place; nothing to clear)
+    if region.omqPoint ~= point or region.omqRelativeTo ~= relativeTo or region.omqRelativePoint ~= relativePoint then
+        raw.ClearAllPoints(region)
+    end
     raw.SetPoint(region, point, relativeTo, relativePoint, x, y)
-    region.omqPoint, region.omqRelativeTo, region.omqRelativePoint, region.omqX, region.omqY = point, relativeTo, relativePoint, x, y
+    region.omqPoint, region.omqRelativeTo, region.omqRelativePoint, region.omqX, region.omqY =
+        point, relativeTo, relativePoint, x, y
 end
 
 -- A triangle's corners (MapMarks.setTriangle): each of the four offsets kept. On a round minimap the areas are placed
@@ -264,7 +273,12 @@ function Remembered.SetDrawLayer(self, layer, sublevel)
 end
 
 function Remembered.SetHitRectInsets(self, left, right, top, bottom)
-    if self.omqInsetLeft ~= left or self.omqInsetRight ~= right or self.omqInsetTop ~= top or self.omqInsetBottom ~= bottom then
+    if
+        self.omqInsetLeft ~= left
+        or self.omqInsetRight ~= right
+        or self.omqInsetTop ~= top
+        or self.omqInsetBottom ~= bottom
+    then
         self.omqInsetLeft, self.omqInsetRight, self.omqInsetTop, self.omqInsetBottom = left, right, top, bottom
         return self.omqRaw.SetHitRectInsets(self, left, right, top, bottom)
     end
@@ -282,11 +296,18 @@ end
 function Remembered.SetTexture(self, ...)
     local count = select("#", ...)
     local first, second, third, fourth = ...
-    if self.omqArt == ART_TEXTURE and self.omqArtCount == count and self.omqArt1 == first and self.omqArt2 == second
-        and self.omqArt3 == third and self.omqArt4 == fourth then
+    if
+        self.omqArt == ART_TEXTURE
+        and self.omqArtCount == count
+        and self.omqArt1 == first
+        and self.omqArt2 == second
+        and self.omqArt3 == third
+        and self.omqArt4 == fourth
+    then
         return
     end
-    self.omqArt, self.omqArtCount, self.omqArt1, self.omqArt2, self.omqArt3, self.omqArt4 = ART_TEXTURE, count, first, second, third, fourth
+    self.omqArt, self.omqArtCount, self.omqArt1, self.omqArt2, self.omqArt3, self.omqArt4 =
+        ART_TEXTURE, count, first, second, third, fourth
     forgetPictureLook(self)
     return self.omqRaw.SetTexture(self, ...)
 end
@@ -294,11 +315,18 @@ end
 function Remembered.SetColorTexture(self, ...)
     local count = select("#", ...)
     local red, green, blue, alpha = ...
-    if self.omqArt == ART_COLOR and self.omqArtCount == count and self.omqArt1 == red and self.omqArt2 == green
-        and self.omqArt3 == blue and self.omqArt4 == alpha then
+    if
+        self.omqArt == ART_COLOR
+        and self.omqArtCount == count
+        and self.omqArt1 == red
+        and self.omqArt2 == green
+        and self.omqArt3 == blue
+        and self.omqArt4 == alpha
+    then
         return
     end
-    self.omqArt, self.omqArtCount, self.omqArt1, self.omqArt2, self.omqArt3, self.omqArt4 = ART_COLOR, count, red, green, blue, alpha
+    self.omqArt, self.omqArtCount, self.omqArt1, self.omqArt2, self.omqArt3, self.omqArt4 =
+        ART_COLOR, count, red, green, blue, alpha
     forgetPictureLook(self)
     return self.omqRaw.SetColorTexture(self, ...)
 end
@@ -306,11 +334,18 @@ end
 function Remembered.SetAtlas(self, ...)
     local count = select("#", ...)
     local atlas, useAtlasSize, third, fourth = ...
-    if self.omqArt == ART_ATLAS and self.omqAtlas == atlas and self.omqArtCount == count and self.omqArt2 == useAtlasSize
-        and self.omqArt3 == third and self.omqArt4 == fourth then
+    if
+        self.omqArt == ART_ATLAS
+        and self.omqAtlas == atlas
+        and self.omqArtCount == count
+        and self.omqArt2 == useAtlasSize
+        and self.omqArt3 == third
+        and self.omqArt4 == fourth
+    then
         return
     end
-    self.omqArt, self.omqArtCount, self.omqArt1, self.omqArt2, self.omqArt3, self.omqArt4 = ART_ATLAS, count, atlas, useAtlasSize, third, fourth
+    self.omqArt, self.omqArtCount, self.omqArt1, self.omqArt2, self.omqArt3, self.omqArt4 =
+        ART_ATLAS, count, atlas, useAtlasSize, third, fourth
     forgetPictureLook(self)
     self.omqAtlas = atlas
     if useAtlasSize then
@@ -323,8 +358,18 @@ function Remembered.SetTexCoord(self, ...)
     local count = select("#", ...)
     local a, b, c, d, e, f, g, h = ...
     local kept = self.omqCoords
-    if kept and self.omqCoordCount == count and kept[1] == a and kept[2] == b and kept[3] == c and kept[4] == d
-        and kept[5] == e and kept[6] == f and kept[7] == g and kept[8] == h then
+    if
+        kept
+        and self.omqCoordCount == count
+        and kept[1] == a
+        and kept[2] == b
+        and kept[3] == c
+        and kept[4] == d
+        and kept[5] == e
+        and kept[6] == f
+        and kept[7] == g
+        and kept[8] == h
+    then
         return
     end
     if not kept then
@@ -341,7 +386,13 @@ end
 function Remembered.SetVertexColor(self, ...)
     local count = select("#", ...)
     local red, green, blue, alpha = ...
-    if self.omqTintCount == count and self.omqTint1 == red and self.omqTint2 == green and self.omqTint3 == blue and self.omqTint4 == alpha then
+    if
+        self.omqTintCount == count
+        and self.omqTint1 == red
+        and self.omqTint2 == green
+        and self.omqTint3 == blue
+        and self.omqTint4 == alpha
+    then
         return
     end
     self.omqTintCount, self.omqTint1, self.omqTint2, self.omqTint3, self.omqTint4 = count, red, green, blue, alpha
@@ -366,17 +417,30 @@ end
 function Remembered.SetStartPoint(self, ...)
     local count = select("#", ...)
     local point, relativeTo, x, y = ...
-    if self.omqStartCount == count and self.omqStartPoint == point and self.omqStartTo == relativeTo and self.omqStartX == x and self.omqStartY == y then
+    if
+        self.omqStartCount == count
+        and self.omqStartPoint == point
+        and self.omqStartTo == relativeTo
+        and self.omqStartX == x
+        and self.omqStartY == y
+    then
         return
     end
-    self.omqStartCount, self.omqStartPoint, self.omqStartTo, self.omqStartX, self.omqStartY = count, point, relativeTo, x, y
+    self.omqStartCount, self.omqStartPoint, self.omqStartTo, self.omqStartX, self.omqStartY =
+        count, point, relativeTo, x, y
     return self.omqRaw.SetStartPoint(self, ...)
 end
 
 function Remembered.SetEndPoint(self, ...)
     local count = select("#", ...)
     local point, relativeTo, x, y = ...
-    if self.omqEndCount == count and self.omqEndPoint == point and self.omqEndTo == relativeTo and self.omqEndX == x and self.omqEndY == y then
+    if
+        self.omqEndCount == count
+        and self.omqEndPoint == point
+        and self.omqEndTo == relativeTo
+        and self.omqEndX == x
+        and self.omqEndY == y
+    then
         return
     end
     self.omqEndCount, self.omqEndPoint, self.omqEndTo, self.omqEndX, self.omqEndY = count, point, relativeTo, x, y
@@ -425,7 +489,13 @@ end
 function Remembered.SetTextColor(self, ...)
     local count = select("#", ...)
     local red, green, blue, alpha = ...
-    if self.omqColorCount == count and self.omqColor1 == red and self.omqColor2 == green and self.omqColor3 == blue and self.omqColor4 == alpha then
+    if
+        self.omqColorCount == count
+        and self.omqColor1 == red
+        and self.omqColor2 == green
+        and self.omqColor3 == blue
+        and self.omqColor4 == alpha
+    then
         return
     end
     self.omqColorCount, self.omqColor1, self.omqColor2, self.omqColor3, self.omqColor4 = count, red, green, blue, alpha
@@ -457,7 +527,14 @@ function Remembered.SetJustifyV(self, justify)
 end
 
 -- Settings that change how a text is laid out, passed on as given
-for _, name in ipairs({ "SetSpacing", "SetMaxLines", "SetIndentedWordWrap", "SetNonSpaceWrap", "SetTextScale", "SetTextHeight" }) do
+for _, name in ipairs({
+    "SetSpacing",
+    "SetMaxLines",
+    "SetIndentedWordWrap",
+    "SetNonSpaceWrap",
+    "SetTextScale",
+    "SetTextHeight",
+}) do
     Remembered[name] = function(self, ...)
         self.omqStringWidth, self.omqStringHeight = nil, nil
         return self.omqRaw[name](self, ...)
@@ -518,8 +595,12 @@ end
 ---@param path string? The font's file, size and flags, as fontObject:GetFont() gives them; none: the font alone
 ---@param size number? The size to draw at: the font's own, or another for text that has to fit a tight spot
 function Widgets.setTextFont(fontString, fontObject, path, size, flags)
-    if fontString.omqLookFont == fontObject and fontString.omqLookPath == path and fontString.omqLookSize == size
-        and fontString.omqLookFlags == flags then
+    if
+        fontString.omqLookFont == fontObject
+        and fontString.omqLookPath == path
+        and fontString.omqLookSize == size
+        and fontString.omqLookFlags == flags
+    then
         return
     end
     fontString:SetFontObject(fontObject)
@@ -527,7 +608,8 @@ function Widgets.setTextFont(fontString, fontObject, path, size, flags)
         fontString:SetFont(path, size, flags)
     end
     -- (after the two above: a remembering text lets go of this at every font it is given)
-    fontString.omqLookFont, fontString.omqLookPath, fontString.omqLookSize, fontString.omqLookFlags = fontObject, path, size, flags
+    fontString.omqLookFont, fontString.omqLookPath, fontString.omqLookSize, fontString.omqLookFlags =
+        fontObject, path, size, flags
 end
 
 ---A texture's picture was changed by a way of the game's that is no method of the texture's (SetPortraitTexture
@@ -577,13 +659,13 @@ function Widgets.remember(region)
     return region
 end
 
-
 -- The game's Friz Quadrata and Morpheus have only the letters of Western Europe: Czech's ě č ř ů ň ť ď show as
 -- boxes. In Czech, the addon's text takes free look-alikes that have them all (SIL Open Font License, in
 -- Media\Fonts): Marcellus for Friz Quadrata, Metamorphous for Morpheus. A font another addon put in the game's
 -- place (a Czech translation addon's, say) is left alone, as is Arial Narrow, which has every letter.
 local FONT_FOLDER = "Interface\\AddOns\\" .. addonName .. "\\Media\\Fonts\\"
-local LOOK_ALIKES = { frizqt__ = FONT_FOLDER .. "Marcellus-Regular.ttf", morpheus = FONT_FOLDER .. "Metamorphous-Regular.ttf" }
+local LOOK_ALIKES =
+    { frizqt__ = FONT_FOLDER .. "Marcellus-Regular.ttf", morpheus = FONT_FOLDER .. "Metamorphous-Regular.ttf" }
 local fontCopies = {} -- [font object's name] = its copy in a font with every Czech letter
 local trackedFontStrings = {} -- texts made from a font template, set again when the language changes
 local TOOLTIP_FONTS = { "GameTooltipHeaderText", "GameTooltipText", "GameTooltipTextSmall" }
@@ -775,7 +857,9 @@ function Widgets.formatMoney(copper)
 end
 
 -- A players icon in orange, for use inside any text
-local PLAYERS_ICON = "|TInterface\\AddOns\\" .. addonName .. "\\Media\\GlyphPlayers:12:12:0:0:32:32:0:32:0:32:255:176:96|t"
+local PLAYERS_ICON = "|TInterface\\AddOns\\"
+    .. addonName
+    .. "\\Media\\GlyphPlayers:12:12:0:0:32:32:0:32:0:32:255:176:96|t"
 
 ---The players icon and the suggested group size, when known, as text.
 ---@param group { size: number? }
@@ -877,7 +961,9 @@ function Widgets.createPortrait(parent)
         ns.Party.addMemberToTooltip(GameTooltip, self.member)
         GameTooltip:Show()
     end)
-    frame:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    frame:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
     return frame
 end
 
@@ -1149,7 +1235,15 @@ function Canvas:addFramedIcon(x, y, size, texture, level)
     level = level or 0
     self:addRect(x - 2, y - 2, size + 4, size + 4, ICON_RIM, level)
     self:addRect(x - 1, y - 1, size + 2, size + 2, ICON_EDGE, level + 1)
-    return self:addIcon(x, y, size, texture or "Interface\\Icons\\INV_Misc_QuestionMark", nil, level + 4, { 0.08, 0.92, 0.08, 0.92 })
+    return self:addIcon(
+        x,
+        y,
+        size,
+        texture or "Interface\\Icons\\INV_Misc_QuestionMark",
+        nil,
+        level + 4,
+        { 0.08, 0.92, 0.08, 0.92 }
+    )
 end
 
 -- Atlases are named as the game's own code names them, without Forever's "-c60": the client puts Forever's
@@ -1174,8 +1268,26 @@ function Canvas:addStatBar(x, y, width, height, parts, level)
         local endShare = (right - left) * TRACK_END / TRACK_WIDTH
         local endWidth = math.min(TRACK_END * scale, width / 2)
         self:addImage(x, y, endWidth, height, info.file, { left, left + endShare, top, bottom }, nil, level)
-        self:addImage(x + endWidth, y, width - 2 * endWidth, height, info.file, { left + endShare, right - endShare, top, bottom }, nil, level)
-        self:addImage(x + width - endWidth, y, endWidth, height, info.file, { right - endShare, right, top, bottom }, nil, level)
+        self:addImage(
+            x + endWidth,
+            y,
+            width - 2 * endWidth,
+            height,
+            info.file,
+            { left + endShare, right - endShare, top, bottom },
+            nil,
+            level
+        )
+        self:addImage(
+            x + width - endWidth,
+            y,
+            endWidth,
+            height,
+            info.file,
+            { right - endShare, right, top, bottom },
+            nil,
+            level
+        )
     else
         rimTop, rimBottom, rimSide = 1, 1, 1
         self:addRect(x, y, width, height, FALLBACK_RIM, level)
@@ -1188,7 +1300,17 @@ function Canvas:addStatBar(x, y, width, height, parts, level)
         local partWidth = innerWidth * math.max(0, math.min(part.share, 1))
         if partWidth >= 0.5 then
             local color = part.color
-            self:addImage(fillLeft, innerTop, partWidth, innerHeight, { atlas = BAR_FILL }, nil, color, level + 1, color[4] or 1)
+            self:addImage(
+                fillLeft,
+                innerTop,
+                partWidth,
+                innerHeight,
+                { atlas = BAR_FILL },
+                nil,
+                color,
+                level + 1,
+                color[4] or 1
+            )
             fillLeft = fillLeft + partWidth
         end
     end
@@ -1224,7 +1346,8 @@ end
 ---@param handleLeave fun(button: table, data: any)? Called when the mouse leaves
 function Canvas:addButton(x, y, width, height, handleClick, data, handleEnter, handleRightClick, handleLeave)
     local button = acquire(self.pools.buttons, createButton, self)
-    button.handleClick, button.handleEnter, button.handleLeave, button.data = handleClick, handleEnter, handleLeave, data
+    button.handleClick, button.handleEnter, button.handleLeave, button.data =
+        handleClick, handleEnter, handleLeave, data
     button.handleRightClick = handleRightClick
     button.padSkip = nil -- (set by a drawing for a shortcut the gamepad reaches another way: Gamepad.lua)
     button.isQuestRow, button.canShareWith, button.isDropSuggestion, button.isLogFullBanner = nil, nil, nil, nil -- (Gamepad.lua)
@@ -1344,7 +1467,6 @@ local WHEEL_STEP = 24 -- pixels per step of the mouse wheel
 local HINT_HEIGHT = 16
 local MEDIA = "Interface\\AddOns\\" .. addonName .. "\\Media\\"
 
-
 ---The cues that a scrolling area has more beyond an edge: a shade fading into the content, and an arrow.
 ---They sit over the area and let clicks through.
 ---@return { top: table, bottom: table } hints
@@ -1358,7 +1480,13 @@ local function createScrollHints(scrollFrame, overhang)
         hint:SetHeight(HINT_HEIGHT)
         hint:SetPoint(isTop and "TOPLEFT" or "BOTTOMLEFT", scrollFrame, isTop and "TOPLEFT" or "BOTTOMLEFT", 0, 0)
         -- Across the whole area, the scroll bar's strip included, so the shade ends at the panel's edge
-        hint:SetPoint(isTop and "TOPRIGHT" or "BOTTOMRIGHT", scrollFrame, isTop and "TOPRIGHT" or "BOTTOMRIGHT", overhang, 0)
+        hint:SetPoint(
+            isTop and "TOPRIGHT" or "BOTTOMRIGHT",
+            scrollFrame,
+            isTop and "TOPRIGHT" or "BOTTOMRIGHT",
+            overhang,
+            0
+        )
         local shade = hint:CreateTexture(nil, "BACKGROUND")
         shade:SetAllPoints(hint)
         shade:SetColorTexture(1, 1, 1, 1)
@@ -1448,16 +1576,18 @@ function Widgets.createCanvas(name, parent, width, height, hintOverhang)
         end
         canvas:updateScrollHints()
     end
-    local scrollBar = canvas.frame.isMinimalBar and canvas.frame.ScrollBar
-    if type(scrollBar) == "table" and scrollBar.RegisterCallback and BaseScrollBoxEvents then
+    local slimBar = canvas.frame.isMinimalBar and canvas.frame.ScrollBar
+    if type(slimBar) == "table" and slimBar.RegisterCallback and BaseScrollBoxEvents then
         -- The game's slim bar is driven from here, by the drawing's own end rather than the scroll frame's range (the
         -- thumb stood high up with the page scrolled to its end): the game's handlers, which set it by that range,
         -- are replaced, not followed
         canvas.frame:SetScript("OnVerticalScroll", handleVerticalScroll)
-        canvas.frame:SetScript("OnScrollRangeChanged", function() canvas:syncScrollBar() end)
+        canvas.frame:SetScript("OnScrollRangeChanged", function()
+            canvas:syncScrollBar()
+        end)
         -- The bar dragged or clicked: a share of the drawing's own end (the same owner as the game's own handler,
         -- which this takes the place of)
-        scrollBar:RegisterCallback(BaseScrollBoxEvents.OnScroll, function(_, percentage)
+        slimBar:RegisterCallback(BaseScrollBoxEvents.OnScroll, function(_, percentage)
             if type(percentage) == "number" and not canvas.isSyncingBar then
                 canvas:setScroll(percentage * (canvas.maxScroll or 0))
             end
@@ -1470,4 +1600,9 @@ end
 
 ns.on("LANGUAGE_CHANGED", Widgets.applyFonts)
 -- The fonts for the language, once every addon has loaded (a Czech addon may have put fonts of its own in the game's)
-ns.registerModule({ name = "Widgets", create = function() C_Timer.After(0, Widgets.applyFonts) end })
+ns.registerModule({
+    name = "Widgets",
+    create = function()
+        C_Timer.After(0, Widgets.applyFonts)
+    end,
+})

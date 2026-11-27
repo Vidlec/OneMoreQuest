@@ -19,9 +19,15 @@ local DATES = {
 }
 -- The Lunar Festival follows the moon: its days by year
 local LUNAR_FESTIVAL = {
-    [2019] = { 2, 5, 6, 0, 2, 19, 6, 0 }, [2020] = { 1, 23, 6, 0, 2, 10, 6, 0 }, [2021] = { 2, 5, 6, 0, 2, 19, 6, 0 },
-    [2022] = { 1, 30, 6, 0, 2, 18, 6, 0 }, [2023] = { 1, 20, 6, 0, 2, 10, 6, 0 }, [2024] = { 2, 3, 6, 0, 2, 23, 6, 0 },
-    [2025] = { 1, 28, 6, 0, 2, 17, 6, 0 }, [2026] = { 2, 16, 6, 0, 3, 9, 6, 0 }, [2027] = { 2, 5, 6, 0, 2, 19, 6, 0 },
+    [2019] = { 2, 5, 6, 0, 2, 19, 6, 0 },
+    [2020] = { 1, 23, 6, 0, 2, 10, 6, 0 },
+    [2021] = { 2, 5, 6, 0, 2, 19, 6, 0 },
+    [2022] = { 1, 30, 6, 0, 2, 18, 6, 0 },
+    [2023] = { 1, 20, 6, 0, 2, 10, 6, 0 },
+    [2024] = { 2, 3, 6, 0, 2, 23, 6, 0 },
+    [2025] = { 1, 28, 6, 0, 2, 17, 6, 0 },
+    [2026] = { 2, 16, 6, 0, 3, 9, 6, 0 },
+    [2027] = { 2, 5, 6, 0, 2, 19, 6, 0 },
     [2028] = { 1, 24, 6, 0, 2, 14, 6, 0 },
 }
 -- The Darkmoon Faire opens on the Monday after the first full weekend of the month (by the weekday of the 1st,
@@ -31,18 +37,43 @@ local FAIRE_ZONES = { [true] = 12, [false] = 215 } -- odd month: Elwynn Forest; 
 
 -- The calendar's holiday titles (the game's, in English) to the events' keys
 local CALENDAR_TITLES = {
-    { "winter veil", "winterVeil" }, { "love is in the air", "loveIsInTheAir" }, { "noblegarden", "noblegarden" },
-    { "children", "childrensWeek" }, { "midsummer", "midsummer" }, { "harvest festival", "harvestFestival" },
-    { "hallow", "hallowsEnd" }, { "lunar festival", "lunarFestival" }, { "brewfest", "brewfest" },
-    { "day of the dead", "dayOfTheDead" }, { "pilgrim", "pilgrimsBounty" }, { "darkmoon", "darkmoonFaire" },
+    { "winter veil", "winterVeil" },
+    { "love is in the air", "loveIsInTheAir" },
+    { "noblegarden", "noblegarden" },
+    { "children", "childrensWeek" },
+    { "midsummer", "midsummer" },
+    { "harvest festival", "harvestFestival" },
+    { "hallow", "hallowsEnd" },
+    { "lunar festival", "lunarFestival" },
+    { "brewfest", "brewfest" },
+    { "day of the dead", "dayOfTheDead" },
+    { "pilgrim", "pilgrimsBounty" },
+    { "darkmoon", "darkmoonFaire" },
 }
 
 -- Quest categories of seasonal and world events (the database's zoneOrSort): a quest filed under one is an event's
 -- even when the list does not name it, and offered never, as no one can tell when it runs
 local EVENT_CATEGORIES = {
-    [-21] = true, [-22] = true, [-41] = true, [-284] = true, [-364] = true, [-365] = true, [-366] = true,
-    [-368] = true, [-369] = true, [-370] = true, [-374] = true, [-375] = true, [-376] = true, [-378] = true,
-    [-404] = true, [-1001] = true, [-1002] = true, [-1003] = true, [-1005] = true, [-1006] = true,
+    [-21] = true,
+    [-22] = true,
+    [-41] = true,
+    [-284] = true,
+    [-364] = true,
+    [-365] = true,
+    [-366] = true,
+    [-368] = true,
+    [-369] = true,
+    [-370] = true,
+    [-374] = true,
+    [-375] = true,
+    [-376] = true,
+    [-378] = true,
+    [-404] = true,
+    [-1001] = true,
+    [-1002] = true,
+    [-1003] = true,
+    [-1005] = true,
+    [-1006] = true,
 }
 
 local active = {} -- [event key] = true while it runs

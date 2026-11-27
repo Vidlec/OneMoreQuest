@@ -21,7 +21,8 @@ local function getMobValue(npcId)
     if not loot then
         return nil
     end
-    local mobValue = { perKill = 0, drops = {}, source = loot.source, isPending = false, pricedCount = 0, auctionPricedCount = 0 }
+    local mobValue =
+        { perKill = 0, drops = {}, source = loot.source, isPending = false, pricedCount = 0, auctionPricedCount = 0 }
     for itemId, drop in pairs(loot.drops) do
         if not drop.isQuestOnly then
             local value, isPending, isAuctionPrice = ns.Prices.getItemValue(itemId)
@@ -31,7 +32,8 @@ local function getMobValue(npcId)
                 mobValue.auctionPricedCount = mobValue.auctionPricedCount + (isAuctionPrice and 1 or 0)
                 local expected = drop.chance * value
                 mobValue.perKill = mobValue.perKill + expected
-                mobValue.drops[#mobValue.drops + 1] = { itemId = itemId, chance = drop.chance, value = value, expected = expected }
+                mobValue.drops[#mobValue.drops + 1] =
+                    { itemId = itemId, chance = drop.chance, value = value, expected = expected }
             end
         end
     end
@@ -95,8 +97,13 @@ local function composeRewardItems(rewards)
             end
             isPending = isPending or isValuePending
             local rewardItem = {
-                itemId = item.itemId, name = item.name, count = item.count or 1, value = value * (item.count or 1),
-                isChoice = isChoice, isCounted = not isChoice, isAuctionPrice = isAuctionPrice,
+                itemId = item.itemId,
+                name = item.name,
+                count = item.count or 1,
+                value = value * (item.count or 1),
+                isChoice = isChoice,
+                isCounted = not isChoice,
+                isAuctionPrice = isAuctionPrice,
             }
             rewardItems[#rewardItems + 1] = rewardItem
             if isChoice and (not bestChoice or rewardItem.value > bestChoice.value) then
@@ -149,8 +156,12 @@ function Profit.compose(questId)
     for npcId, kills in pairs(killsByNpcId) do
         local mobValue = getMobValue(npcId)
         local mob = {
-            npcId = npcId, name = ns.Database.getNpcField(npcId, "name") or ns.L("Creature %d", npcId),
-            kills = kills, perKill = 0, lootValue = 0, drops = {},
+            npcId = npcId,
+            name = ns.Database.getNpcField(npcId, "name") or ns.L("Creature %d", npcId),
+            kills = kills,
+            perKill = 0,
+            lootValue = 0,
+            drops = {},
         }
         if mobValue then
             mob.perKill, mob.drops, mob.source = mobValue.perKill, mobValue.drops, mobValue.source
@@ -213,8 +224,13 @@ local TILDE = "Interface\\AddOns\\" .. addonName .. "\\Media\\Tilde"
 ---@param color number[]? Its colour, to match the text it stands in; a pale tan by default
 function Profit.formatEstimateSign(color)
     color = color or { 0.85, 0.81, 0.66 }
-    return string.format("|T%s:8:12:0:0:32:16:0:32:0:16:%d:%d:%d|t", TILDE,
-        math.floor(color[1] * 255), math.floor(color[2] * 255), math.floor(color[3] * 255))
+    return string.format(
+        "|T%s:8:12:0:0:32:16:0:32:0:16:%d:%d:%d|t",
+        TILDE,
+        math.floor(color[1] * 255),
+        math.floor(color[2] * 255),
+        math.floor(color[3] * 255)
+    )
 end
 
 ---The estimate as text: "~" and the amount in coins. nil when there is nothing to show, or the player chose not to be

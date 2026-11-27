@@ -8,6 +8,9 @@
     "test:sim": "addonsim test",
     "sim": "addonsim serve",
     "typecheck": "tsc --noEmit -p .",
+    "format:lua": "bun node_modules/addonsim/tools/lua-tools.ts format addons sim tools",
+    "lint:lua": "bun node_modules/addonsim/tools/lua-tools.ts check addons sim tools",
+    "luacheck:globals": "addonsim run sim/tools/luacheck-globals.lua",
     "zip": "python tools/build-zip.py"
   },
   "dependencies": {

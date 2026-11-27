@@ -16,8 +16,12 @@ local recordings = {} -- [questId] = whether a voice pack voices the quest; aske
 ---@return table? spoken
 local function getParts()
     local quests, spoken = _G.VoiceOver, _G.Spoken
-    if type(quests) ~= "table" or type(spoken) ~= "table" or type(spoken.IsCompatible) ~= "function"
-        or not spoken:IsCompatible(API_VERSION) then
+    if
+        type(quests) ~= "table"
+        or type(spoken) ~= "table"
+        or type(spoken.IsCompatible) ~= "function"
+        or not spoken:IsCompatible(API_VERSION)
+    then
         return nil
     end
     for _, name in ipairs(PARTS) do
@@ -26,9 +30,23 @@ local function getParts()
         end
     end
     local soundEvents = type(quests.Enums.SoundEvent) == "table" and quests.Enums.SoundEvent
-    if not (soundEvents and soundEvents.QuestAccept and quests.QuestOverlayUI.QueuedLine and quests.DataModules.PrepareSound
-        and quests.Player.PlayNow and quests.Player.Enqueue and quests.Player.Remove and quests.Addon.IsPartOn
-        and spoken.GetQueue and spoken.GetCurrent and spoken.GetNowPlaying and spoken.IsPaused and spoken.RegisterCallback) then
+    if
+        not (
+            soundEvents
+            and soundEvents.QuestAccept
+            and quests.QuestOverlayUI.QueuedLine
+            and quests.DataModules.PrepareSound
+            and quests.Player.PlayNow
+            and quests.Player.Enqueue
+            and quests.Player.Remove
+            and quests.Addon.IsPartOn
+            and spoken.GetQueue
+            and spoken.GetCurrent
+            and spoken.GetNowPlaying
+            and spoken.IsPaused
+            and spoken.RegisterCallback
+        )
+    then
         return nil
     end
     return quests, spoken
@@ -43,7 +61,8 @@ local function makeLine(quests, questId)
         title = ns.Database.getQuestField(questId, "name"),
         origin = "OneMoreQuest",
     }
-    local isFound, giverType, giverId = pcall(quests.DataModules.GetQuestLogQuestGiverTypeAndID, quests.DataModules, questId)
+    local isFound, giverType, giverId =
+        pcall(quests.DataModules.GetQuestLogQuestGiverTypeAndID, quests.DataModules, questId)
     if isFound and giverId then
         local guid = quests.Enums.GUID
         line.name = quests.DataModules:GetObjectName(giverType, giverId) or line.name

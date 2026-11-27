@@ -2,7 +2,9 @@
 -- Writes sim/scenarios/.profile-available.txt.
 setProfile({ level = 20, race = "Orc", class = "WARRIOR" })
 moveTo(1413, 0.52, 0.30) -- The Barrens, by the Crossroads
-for _, questId in ipairs({ 871, 867, 875, 899, 821, 903, 845, 850, 855, 1109, 1113 }) do pcall(accept, questId) end
+for _, questId in ipairs({ 871, 867, 875, 899, 821, 903, 845, 850, 855, 1109, 1113 }) do
+    pcall(accept, questId)
+end
 wait(3)
 key("M")
 wait(1)
@@ -30,7 +32,9 @@ local function hook()
     local first, last
     for level = 2, 60 do
         local info = getinfo(level, "S")
-        if not info then break end
+        if not info then
+            break
+        end
         if info.source:sub(1, #prefix) == prefix then
             local name = info.source:sub(#prefix + 1) .. ":" .. info.linedefined
             first = first or name
@@ -51,23 +55,48 @@ local function run(name, body)
     body()
     debug.sethook()
     local rows = {}
-    for callName, n in pairs(calls) do rows[#rows + 1] = callName .. "=" .. n end
+    for callName, n in pairs(calls) do
+        rows[#rows + 1] = callName .. "=" .. n
+    end
     table.sort(rows)
     lines[#lines + 1] = string.format("%-26s OMQ samples %6d   %s", name, totals[name] or 0, table.concat(rows, " "))
 end
 
-run("my quests, idle 10s", function() wait(10) end)
+run("my quests, idle 10s", function()
+    wait(10)
+end)
 click("Available")
 wait(1)
-run("available, idle 10s", function() wait(10) end)
-run("available, walk 10s", function() hold("W", 10) end)
-run("available, 5 kills", function() for _ = 1, 5 do pcall(kill, 3415) end end)
-run("available, bag update", function() for _ = 1, 5 do fire("BAG_UPDATE_DELAYED"); wait(0.5) end end)
+run("available, idle 10s", function()
+    wait(10)
+end)
+run("available, walk 10s", function()
+    hold("W", 10)
+end)
+run("available, 5 kills", function()
+    for _ = 1, 5 do
+        pcall(kill, 3415)
+    end
+end)
+run("available, bag update", function()
+    for _ = 1, 5 do
+        fire("BAG_UPDATE_DELAYED")
+        wait(0.5)
+    end
+end)
 
 local out = io.open(scenariosDir .. "/.profile-available.txt", "w")
-for _, line in ipairs(lines) do out:write(line, "\n") end
+for _, line in ipairs(lines) do
+    out:write(line, "\n")
+end
 local rows = {}
-for key, n in pairs(counts) do rows[#rows + 1] = { key, n } end
-table.sort(rows, function(a, b) return a[2] > b[2] end)
-for index = 1, math.min(#rows, 70) do out:write(string.format("%6d  %s\n", rows[index][2], rows[index][1])) end
+for key, n in pairs(counts) do
+    rows[#rows + 1] = { key, n }
+end
+table.sort(rows, function(a, b)
+    return a[2] > b[2]
+end)
+for index = 1, math.min(#rows, 70) do
+    out:write(string.format("%6d  %s\n", rows[index][2], rows[index][1]))
+end
 out:close()

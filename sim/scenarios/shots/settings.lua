@@ -13,7 +13,8 @@ local function crop(name, frames, margin, extraTop)
     end
     margin = margin or 10
     left, top = math.max(0, math.floor(left - margin)), math.max(0, math.floor(top - margin - (extraTop or 0)))
-    right, bottom = math.min(sim.screenWidth, math.ceil(right + margin)), math.min(sim.screenHeight, math.ceil(bottom + margin))
+    right, bottom =
+        math.min(sim.screenWidth, math.ceil(right + margin)), math.min(sim.screenHeight, math.ceil(bottom + margin))
     print(string.format("CROP\t%s\t%d,%d,%d,%d", name, left, top, right - left, bottom - top))
     saveScene(name)
 end
@@ -25,4 +26,4 @@ key("M")
 wait(1)
 addon.Log.openSettings(1)
 wait(1)
-crop("settings", { G.TrailheadLog }, 6, 26)
+crop("settings", { G.OneMoreQuestLog }, 6, 26)

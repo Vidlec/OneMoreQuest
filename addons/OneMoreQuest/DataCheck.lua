@@ -41,7 +41,10 @@ function DataCheck.note(questId, kind, gameText, databaseText)
         if count >= MAX_QUESTS then
             return
         end
-        quest = { title = C_QuestLog.GetTitleForQuestID and C_QuestLog.GetTitleForQuestID(questId) or ns.Database.getQuestField(questId, "name") }
+        quest = {
+            title = C_QuestLog.GetTitleForQuestID and C_QuestLog.GetTitleForQuestID(questId)
+                or ns.Database.getQuestField(questId, "name"),
+        }
         differences[questId] = quest
     end
     quest[kind] = quest[kind] or { gameText, databaseText }
@@ -80,7 +83,11 @@ end
 ---Compares a quest in the log: its item objectives, against the database's (their number, and on an English client
 ---their names, which are the database's own language).
 function DataCheck.checkObjectives(questId)
-    if checkedObjectives[questId] or not ns.QuestState.isInLog(questId) or not ns.Database.getQuestField(questId, "name") then
+    if
+        checkedObjectives[questId]
+        or not ns.QuestState.isInLog(questId)
+        or not ns.Database.getQuestField(questId, "name")
+    then
         return
     end
     checkedObjectives[questId] = true
@@ -100,7 +107,12 @@ function DataCheck.checkObjectives(questId)
         differs = differs or (isEnglish and gameItems[index] ~= databaseItems[index])
     end
     if differs and (#gameItems > 0 or #databaseItems > 0) then
-        DataCheck.note(questId, "objectives", "items: " .. table.concat(gameItems, ", "), "items: " .. table.concat(databaseItems, ", "))
+        DataCheck.note(
+            questId,
+            "objectives",
+            "items: " .. table.concat(gameItems, ", "),
+            "items: " .. table.concat(databaseItems, ", ")
+        )
     end
 end
 
@@ -113,12 +125,24 @@ local function handleAccepted(...)
     end
     local npc = getDialogNpc()
     if not ns.Database.getQuestField(questId, "name") then
-        DataCheck.note(questId, "quest", npc and string.format("given by %s (%d)", npc.name, npc.id) or "taken", "not in the database")
+        DataCheck.note(
+            questId,
+            "quest",
+            npc and string.format("given by %s (%d)", npc.name, npc.id) or "taken",
+            "not in the database"
+        )
     elseif npc and not isListed(questId, "startedBy", npc) then
-        DataCheck.note(questId, "giver", string.format("%s (%d)", npc.name, npc.id), describeListed(questId, "startedBy"))
+        DataCheck.note(
+            questId,
+            "giver",
+            string.format("%s (%d)", npc.name, npc.id),
+            describeListed(questId, "startedBy")
+        )
     end
     if C_Timer then
-        C_Timer.After(OBJECTIVES_DELAY, function() DataCheck.checkObjectives(questId) end)
+        C_Timer.After(OBJECTIVES_DELAY, function()
+            DataCheck.checkObjectives(questId)
+        end)
     end
 end
 
@@ -135,7 +159,12 @@ local function handleTurnedIn(questId)
     local npc = turnInNpc[questId]
     turnInNpc[questId] = nil
     if npc and ns.Database.getQuestField(questId, "name") and not isListed(questId, "finishedBy", npc) then
-        DataCheck.note(questId, "turnIn", string.format("%s (%d)", npc.name, npc.id), describeListed(questId, "finishedBy"))
+        DataCheck.note(
+            questId,
+            "turnIn",
+            string.format("%s (%d)", npc.name, npc.id),
+            describeListed(questId, "finishedBy")
+        )
     end
 end
 
@@ -149,7 +178,14 @@ function DataCheck.composeReportLines()
         for _, kind in ipairs(type(questId) == "number" and type(quest) == "table" and KIND_ORDER or {}) do
             local difference = quest[kind]
             if type(difference) == "table" then
-                lines[#lines + 1] = string.format("%d | %s | %s | %s | %s", questId, quest.title or "?", KIND_NAMES[kind], difference[1] or "?", difference[2] or "?")
+                lines[#lines + 1] = string.format(
+                    "%d | %s | %s | %s | %s",
+                    questId,
+                    quest.title or "?",
+                    KIND_NAMES[kind],
+                    difference[1] or "?",
+                    difference[2] or "?"
+                )
             end
         end
     end

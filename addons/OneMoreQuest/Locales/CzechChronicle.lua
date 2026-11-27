@@ -39,8 +39,16 @@ ns.Locale.add("cs", {
     ["Luck with drops"] = "Štěstí s dropy",
     ["Kills against the average: %s"] = "Killy proti průměru: %s",
     ["Against an average of %s: %s"] = "Proti průměru %s: %s",
-    ["%d kill more than expected: %s."] = { "O %d kill víc, než se čekalo: %s.", "O %d killy víc, než se čekalo: %s.", "O %d killů víc, než se čekalo: %s." },
-    ["%d kill fewer than expected: %s."] = { "O %d kill míň, než se čekalo: %s.", "O %d killy míň, než se čekalo: %s.", "O %d killů míň, než se čekalo: %s." },
+    ["%d kill more than expected: %s."] = {
+        "O %d kill víc, než se čekalo: %s.",
+        "O %d killy víc, než se čekalo: %s.",
+        "O %d killů víc, než se čekalo: %s.",
+    },
+    ["%d kill fewer than expected: %s."] = {
+        "O %d kill míň, než se čekalo: %s.",
+        "O %d killy míň, než se čekalo: %s.",
+        "O %d killů míň, než se čekalo: %s.",
+    },
 
     -- Kills and drops
     ["%d kill"] = { "%d kill", "%d killy", "%d killů" },
@@ -51,7 +59,11 @@ ns.Locale.add("cs", {
     ["%s: %s, %d expected"] = "%s: %s, očekáváno %d",
     ["%s, %d expected"] = "%s, očekáváno %d",
     ["%d kills for %d"] = "killy %d za %d",
-    ["%d kill, no drop yet"] = { "%d kill, zatím bez dropu", "%d killy, zatím bez dropu", "%d killů, zatím bez dropu" },
+    ["%d kill, no drop yet"] = {
+        "%d kill, zatím bez dropu",
+        "%d killy, zatím bez dropu",
+        "%d killů, zatím bez dropu",
+    },
     ["%s for %s%saverage %d"] = "%s za %s%sprůměr %d",
     ["%s, objective %d: %d kills (%d with a known drop chance), counting from %d done"] = "%s, cíl %d: killy %d (%d se známou šancí na drop), počítáno od %d hotových",
     ["no kills counted yet. Kills count when you or your group kill a creature that drops an item one of your quests needs."] = "zatím žádné killy. Killy se počítají, když ty nebo tvoje party zabijete moba, ze kterého padá item pro některý z tvých questů.",
@@ -259,7 +271,11 @@ ns.Locale.add("cs", {
     ["level %d to %d"] = "level %d až %d",
     ["Back to list"] = "Zpět na seznam",
     ["Back"] = "Zpět",
-    ["Show older quests (%d more)"] = { "Ukázat starší questy (ještě %d)", "Ukázat starší questy (ještě %d)", "Ukázat starší questy (ještě %d)" },
+    ["Show older quests (%d more)"] = {
+        "Ukázat starší questy (ještě %d)",
+        "Ukázat starší questy (ještě %d)",
+        "Ukázat starší questy (ještě %d)",
+    },
     -- Spoilers: quests found yourself, hints used
     ["Found yourself"] = "Našel jsi sám",
     ["used"] = "použity",
@@ -269,5 +285,9 @@ ns.Locale.add("cs", {
     ["Handed in with spoilers held back and no hint taken, of %s with spoilers held back"] = "Odevzdané se skrytými spoilery a bez nápovědy, z celkem %s se skrytými spoilery",
     ["Hints used"] = "Použité nápovědy",
     ["%d quest done with a hint"] = { "%d quest s nápovědou", "%d questy s nápovědou", "%d questů s nápovědou" },
-    ["%d peek at the whole map (Alt)"] = { "%d pohled na celou mapu (Alt)", "%d pohledy na celou mapu (Alt)", "%d pohledů na celou mapu (Alt)" },
+    ["%d peek at the whole map (Alt)"] = {
+        "%d pohled na celou mapu (Alt)",
+        "%d pohledy na celou mapu (Alt)",
+        "%d pohledů na celou mapu (Alt)",
+    },
 })

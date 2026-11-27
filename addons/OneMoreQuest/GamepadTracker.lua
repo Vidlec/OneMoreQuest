@@ -175,15 +175,24 @@ end
 local function watch(frame)
     if not state.watcher then
         state.watcher = CreateFrame("Frame")
-        state.watcher:SetScript("OnUpdate", function()
-            if not frame:IsVisible() or not ns.Gamepad.isGamepadUI() or ns.Gamepad.getGameFocus() ~= state.gameFocus then
-                GamepadTracker.release() -- (hidden, the interface changed, or one of the game's windows took the pad)
-                return
-            end
-            if state.pointer and state.cursor then
-                state.pointer:SetShown(not (ns.GamepadMenu and ns.GamepadMenu.isOpen()) and state.cursor:IsVisible())
-            end
-        end)
+        state.watcher:SetScript(
+            "OnUpdate",
+            ns.Timing.timed("pad tracker watch (each frame)", function()
+                if
+                    not frame:IsVisible()
+                    or not ns.Gamepad.isGamepadUI()
+                    or ns.Gamepad.getGameFocus() ~= state.gameFocus
+                then
+                    GamepadTracker.release() -- (hidden, the interface changed, or one of the game's windows took the pad)
+                    return
+                end
+                if state.pointer and state.cursor then
+                    state.pointer:SetShown(
+                        not (ns.GamepadMenu and ns.GamepadMenu.isOpen()) and state.cursor:IsVisible()
+                    )
+                end
+            end)
+        )
     end
     state.watcher:Show()
 end
@@ -192,8 +201,13 @@ end
 ---when it has nothing to stop on (folded, no quests).
 function GamepadTracker.handOver()
     local frame = ns.Tracker.getFrame()
-    if not frame or not ns.Gamepad.isGamepadUI() or not frame:IsVisible() or (InCombatLockdown and InCombatLockdown())
-        or ns.Gamepad.hasPad() then -- (the quest window has the pad: the shortcut leaves it be)
+    if
+        not frame
+        or not ns.Gamepad.isGamepadUI()
+        or not frame:IsVisible()
+        or (InCombatLockdown and InCombatLockdown())
+        or ns.Gamepad.hasPad()
+    then -- (the quest window has the pad: the shortcut leaves it be)
         return
     end
     local start = findStartRow()
@@ -302,5 +316,8 @@ ns.registerModule({
     name = "GamepadTracker",
     create = create,
     afterCombat = hookShortcut,
-    events = { INPUT_DEVICE_INTERFACE_TRANSITION = handleInterfaceChange, PLAYER_REGEN_DISABLED = GamepadTracker.release },
+    events = {
+        INPUT_DEVICE_INTERFACE_TRANSITION = handleInterfaceChange,
+        PLAYER_REGEN_DISABLED = GamepadTracker.release,
+    },
 })

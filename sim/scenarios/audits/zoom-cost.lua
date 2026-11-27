@@ -6,7 +6,9 @@
 -- bun run test:sim sim/scenarios/audits/zoom-cost.lua
 setProfile({ level = 38 })
 moveTo(1434, 0.32, 0.29) -- Grom'gol
-for _, questId in ipairs({ 189, 605, 213, 190, 570, 194, 598, 201 }) do accept(questId) end
+for _, questId in ipairs({ 189, 605, 213, 190, 570, 194, 598, 201 }) do
+    accept(questId)
+end
 wait(2)
 key("M")
 wait(3)
@@ -24,7 +26,9 @@ for _, definition in pairs(W.types) do
             definition.methods[name] = function(...)
                 if counting then
                     local info = getinfo(2, "S")
-                    if info and info.source:sub(1, #PREFIX) == PREFIX then calls[name] = (calls[name] or 0) + 1 end
+                    if info and info.source:sub(1, #PREFIX) == PREFIX then
+                        calls[name] = (calls[name] or 0) + 1
+                    end
                 end
                 return method(...)
             end
@@ -56,7 +60,9 @@ scene.input({ type = "move", x = x, y = y })
 wait(0.3)
 
 local counts = {}
-for name in pairs({ areaSets = true }) do counts[name] = 0 end
+for name in pairs({ areaSets = true }) do
+    counts[name] = 0
+end
 local store = addon.MapMarks.getAreaStore and addon.MapMarks.getAreaStore()
 local lineCount, setCount = 0, 0
 for _, set in pairs(store and store.areaSets or {}) do
@@ -71,15 +77,36 @@ local function step(label, delta)
     wait(0.6)
     counting = false
     local total, rows = 0, {}
-    for name, count in pairs(calls) do total = total + count; rows[#rows + 1] = { name, count } end
-    table.sort(rows, function(a, b) return a[2] > b[2] end)
+    for name, count in pairs(calls) do
+        total = total + count
+        rows[#rows + 1] = { name, count }
+    end
+    table.sort(rows, function(a, b)
+        return a[2] > b[2]
+    end)
     local top = {}
-    for index = 1, math.min(6, #rows) do top[#top + 1] = rows[index][1] .. " " .. rows[index][2] end
+    for index = 1, math.min(6, #rows) do
+        top[#top + 1] = rows[index][1] .. " " .. rows[index][2]
+    end
     local times = {}
-    for name, entry in pairs(timed) do times[#times + 1] = string.format("%s x%d %.1f ms", name, entry.count, entry.ms) end
+    for name, entry in pairs(timed) do
+        times[#times + 1] = string.format("%s x%d %.1f ms", name, entry.count, entry.ms)
+    end
     table.sort(times)
-    print(string.format("%-10s scale %.2f  widget calls %6d  [%s]  %s", label, container:GetCanvasScale(), total, table.concat(top, ", "),
-        table.concat(times, "; ")))
+    print(
+        string.format(
+            "%-10s scale %.2f  widget calls %6d  [%s]  %s",
+            label,
+            container:GetCanvasScale(),
+            total,
+            table.concat(top, ", "),
+            table.concat(times, "; ")
+        )
+    )
 end
-for index = 1, 4 do step("in " .. index, 1) end
-for index = 1, 4 do step("out " .. index, -1) end
+for index = 1, 4 do
+    step("in " .. index, 1)
+end
+for index = 1, 4 do
+    step("out " .. index, -1)
+end

@@ -175,9 +175,15 @@ local function composeProgress(questId, objectiveIndex, objective)
         -- Drops already in the bags before any kill was counted: their kills are only an estimate
         local earlierDrops = record and record.startFulfilled or (objective.fulfilled or 0)
         return {
-            kills = record and record.kills or 0, expected = 0, drops = 0, isUnlucky = false, chance = chance, sharerCount = sharerCount,
+            kills = record and record.kills or 0,
+            expected = 0,
+            drops = 0,
+            isUnlucky = false,
+            chance = chance,
+            sharerCount = sharerCount,
             remaining = ns.Drops.getKillsFor(remainingDrops, chance),
-            earlierDrops = earlierDrops, earlierKills = ns.Drops.getKillsFor(earlierDrops, chance),
+            earlierDrops = earlierDrops,
+            earlierKills = ns.Drops.getKillsFor(earlierDrops, chance),
             npcId = huntedSource.npcId,
         }
     end
@@ -188,10 +194,15 @@ local function composeProgress(questId, objectiveIndex, objective)
     -- Unlucky: past what an average player needs for the drops got; with none yet, for the first one
     local par = drops > 0 and expected or ns.Drops.getKillsFor(1, averageChance)
     return {
-        kills = record.kills, chance = averageChance, drops = drops, isUnlucky = record.kills > par,
-        expected = expected, sharerCount = sharerCount,
+        kills = record.kills,
+        chance = averageChance,
+        drops = drops,
+        isUnlucky = record.kills > par,
+        expected = expected,
+        sharerCount = sharerCount,
         remaining = ns.Drops.getKillsFor(remainingDrops, plainChance / sharerCount),
-        earlierDrops = record.startFulfilled, earlierKills = ns.Drops.getKillsFor(record.startFulfilled, plainChance),
+        earlierDrops = record.startFulfilled,
+        earlierKills = ns.Drops.getKillsFor(record.startFulfilled, plainChance),
         npcId = record.lastNpcId or (huntedSource and huntedSource.npcId),
     }
 end
@@ -226,8 +237,13 @@ function KillCounter.formatKills(progress, separator)
     elseif (progress.drops or 0) == 0 then
         return ns.Lp(progress.kills, "%d kill, no drop yet", "%d kills, no drop yet")
     end
-    return ns.L("%s for %s%saverage %d", ns.Lp(progress.kills, "%d kill", "%d kills"), ns.Lp(progress.drops, "%d drop", "%d drops"),
-        separator, math.floor(progress.expected + 0.5))
+    return ns.L(
+        "%s for %s%saverage %d",
+        ns.Lp(progress.kills, "%d kill", "%d kills"),
+        ns.Lp(progress.drops, "%d drop", "%d drops"),
+        separator,
+        math.floor(progress.expected + 0.5)
+    )
 end
 
 ---@return number? chance How often an item objective's item drops where the player would hunt it; nil for other
@@ -247,12 +263,24 @@ function KillCounter.printCounts()
     for questId, objectives in pairs(getCharacterRecords()) do
         for index, record in pairs(objectives) do
             count = count + 1
-            ns.print(ns.L("%s, objective %d: %d kills (%d with a known drop chance), counting from %d done",
-                ns.Database.getQuestField(questId, "name") or questId, index, record.kills, record.knownKills, record.startFulfilled))
+            ns.print(
+                ns.L(
+                    "%s, objective %d: %d kills (%d with a known drop chance), counting from %d done",
+                    ns.Database.getQuestField(questId, "name") or questId,
+                    index,
+                    record.kills,
+                    record.knownKills,
+                    record.startFulfilled
+                )
+            )
         end
     end
     if count == 0 then
-        ns.print(ns.L("no kills counted yet. Kills count when you or your group kill a creature that drops an item one of your quests needs."))
+        ns.print(
+            ns.L(
+                "no kills counted yet. Kills count when you or your group kill a creature that drops an item one of your quests needs."
+            )
+        )
     end
 end
 
@@ -278,7 +306,9 @@ function KillCounter.composeTurnIn(questId)
             closeDrySpell(record)
         end
         objectives[#objectives + 1] = {
-            itemId = record.itemId, drops = drops, kills = record.kills,
+            itemId = record.itemId,
+            drops = drops,
+            kills = record.kills,
             expected = averageChance and ns.Drops.getKillsFor(drops, averageChance) or nil,
             killsByNpcId = record.killsByNpcId or {},
             -- Only when there is something to say, to keep the entry small
@@ -369,7 +399,12 @@ end
 local function handleEvent(_, event, ...)
     if event == "UNIT_DIED" then
         KillCounter.handleDeath((...))
-    elseif event == "UNIT_HEALTH" or event == "UNIT_FLAGS" or event == "UNIT_THREAT_LIST_UPDATE" or event == "NAME_PLATE_UNIT_ADDED" then
+    elseif
+        event == "UNIT_HEALTH"
+        or event == "UNIT_FLAGS"
+        or event == "UNIT_THREAT_LIST_UPDATE"
+        or event == "NAME_PLATE_UNIT_ADDED"
+    then
         KillCounter.noteUnit((...))
     elseif event == "PLAYER_TARGET_CHANGED" then
         KillCounter.noteUnit("target")
@@ -391,7 +426,9 @@ local function handleEvent(_, event, ...)
         -- A moment later: a quest handed in is removed too, and the chronicle reads its kills at the hand-in
         local questId = ...
         if C_Timer and C_Timer.After then
-            C_Timer.After(2, function() KillCounter.forget(questId) end)
+            C_Timer.After(2, function()
+                KillCounter.forget(questId)
+            end)
         else
             KillCounter.forget(questId)
         end
@@ -403,9 +440,20 @@ function KillCounter.create()
         return
     end
     eventFrame = CreateFrame("Frame")
-    for _, event in ipairs({ "UNIT_DIED", "UNIT_HEALTH", "UNIT_FLAGS", "UNIT_THREAT_LIST_UPDATE", "NAME_PLATE_UNIT_ADDED",
-        "PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT", "PLAYER_FOCUS_CHANGED", "PLAYER_SOFT_ENEMY_CHANGED", "UNIT_TARGET",
-        "PLAYER_REGEN_ENABLED", "QUEST_REMOVED" }) do
+    for _, event in ipairs({
+        "UNIT_DIED",
+        "UNIT_HEALTH",
+        "UNIT_FLAGS",
+        "UNIT_THREAT_LIST_UPDATE",
+        "NAME_PLATE_UNIT_ADDED",
+        "PLAYER_TARGET_CHANGED",
+        "UPDATE_MOUSEOVER_UNIT",
+        "PLAYER_FOCUS_CHANGED",
+        "PLAYER_SOFT_ENEMY_CHANGED",
+        "UNIT_TARGET",
+        "PLAYER_REGEN_ENABLED",
+        "QUEST_REMOVED",
+    }) do
         -- An event this client does not know must not stop the others from being registered
         pcall(eventFrame.RegisterEvent, eventFrame, event)
     end

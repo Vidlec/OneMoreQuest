@@ -6,13 +6,17 @@ wait(3)
 local addon = require("addons").byName["onemorequest"].private
 local scene = require("scene")
 addon.settings.shouldShowRepeatable = true
-addon.SettingsPage.apply(); wait(1)
-addon.Log.showAvailable(); wait(2)
+addon.SettingsPage.apply()
+wait(1)
+addon.Log.showAvailable()
+wait(2)
 local counts = {}
 for _, item in ipairs(scene.export()) do
     local atlas = tostring(item.atlas or ""):lower()
-    if atlas == "questnormal" or atlas == "questdaily" then counts[atlas] = (counts[atlas] or 0) + 1 end
+    if atlas == "questnormal" or atlas == "questdaily" then
+        counts[atlas] = (counts[atlas] or 0) + 1
+    end
 end
 io.write(string.format("LIST gold %d, blue %d\n", counts.questnormal or 0, counts.questdaily or 0))
-expect((counts.questdaily or 0) > 0, "repeatable quests' \"!\" blue in the list")
+expect((counts.questdaily or 0) > 0, 'repeatable quests\' "!" blue in the list')
 saveScene("available-colours")

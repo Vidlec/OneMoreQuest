@@ -13,7 +13,8 @@ local function crop(name, frames, margin, extraTop)
     end
     margin = margin or 10
     left, top = math.max(0, math.floor(left - margin)), math.max(0, math.floor(top - margin - (extraTop or 0)))
-    right, bottom = math.min(sim.screenWidth, math.ceil(right + margin)), math.min(sim.screenHeight, math.ceil(bottom + margin))
+    right, bottom =
+        math.min(sim.screenWidth, math.ceil(right + margin)), math.min(sim.screenHeight, math.ceil(bottom + margin))
     print(string.format("CROP\t%s\t%d,%d,%d,%d", name, left, top, right - left, bottom - top))
     saveScene(name)
 end
@@ -34,4 +35,4 @@ progress(1113, 1, 3)
 wait(2)
 addon.Focus.set(1113) -- the focused quest shows the party under its title
 wait(1)
-crop("party", { G.TrailheadTracker }, 12)
+crop("party", { G.OneMoreQuestTracker }, 12)

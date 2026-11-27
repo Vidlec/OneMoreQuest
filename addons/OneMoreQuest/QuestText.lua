@@ -160,7 +160,13 @@ function QuestText.getTitle(questId, english, isInLog)
     end
     -- (whether it is in the log is part of the asking: the addon may read a quest in the log from the game, so one
     -- asked before it was taken may have another answer once it is)
-    return ask("title:" .. questId .. (isInLog and ":log:" or ":") .. english, "getTitle", questId, english, isInLog == true) or english
+    return ask(
+        "title:" .. questId .. (isInLog and ":log:" or ":") .. english,
+        "getTitle",
+        questId,
+        english,
+        isInLog == true
+    ) or english
 end
 
 ---@return string? name A quest's name from the database as shown: translated when a translation addon has it
@@ -269,15 +275,19 @@ function QuestText.addVoiceMenuItems(root, questId)
         QuestText.toggleVoice(questId)
     end)
     if not isPlaying then
-        root:CreateButton(ns.L(state == "queued" and "Take the narration off the queue" or "Queue the narration"), function()
-            QuestText.toggleVoiceQueue(questId)
-        end)
+        root:CreateButton(
+            ns.L(state == "queued" and "Take the narration off the queue" or "Queue the narration"),
+            function()
+                QuestText.toggleVoiceQueue(questId)
+            end
+        )
     end
 end
 -- The narration's mark, in the colours the narrating addon's own buttons use: gold while it plays or waits paused,
 -- blue while it waits in the queue
 QuestText.VOICE_ICON = "Interface\\Common\\VoiceChat-Speaker"
-QuestText.VOICE_COLORS = { playing = { 1, 0.82, 0 }, paused = { 0.8, 0.66, 0.2 }, queued = { 0.55, 0.72, 1 }, idle = { 0.7, 0.7, 0.7 } }
+QuestText.VOICE_COLORS =
+    { playing = { 1, 0.82, 0 }, paused = { 0.8, 0.66, 0.2 }, queued = { 0.55, 0.72, 1 }, idle = { 0.7, 0.7, 0.7 } }
 
 ---The narration mark's tooltip: where the quest's narration is, and what the clicks do.
 function QuestText.showVoiceTooltip(owner, questId)
@@ -337,7 +347,9 @@ function QuestText.getIntegrations()
             status, isInUse = ns.L("In use."), true
         end
         integrations[#integrations + 1] = {
-            label = provider.label, text = ns.L(provider.about or "") .. " " .. status, isInUse = isInUse == true,
+            label = provider.label,
+            text = ns.L(provider.about or "") .. " " .. status,
+            isInUse = isInUse == true,
         }
     end
     return integrations

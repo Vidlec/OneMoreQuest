@@ -38,11 +38,14 @@ local function getMobValue(npcId, npcName)
             if value > 0 then
                 local expected = drop.chance * value
                 mobValue.perKill = mobValue.perKill + expected
-                mobValue.drops[#mobValue.drops + 1] = { itemId = itemId, chance = drop.chance, value = value, expected = expected }
+                mobValue.drops[#mobValue.drops + 1] =
+                    { itemId = itemId, chance = drop.chance, value = value, expected = expected }
             end
         end
     end
-    table.sort(mobValue.drops, function(first, second) return first.expected > second.expected end)
+    table.sort(mobValue.drops, function(first, second)
+        return first.expected > second.expected
+    end)
     for index = #mobValue.drops, MAX_LISTED_DROPS + 1, -1 do
         mobValue.drops[index] = nil
     end
@@ -149,7 +152,13 @@ local function composeRewardItems(questId)
         end
         local value, isValuePending = ns.Prices.getItemValue(itemId)
         isPending = isPending or isValuePending
-        rewardItems[#rewardItems + 1] = { itemId = itemId, count = count or 1, value = value * (count or 1), isChoice = isChoice, isCounted = not isChoice }
+        rewardItems[#rewardItems + 1] = {
+            itemId = itemId,
+            count = count or 1,
+            value = value * (count or 1),
+            isChoice = isChoice,
+            isCounted = not isChoice,
+        }
     end
 
     if GetNumQuestLogRewards and GetQuestLogRewardInfo then
@@ -219,7 +228,8 @@ function Calculator.composeQuestProfit(questId)
     for npcId, kills in pairs(killsByNpcId) do
         local name = getNpcName(npcId)
         local mobValue = getMobValue(npcId, name)
-        local mob = { npcId = npcId, name = name or ("npc " .. npcId), kills = kills, perKill = 0, lootValue = 0, drops = {} }
+        local mob =
+            { npcId = npcId, name = name or ("npc " .. npcId), kills = kills, perKill = 0, lootValue = 0, drops = {} }
         if mobValue then
             mob.perKill, mob.drops, mob.source = mobValue.perKill, mobValue.drops, mobValue.source
             mob.lootValue = mobValue.perKill * kills
@@ -229,7 +239,9 @@ function Calculator.composeQuestProfit(questId)
         lootValue = lootValue + mob.lootValue
         totalKills = totalKills + kills
     end
-    table.sort(mobs, function(first, second) return first.lootValue > second.lootValue end)
+    table.sort(mobs, function(first, second)
+        return first.lootValue > second.lootValue
+    end)
 
     local total = rewardValue + lootValue
     return {

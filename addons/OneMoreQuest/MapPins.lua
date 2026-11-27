@@ -14,6 +14,7 @@ local isCreated = false
 -- While the world map's marks are worked out on a map another addon joins its neighbours onto (OpenMap): how it
 -- places points, and the part of the map in view (MapPins.setView)
 local currentView ---@type { view: MapView, bounds: { left: number, top: number, right: number, bottom: number } }?
+local getViewProjection -- (below, with getMapPosition)
 
 ---For the marks being worked out now: the other addon's view of the map and what of it is in view, or nil for
 ---the game's map alone.
@@ -23,8 +24,9 @@ function MapPins.setView(view, bounds, zones)
     currentView = view and bounds and { view = view, bounds = bounds, zones = zones } or nil
 end
 
----@return string? key The view the marks are being worked out for, as one text: the same text, the same view (its
----bounds and the zones in it), so what was worked out for it holds (MapMarks' kept points); nil for the game's map alone
+---@return string? key The view the marks are being worked out for, as one text: the same text, the same view (the
+---zones in it: a pan or zoom that brings no other zone in keeps what was worked out, MapMarks' kept points; what of
+---them is drawn is cut to the view at the drawing); nil for the game's map alone
 function MapPins.getViewKey()
     if not currentView then
         return nil
@@ -35,9 +37,7 @@ function MapPins.getViewKey()
             zoneIds[#zoneIds + 1] = zoneId
         end
         table.sort(zoneIds)
-        local bounds = currentView.bounds
-        currentView.key = string.format("%.4f:%.4f:%.4f:%.4f:", bounds.left, bounds.top, bounds.right, bounds.bottom)
-            .. table.concat(zoneIds, ",")
+        currentView.key = table.concat(zoneIds, ",")
     end
     return currentView.key
 end
@@ -91,8 +91,13 @@ function MapPins.getVisibleBounds(map, margin)
     local containerRight, containerBottom = container:GetRight(), container:GetBottom()
     local canvasLeft, canvasTop = canvas:GetLeft(), canvas:GetTop()
     local canvasWidth, canvasHeight = canvas:GetWidth(), canvas:GetHeight()
-    if not (containerLeft and containerTop and containerRight and containerBottom and canvasLeft and canvasTop)
-        or not canvasWidth or canvasWidth <= 0 or not canvasHeight or canvasHeight <= 0 then
+    if
+        not (containerLeft and containerTop and containerRight and containerBottom and canvasLeft and canvasTop)
+        or not canvasWidth
+        or canvasWidth <= 0
+        or not canvasHeight
+        or canvasHeight <= 0
+    then
         return nil
     end
     local width, height = canvasWidth * canvasScale, canvasHeight * canvasScale
@@ -107,22 +112,123 @@ end
 ---Where a place falls on a map, as fractions of its width and height.
 ---@param isGameMapOnly boolean? On the game's map alone, whatever another addon joins onto it (to pan the map there)
 ---@return number? x, number? y nil when the place is not on that map
+---@return number? x, number? y A zone map's point (0 to 100) on another map, through the world, as the game places it;
+---not cut to the map's edges
+local function projectThroughWorld(zoneMapId, zoneX, zoneY, mapId)
+    local continentId, north, west = ns.Geometry.getWorldPosition(zoneMapId, zoneX, zoneY)
+    if not north or not C_Map.GetMapPosFromWorldPos then
+        return nil
+    end
+    local _, position = C_Map.GetMapPosFromWorldPos(continentId, CreateVector2D(north, west), mapId)
+    if not position then
+        return nil
+    end
+    return position:GetXY()
+end
+
+-- How a zone's map lies on another map: a zone map is a rectangle of the world, and so is the map, so every point of
+-- the zone lands by one stretch and shift: worked out once from two corners, the same game calls as one place took,
+-- then used for every place. A quest's spawns on a continent's or the world's map took two calls into the game and a
+-- vector each (My First Alchemy Set: 14,794 spawns, some 30,000 calls the first drawing); now two a zone.
+-- [zone map * 2^20 + map] = { left, top, width, height }; false: the zone has no place on that map; nil: not known
+local projections = {}
+
+---@return table|false|nil projection The stretch and shift from the zone's map to the map; false when its points land
+---nowhere on it (another continent); nil when its corners will not say (each place is then placed by itself)
+local function getProjection(zoneMapId, mapId)
+    local key = zoneMapId * 1048576 + mapId
+    local known = projections[key]
+    if known ~= nil then
+        return known or false
+    end
+    local left, top = projectThroughWorld(zoneMapId, 0, 0, mapId)
+    local right, bottom = projectThroughWorld(zoneMapId, 100, 100, mapId)
+    if left and top and right and bottom and right ~= left and bottom ~= top then
+        known = { left, top, right - left, bottom - top }
+    elseif not projectThroughWorld(zoneMapId, 50, 50, mapId) then
+        known = false -- (not even its middle lands on the map: none of its places do)
+    else
+        return nil
+    end
+    projections[key] = known
+    return known
+end
+
+-- The same for the other addon's joined-up view (OpenMap): a zone lies on it as a rectangle too, so its places are
+-- placed by one stretch and shift, worked out from two corners, not asked of the other addon one by one.
+-- [view] = { [zone map * 2^20 + map] = { left, top, width, height } or false }
+local viewProjections = setmetatable({}, { __mode = "k" })
+
+---@return table|false projection The stretch and shift from a zone's map onto the view's; false when the view will
+---not place its corners (each place is then asked for by itself)
+getViewProjection = function(view, zoneMapId, mapId)
+    local byKey = viewProjections[view]
+    if not byKey then
+        byKey = {}
+        viewProjections[view] = byKey
+    end
+    local key = zoneMapId * 1048576 + mapId
+    local known = byKey[key]
+    if known == nil then
+        local isFine, left, top = pcall(view.project, zoneMapId, 0, 0, mapId)
+        local isFineToo, right, bottom = pcall(view.project, zoneMapId, 1, 1, mapId)
+        known = isFine
+                and isFineToo
+                and type(left) == "number"
+                and type(top) == "number"
+                and type(right) == "number"
+                and type(bottom) == "number"
+                and right ~= left
+                and { left, top, right - left, bottom - top }
+            or false
+        byKey[key] = known
+    end
+    return known
+end
+
+---@return number? left, number? top, number? right, number? bottom Where a zone's map lies on the map shown, in its
+---fractions (the joined-up view's, or the game's); nil when that cannot be said
+function MapPins.getZoneRect(zoneMapId, mapId)
+    local projection
+    if currentView then
+        projection = getViewProjection(currentView.view, zoneMapId, mapId)
+    else
+        projection = getProjection(zoneMapId, mapId)
+    end
+    if not projection then
+        return nil
+    end
+    return projection[1], projection[2], projection[1] + projection[3], projection[2] + projection[4]
+end
+
 function MapPins.getMapPosition(place, mapId, isGameMapOnly)
     if place.x < 0 then
         return nil
     end
     local placeMapId = ns.Database.getUiMapId(place.zoneId)
     if currentView and placeMapId and not isGameMapOnly then
-        -- The neighbours are on this map too: placed as the other addon draws them, as far as the view reaches
-        local isFine, x, y = pcall(currentView.view.project, placeMapId, place.x / 100, place.y / 100, mapId)
-        if isFine and type(x) == "number" and type(y) == "number" then
-            -- A zone in view gives all its places; only those of zones further off are cut at the view's edge
-            local zones = currentView.zones
-            if zones and zones[placeMapId] then
-                return x, y
+        -- The neighbours are on this map too: placed as the other addon draws them, as far as the view reaches. A zone
+        -- in view gives all its places (its areas are traced whole, then cut to the view at the drawing); a zone not
+        -- in view has none in it
+        local zones = currentView.zones
+        if zones and not zones[placeMapId] then
+            return nil
+        end
+        local x, y
+        local projection = getViewProjection(currentView.view, placeMapId, mapId)
+        if projection then
+            x, y = projection[1] + place.x / 100 * projection[3], projection[2] + place.y / 100 * projection[4]
+        else
+            local isFine, projectedX, projectedY =
+                pcall(currentView.view.project, placeMapId, place.x / 100, place.y / 100, mapId)
+            if isFine and type(projectedX) == "number" and type(projectedY) == "number" then
+                x, y = projectedX, projectedY
             end
+        end
+        if x then
+            -- (no zones told: cut at the view's edge)
             local bounds = currentView.bounds
-            if x < bounds.left or x > bounds.right or y < bounds.top or y > bounds.bottom then
+            if not zones and (x < bounds.left or x > bounds.right or y < bounds.top or y > bounds.bottom) then
                 return nil
             end
             return x, y
@@ -131,16 +237,14 @@ function MapPins.getMapPosition(place, mapId, isGameMapOnly)
     if placeMapId == mapId then
         return place.x / 100, place.y / 100
     end
-    local continentId, north, west = ns.Geometry.getWorldPosition(placeMapId, place.x, place.y)
-    if not north or not C_Map.GetMapPosFromWorldPos then
-        return nil
+    local projection = placeMapId and getProjection(placeMapId, mapId)
+    local x, y
+    if projection then
+        x, y = projection[1] + place.x / 100 * projection[3], projection[2] + place.y / 100 * projection[4]
+    elseif projection == nil then
+        x, y = projectThroughWorld(placeMapId, place.x, place.y, mapId)
     end
-    local _, position = C_Map.GetMapPosFromWorldPos(continentId, CreateVector2D(north, west), mapId)
-    if not position then
-        return nil
-    end
-    local x, y = position:GetXY()
-    if x < 0 or x > 1 or y < 0 or y > 1 then
+    if not x or x < 0 or x > 1 or y < 0 or y > 1 then
         return nil
     end
     return x, y
@@ -194,7 +298,12 @@ function MapPins.applyGameFilter(isSwitching)
         if GetCVar("questPOI") ~= "1" then
             SetCVar("questPOI", 1)
         end
-    elseif isSwitching and wasOurs == false and ns.settings.shouldHideBuiltInMapPins and ns.settings.shouldHideBuiltInTracker then
+    elseif
+        isSwitching
+        and wasOurs == false
+        and ns.settings.shouldHideBuiltInMapPins
+        and ns.settings.shouldHideBuiltInTracker
+    then
         if GetCVar("questPOI") ~= "0" then
             SetCVar("questPOI", 0)
         end
@@ -265,7 +374,8 @@ local drawnHoverKey -- the quests hovered in the list when the marks were last d
 
 local function getHoverKey()
     local Log = ns.Log
-    return tostring(Log.getHoveredQuestId and Log.getHoveredQuestId()) .. ":"
+    return tostring(Log.getHoveredQuestId and Log.getHoveredQuestId())
+        .. ":"
         .. tostring(Log.getHighlightedAvailableQuestId and Log.getHighlightedAvailableQuestId())
 end
 
@@ -282,7 +392,12 @@ end
 ---quest in focus (Log.setDocked), which may be another
 local function isWorldMapCurrent()
     local drawn = drawnWorldMap
-    if isWorldMapStale or not drawn or drawn.mapId ~= WorldMapFrame:GetMapID() or drawn.view ~= getWorldMapViewKey() then
+    if
+        isWorldMapStale
+        or not drawn
+        or drawn.mapId ~= WorldMapFrame:GetMapID()
+        or drawn.view ~= getWorldMapViewKey()
+    then
         return false
     end
     if MapPins.getDataKey() ~= drawnDataKey or getHoverKey() ~= drawnHoverKey then
@@ -293,11 +408,15 @@ local function isWorldMapCurrent()
         return position == drawn.position
     end
     return position.uiMapId == drawn.position.uiMapId
-        and ns.Geometry.getDistance(position.north, position.west, drawn.position.north, drawn.position.west) < STALE_AFTER_YARDS
+        and ns.Geometry.getDistance(position.north, position.west, drawn.position.north, drawn.position.west)
+            < STALE_AFTER_YARDS
 end
 
 ---The world map opened: its marks are drawn only when they are not what it would show now.
 function MapPins.handleWorldMapShown()
+    if ns.MapMarksWorld.isOn() then
+        ns.MapMarksWorld.handleMapShown(WorldMapFrame) -- (the kept drawing: placed for the map as it opens)
+    end
     if not C_Timer then
         MapPins.queueRefresh()
         return
@@ -316,8 +435,8 @@ function MapPins.handleWorldMapShown()
 end
 
 -- A quest hovered in the quest window's list stands out on the map. The mouse crosses many rows on its way: the map
--- is drawn for the one it rests on, not for each it passes (a drawing costs a frame tens of milliseconds)
-local HOVER_SETTLE_SECONDS = 0.15
+-- is drawn for the one it rests on, not for each it passes
+local HOVER_SETTLE_SECONDS = 0.08
 local lastHoverAt, isHoverQueued = 0, false
 
 local function checkHover()
@@ -405,7 +524,9 @@ local function handleBuiltInPin(_, template)
     lastPinAt = GetTime and GetTime() or 0
     if not isPinCheckQueued and C_Timer then
         isPinCheckQueued = true
-        C_Timer.After(PIN_SETTLE_SECONDS, function() ns.Timing.measure("other addons' pins checked", checkPins) end)
+        C_Timer.After(PIN_SETTLE_SECONDS, function()
+            ns.Timing.measure("other addons' pins checked", checkPins)
+        end)
     end
 end
 
@@ -416,8 +537,16 @@ end
 ---"guide" while nothing is held back), and whether Alt is held over the world map to see everything.
 local function getDataKey()
     local focusedQuestId = ns.MapMarks.getFocusedQuestId()
-    return ns.Model.getStructureKey(focusedQuestId) .. "|" .. tostring(focusedQuestId) .. "|" .. tostring(ns.Focus.get())
-        .. "|" .. ns.Availability.getChangeKey() .. "|" .. ns.Spoilers.getKey() .. (ns.MapMarks.isPeeking() and "+" or "")
+    return ns.Model.getStructureKey(focusedQuestId)
+        .. "|"
+        .. tostring(focusedQuestId)
+        .. "|"
+        .. tostring(ns.Focus.get())
+        .. "|"
+        .. ns.Availability.getChangeKey()
+        .. "|"
+        .. ns.Spoilers.getKey()
+        .. (ns.MapMarks.isPeeking() and "+" or "")
 end
 MapPins.getDataKey = getDataKey
 
@@ -428,13 +557,32 @@ function MapPins.refreshAfterChange(isQuiet)
     -- (MapPins.isKeepingOff: never kept, the minimap neither, for comparing the two ways in the simulator)
     if isQuiet and drawnDataKey ~= nil and not MapPins.isKeepingOff and getDataKey() == drawnDataKey then
         MapPins.keptCount = (MapPins.keptCount or 0) + 1 -- (how often: read by the simulator's audits)
+        -- (what is drawn stays; the marks kept for the other maps are worked out anew when next shown: a count in
+        -- theirs moved on)
+        if WorldMapFrame then
+            ns.MapMarks.forgetKeptMarks(WorldMapFrame)
+        end
         return
     end
     MapPins.refresh()
 end
 
-function MapPins.refresh()
+---@param isZoomOnly boolean? Only the world map's zoom changed since it was drawn (MapPins.queueRearrange): its
+---marks are laid out again as they were worked out
+---@param isMapSwap boolean? Asked for by nothing but another map coming underneath the view (OpenMap's joined-up
+---world, as it is zoomed and dragged): with the quests as they were, the marks worked out for that map before are
+---drawn as they are (MapMarks.draw keeps them, a map each, until something else asks for a drawing)
+function MapPins.refresh(isZoomOnly, isMapSwap)
     ns.Timing.noteCause("map marks") -- also drawn straight away, by the redraw of everything (Core)
+    local isSwapOnly = isMapSwap == true
+        and drawnDataKey ~= nil
+        and getDataKey() == drawnDataKey
+        and getHoverKey() == drawnHoverKey
+    if isZoomOnly == true and WorldMapFrame and WorldMapFrame:IsShown() then
+        ns.Timing.measure("map marks laid out (zoom)", ns.MapMarks.draw, WorldMapFrame, true)
+        lastDrawnAt = GetTime and GetTime() or 0
+        return
+    end
     drawnDataKey = getDataKey()
     -- The zone map (Shift+M) gets the same marks, drawn on its own layers
     if BattlefieldMapFrame and BattlefieldMapFrame:IsShown() and BattlefieldMapFrame.GetCanvas then
@@ -442,14 +590,22 @@ function MapPins.refresh()
     end
     if not WorldMapFrame or not WorldMapFrame:IsShown() then
         isWorldMapStale = true -- something changed while the map was closed: drawn again as it opens
+        -- (the kept drawing takes what the quests show now and makes the player's zone ready meanwhile, a little each
+        -- frame: the map then opens on areas and spawn marks already laid out)
+        if WorldMapFrame and ns.MapMarksWorld.isOn() and ns.settings.shouldShowMapPins then
+            ns.Timing.measure("map made ready (closed)", function()
+                ns.MapMarksWorld.prepare(WorldMapFrame, ns.MapMarks.composeFeatures(false))
+            end)
+        end
         return
     end
     ns.Timing.measure("game's markers hidden (with a drawing)", MapPins.hideBuiltIn)
-    ns.Timing.measure("map marks drawn", ns.MapMarks.draw, WorldMapFrame)
+    ns.Timing.measure("map marks drawn", ns.MapMarks.draw, WorldMapFrame, false, isSwapOnly)
     drawnEntranceKey = getEntranceKey()
     lastDrawnAt = GetTime and GetTime() or 0
     isWorldMapStale = false
-    drawnWorldMap = { mapId = WorldMapFrame:GetMapID(), view = getWorldMapViewKey(), position = ns.Geometry.getPlayerPosition() }
+    drawnWorldMap =
+        { mapId = WorldMapFrame:GetMapID(), view = getWorldMapViewKey(), position = ns.Geometry.getPlayerPosition() }
     drawnHoverKey = getHoverKey()
 end
 
@@ -470,15 +626,41 @@ local function hookZoneMap()
     MapPins.queueRefresh()
 end
 
-function MapPins.queueRefresh()
+local isQueuedForSwapOnly = false -- the refresh queued was asked for by a map coming underneath, and nothing else
+
+---@param isMapSwap boolean? (true itself, nothing else: this is also a hook's and an event's handler) Asked for only
+---because another map came underneath the view: MapPins.refresh
+function MapPins.queueRefresh(isMapSwap)
     ns.Timing.noteCause("map marks")
     if isRefreshQueued then
+        if isMapSwap ~= true then
+            isQueuedForSwapOnly = false -- (something else changed meanwhile: drawn in full)
+        end
         return
     end
-    isRefreshQueued = true
+    isRefreshQueued, isQueuedForSwapOnly = true, isMapSwap == true
     C_Timer.After(REFRESH_DELAY_SECONDS, function()
-        isRefreshQueued = false
-        MapPins.refresh()
+        local isSwapOnly = isQueuedForSwapOnly
+        isRefreshQueued, isQueuedForSwapOnly = false, false
+        MapPins.refresh(nil, isSwapOnly)
+    end)
+end
+
+local isRearrangeQueued = false
+
+---The world map's zoom settled at another size (with the kept drawing, which shows the areas and spawn marks of the
+---new zoom by itself): its quests' marks are laid out again for it, as they were worked out at the last drawing.
+---Drawn in full instead when a full drawing is asked for meanwhile, or the quests changed since.
+function MapPins.queueRearrange()
+    if isRefreshQueued or isRearrangeQueued then
+        return
+    end
+    isRearrangeQueued = true
+    C_Timer.After(REFRESH_DELAY_SECONDS, function()
+        isRearrangeQueued = false
+        if not isRefreshQueued then
+            MapPins.refresh(drawnDataKey ~= nil and MapPins.getDataKey() == drawnDataKey)
+        end
     end)
 end
 
@@ -488,15 +670,25 @@ MapPins.VIEW_MARGIN = VIEW_MARGIN
 
 ---Another addon moved its view of the world map without the game's map changing (OpenMap's panning across its
 ---joined zones): redrawn once the view shows a part the marks were not worked out for.
+---@return boolean isWithin What a map shows now lies inside some bounds of it (each a share of the map: what was drawn
+---for, say); false too where the map cannot say what it shows
+function MapPins.isViewWithin(map, bounds)
+    local visible = MapPins.getVisibleBounds(map, 0)
+    return visible ~= nil
+        and visible.left >= bounds.left
+        and visible.right <= bounds.right
+        and visible.top >= bounds.top
+        and visible.bottom <= bounds.bottom
+end
+
 function MapPins.handleViewMoved()
     local map = WorldMapFrame
     if not map or not map:IsShown() then
         return
     end
-    local drawnBounds = ns.MapMarks.getDrawn(map).viewBounds
-    local visible = MapPins.getVisibleBounds(map, 0)
-    if not drawnBounds or not visible or visible.left < drawnBounds.left or visible.right > drawnBounds.right
-        or visible.top < drawnBounds.top or visible.bottom > drawnBounds.bottom then
+    local drawn = ns.MapMarks.getDrawn(map)
+    local drawnBounds = drawn.cullBounds or drawn.viewBounds -- (what was drawn: the view and a margin)
+    if not drawnBounds or not MapPins.isViewWithin(map, drawnBounds) then
         MapPins.queueSettledRefresh() -- once the view stops moving, not at every step of a glide
     end
 end
@@ -508,12 +700,13 @@ local ZOOM_SETTLE_SECONDS = 0.3 -- while the zoom keeps changing, the marks wait
 local JOINED_SETTLE_SECONDS = 0.8
 local lastZoomAt, settleSeconds = 0, ZOOM_SETTLE_SECONDS
 local isSettledCheckPending = false -- a settled refresh will look at the view once it has stayed put
+local isSettledFull = false -- ...and draws in full then (a pan showed ground not drawn for), not the marks' layout alone
 
 ---@return boolean isComing The world map's marks are about to be drawn again: asked for, or looked at once the view
 ---settles (which, at another zoom than they were drawn at, draws them). Catching their lines and spawn marks up with
 ---the zoom meanwhile (MapMarks.followZoom) would be thousands of calls into the game the drawing then undoes.
 function MapPins.isRedrawComing()
-    return isRefreshQueued or isSettledCheckPending
+    return isRefreshQueued or isSettledCheckPending or isRearrangeQueued
 end
 
 ---The map's zoom changed. Its marks are laid out again only once the zoom has settled: laid out at every step of a
@@ -531,29 +724,38 @@ local function isViewCovered()
     if type(scale) ~= "number" or type(drawn.scale) ~= "number" or math.abs(scale - drawn.scale) > 0.0001 then
         return false
     end
-    local drawnBounds = drawn.viewBounds
+    local drawnBounds = drawn.cullBounds or drawn.viewBounds
     if not drawnBounds then
-        return true -- drawn for the whole map (no addon joins other zones on): whatever part shows is covered
+        return true -- drawn for the whole map: whatever part shows is covered
     end
-    local visible = MapPins.getVisibleBounds(map, 0)
-    return visible ~= nil and visible.left >= drawnBounds.left and visible.right <= drawnBounds.right
-        and visible.top >= drawnBounds.top and visible.bottom <= drawnBounds.bottom
+    return MapPins.isViewWithin(map, drawnBounds)
 end
 
-function MapPins.queueSettledRefresh()
+---@param isZoomOnly boolean? Asked for by a zoom alone (MapMarks' OnUpdate): the marks are laid out again as they
+---were worked out (MapPins.queueRearrange), unless a pan asks for a full drawing meanwhile
+---@param movedAt number? When the view last moved (GetTime), if not just now: the wait counts from then
+function MapPins.queueSettledRefresh(isZoomOnly, movedAt)
     local now = GetTime and GetTime() or 0
-    lastZoomAt = now
+    lastZoomAt = math.min(now, type(movedAt) == "number" and movedAt or now)
     settleSeconds = ns.MapMarks.getDrawn(WorldMapFrame).view and JOINED_SETTLE_SECONDS or ZOOM_SETTLE_SECONDS
+    if not isZoomOnly then
+        isSettledFull = true
+    end
     isSettledCheckPending = true
-    C_Timer.After(settleSeconds, function()
+    C_Timer.After(math.max(0.01, settleSeconds - (now - lastZoomAt)), function()
         if (GetTime and GetTime() or 0) - lastZoomAt >= settleSeconds - 0.01 then
-            isSettledCheckPending = false
+            local isFull = isSettledFull
+            isSettledCheckPending, isSettledFull = false, false
             -- Drawn since the view last moved (the map opening draws as it settles), for what it shows now: no need
             -- (the marks catch up with the zoom instead, MapMarks' OnUpdate, if they have not)
             if lastDrawnAt >= lastZoomAt and isViewCovered() then
                 return
             end
-            MapPins.queueRefresh()
+            if isFull then
+                MapPins.queueRefresh()
+            else
+                MapPins.queueRearrange()
+            end
         end
     end)
 end
@@ -567,8 +769,12 @@ function MapPins.create()
     hooksecurefunc(WorldMapFrame, "OnMapChanged", function()
         ns.Timing.measure("map changed", function()
             ns.Log.handleMapChanged(WorldMapFrame:GetMapID())
+            -- (the kept drawing's areas and spawn marks are placed for the new map at once, never hidden)
+            if ns.MapMarksWorld.isOn() then
+                ns.MapMarksWorld.handleMapChanged(WorldMapFrame)
+            end
             ns.MapMarks.hideUntilDrawn(WorldMapFrame) -- laid out for the last map: hidden till drawn for this one
-            MapPins.queueRefresh()
+            MapPins.queueRefresh(true)
         end)
     end)
     hooksecurefunc(WorldMapFrame, "OnCanvasScaleChanged", function()
@@ -578,6 +784,9 @@ function MapPins.create()
         -- (handleViewMoved)
         if WorldMapFrame:IsShown() then
             ns.Timing.measure("marks follow the zoom", ns.MapMarks.followZoom, WorldMapFrame, true)
+            if ns.MapMarksWorld.isOn() then
+                ns.MapMarksWorld.follow(WorldMapFrame) -- (in the same frame: its lines and spawn marks keep their size)
+            end
         end
     end)
     hooksecurefunc(WorldMapFrame, "AcquirePin", handleBuiltInPin)
@@ -594,5 +803,12 @@ function MapPins.create()
     end)
 end
 
-ns.on("FOCUS_CHANGED", function() MapPins.queueRefresh() end) -- the quest in focus stands out on the map
-ns.registerModule({ name = "MapPins", create = MapPins.create, needsWorldMap = true, refresh = MapPins.refreshAfterChange })
+ns.on("FOCUS_CHANGED", function()
+    MapPins.queueRefresh()
+end) -- the quest in focus stands out on the map
+ns.registerModule({
+    name = "MapPins",
+    create = MapPins.create,
+    needsWorldMap = true,
+    refresh = MapPins.refreshAfterChange,
+})

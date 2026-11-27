@@ -48,19 +48,22 @@ local function isListed(ns, value)
     return false
 end
 
-test("in Guide the quest window draws exactly as before, and a choice changed and taken back leaves no trace", function()
-    local ns, state = createAddon()
-    setQuest(state, 301, false, { killObjective(2, 12), itemObjective(0, 4) })
-    local draw = openWindow(ns)
-    local before = draw(301)
-    expectEqual(ns.Spoilers.isActive(), false, "nothing held back")
-    expectEqual(has(before, "Need a hint?"), false, "no hint offered in Guide")
-    expectEqual(has(before, "Turn in to"), true, "the turn-in")
-    ns.Spoilers.setPreset("explorer")
-    draw(301)
-    ns.Spoilers.setPreset("guide")
-    expectEqual(draw(301), before, "the same page again")
-end)
+test(
+    "in Guide the quest window draws exactly as before, and a choice changed and taken back leaves no trace",
+    function()
+        local ns, state = createAddon()
+        setQuest(state, 301, false, { killObjective(2, 12), itemObjective(0, 4) })
+        local draw = openWindow(ns)
+        local before = draw(301)
+        expectEqual(ns.Spoilers.isActive(), false, "nothing held back")
+        expectEqual(has(before, "Need a hint?"), false, "no hint offered in Guide")
+        expectEqual(has(before, "Turn in to"), true, "the turn-in")
+        ns.Spoilers.setPreset("explorer")
+        draw(301)
+        ns.Spoilers.setPreset("guide")
+        expectEqual(draw(301), before, "the same page again")
+    end
+)
 
 test("objectives: exact as before, rough the zone alone, found the places found, hidden nothing", function()
     local ns, state = createAddon()
@@ -148,7 +151,9 @@ test("rewards: this quest only drops the chain's prize and the experience; hidde
     setQuest(state, 101, false)
     local draw = openWindow(ns)
     local getRewards = ns.QuestState.getRewards
-    ns.QuestState.getRewards = function() return { experience = 450, money = 120, items = {}, choices = {} } end
+    ns.QuestState.getRewards = function()
+        return { experience = 450, money = 120, items = {}, choices = {} }
+    end
     local block = ns.LogState.rewardsBlock
     local guide = draw(101)
     expectEqual(has(guide, "Left in the chain:"), true, "Guide: the prize panel")
@@ -216,7 +221,11 @@ test("a reason naming an earlier quest says only later in the story while chains
     expectEqual(ns.Availability.getShownReason(blocker), "After Fresh Start", "Guide: the quest named")
     ns.Spoilers.setPreset("explorer")
     expectEqual(ns.Availability.getShownReason(blocker), "Later in the story", "Explorer: later in the story")
-    expectEqual(ns.Availability.getShownReason({ kind = "level", text = "Needs level 30" }), "Needs level 30", "a level is no spoiler")
+    expectEqual(
+        ns.Availability.getShownReason({ kind = "level", text = "Needs level 30" }),
+        "Needs level 30",
+        "a level is no spoiler"
+    )
     blocker.level = 30
     expectEqual(has(ns.Availability.getShownReason(blocker), "30"), true, "the level still to reach is said")
 end)
@@ -264,7 +273,9 @@ test("the missed-quests report keeps quiet while quests to pick up are held back
     ns.Spoilers.setPreset("explorer")
     local printed = {}
     local savedPrint = ns.print
-    ns.print = function(text) printed[#printed + 1] = text end
+    ns.print = function(text)
+        printed[#printed + 1] = text
+    end
     ns.MissedReport.printMissed()
     ns.print = savedPrint
     expectEqual(#printed, 1, "one line")

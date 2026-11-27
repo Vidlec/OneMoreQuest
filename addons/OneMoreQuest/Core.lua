@@ -1,7 +1,6 @@
 local addonName, ns = ...
 
--- The name players see; the addon's folder is named the same. Inside, the code keeps its first name
--- (TrailheadLog, TrailheadTracker), which players never see.
+-- The name players see; the addon's folder and its frames (OneMoreQuestLog, OneMoreQuestTracker) are named the same.
 ns.ADDON_TITLE = "OneMoreQuest"
 ns.ADDON_FOLDER = addonName -- for asking the game about this addon (its version), whatever the folder is called
 
@@ -49,6 +48,11 @@ local DEFAULT_SETTINGS = {
     trackerWidth = 260, -- how wide the tracker is, set by dragging the grip at its title's left end
     trackerHeightShare = 0, -- the most of the screen's height the tracker takes (the grip under it); 0: as much as fits
     windowScale = 1, -- the quest window's size, text included, beside the map
+    diagramTreeWidth = false, -- the quest diagram's window as the player sized it (its tree's width, its height);
+    diagramHeight = false, -- false: its usual size
+    mapSize = 1, -- the windowed map's size, a share of the game's own (the grip at the quest window's corner)
+    pageStretch = 0, -- how much wider than usual the quest window's page is, set by the grip at its corner
+    windowExtraHeight = 0, -- how much taller than the map beside it the quest window is (the same grip)
     trackerOrder = "number", -- quests in a tracker zone: as tracked ("number"), "distance", "level" or "progress"
     shouldCollapseReady = false, -- a quest ready to hand in is its title alone in the tracker
     shouldHideDoneObjectives = false, -- the tracker lists only objectives still to do
@@ -75,6 +79,7 @@ local DEFAULT_SETTINGS = {
     nameplateIconScale = 1, -- its size
     shouldAutoAccept = false, -- quests offered are accepted (Shift held: the player answers)
     shouldAutoTurnIn = false, -- ready quests are handed in when there is no reward to choose
+    shouldKeepUntracked = false, -- a quest moving on is not tracked by it (the game's way, kept when off): QuestState
     lowLevelGap = 0, -- levels below the player past which a quest is low-level; 0: as the game greys them out
     shouldShowDungeonLeadIns = true, -- low-level quests still offered when their chain leads to a dungeon's (or a raid's) quest in range
     shouldShowAnyLeadIns = false, -- ... or to any quest in range (takes in the one above)
@@ -88,7 +93,8 @@ local DEFAULT_SETTINGS = {
     arePanelsHidden = false, -- the quest panels folded away by the arrow on the map, leaving the map alone
     shouldShowLowLevel = false,
     shouldShowRepeatable = false,
-    areaStyle = "filled", -- the areas round each quest's spawns, in its colour: a light wash ("filled"), bold shapes with a bright edge ("blob"), or "none"
+    areaGeometry = "soft", -- how an area is drawn on the maps: soft shadows alone ("soft"), an oval with a ring round each group of spawns ("ovals"), both a couple of pictures an area; or traced round the spawns, many pieces ("traced")
+    areaStyle = "filled", -- the areas round each quest's spawns, in its colour ("filled"), or "none"
     shouldFillAreas = true, -- the areas filled in the quest's colour (off: their outlines alone)
     shouldOutlineAreas = true, -- a line round each area in the quest's colour (off: the fill alone)
     areaFillStrength = 1, -- how strongly they are filled and outlined, against the look as it comes (0.1 to 2)
@@ -99,6 +105,7 @@ local DEFAULT_SETTINGS = {
     shouldGlowSpawnMarkers = true, -- a glow in the quest's colour under a glyph or the game's art
     otherSpawnMarkers = "faded", -- the markers of quests not in focus: fainter ("faded"), as strong as the focused quest's ("full"), or "hidden"
     windowBorder = "map", -- the frame round the quest panels: "map" (like the map's), "game", "gold" or "flat"
+    questDetails = "beside", -- the open quest's page "beside" the list, or on a page of its "own" in the list's place (the window one pane wide)
     logGrouping = "step", -- quests in the log and the tracker grouped by where their next step is ("step"), or where picked up ("pickup")
     shouldShowPvp = false,
     shouldShowEvents = true, -- a holiday's or a world event's quests, while it runs (Events)
@@ -185,7 +192,9 @@ ns.frameNumber = 0
 if CreateFrame then
     local frameCounter = CreateFrame("Frame")
     if frameCounter and frameCounter.SetScript then
-        frameCounter:SetScript("OnUpdate", function() ns.frameNumber = ns.frameNumber + 1 end)
+        frameCounter:SetScript("OnUpdate", function()
+            ns.frameNumber = ns.frameNumber + 1
+        end)
     end
 end
 
@@ -207,6 +216,8 @@ local TRACE_SLOW_MILLISECONDS = 16 -- a frame OneMoreQuest took this long in is 
 local TRACE_MAX_SLOW_FRAMES = 400
 local TRACE_MAX_OPENINGS = 40
 local TRACE_SNAPSHOT_SECONDS = 60
+local TRACE_SAMPLE_SECONDS = 5 -- the game's recent averages written down this often, with what the player was doing
+local TRACE_MAX_SAMPLES = 240
 local TRACE_MAX_SECONDS = 20 * 60 -- it stops by itself after this long
 Timing.frameParts, Timing.frameCauses = {}, {} -- what of ours ran since the watcher last looked, and what asked for it
 
@@ -229,10 +240,25 @@ function Timing.measure(name, fn, ...)
         Timing.opening.parts[name] = part
         part.milliseconds, part.count = part.milliseconds + milliseconds, part.count + 1
     end
-    if Timing.trace then
+    local trace = Timing.trace
+    if trace then
         Timing.frameParts[name] = (Timing.frameParts[name] or 0) + milliseconds
+        -- (and over the whole trace: what costs a little in every frame shows only added up)
+        trace.partMilliseconds[name] = (trace.partMilliseconds[name] or 0) + milliseconds
+        trace.partCounts[name] = (trace.partCounts[name] or 0) + 1
     end
     return first, second, third, fourth
+end
+
+---fn, measured under that name while timing or tracing, and otherwise called as it is: for the handlers that run
+---every frame (an OnUpdate), whose cost is small each time and adds up
+function Timing.timed(name, fn)
+    return function(...)
+        if not Timing.isRecording then
+            return fn(...)
+        end
+        return Timing.measure(name, fn, ...)
+    end
 end
 
 -- What each addon took in the last frame, as the game's own profiler measures it (C_AddOnProfiler, LastTime)
@@ -244,7 +270,8 @@ local function getLastTimeMetric()
 end
 
 local function canProfileAddOns()
-    return C_AddOnProfiler ~= nil and C_AddOnProfiler.GetAddOnMetric ~= nil
+    return C_AddOnProfiler ~= nil
+        and C_AddOnProfiler.GetAddOnMetric ~= nil
         and not (C_AddOnProfiler.IsEnabled and not C_AddOnProfiler.IsEnabled())
 end
 
@@ -287,7 +314,9 @@ end
 ---The second line of an opening's report: which addons took the time, in the opening's frame and after it.
 local function reportAddOns(opening)
     if not opening.addOnNames then
-        ns.print("this client does not measure each addon (no C_AddOnProfiler): only OneMoreQuest's own parts are timed.")
+        ns.print(
+            "this client does not measure each addon (no C_AddOnProfiler): only OneMoreQuest's own parts are timed."
+        )
         return
     end
     local costs = {}
@@ -303,10 +332,20 @@ local function reportAddOns(opening)
         texts[#texts + 1] = string.format("%s %.0f / %.0f", cost.name, cost.opening, cost.after)
     end
     local allOpening = opening.allAddOns.opening or 0
-    print(string.format("  by addon, ms in the opening frame / the slowest frame after: %s",
-        #texts > 0 and table.concat(texts, ", ") or "none measured"))
-    print(string.format("  all addons together %.0f ms of the %.0f ms opening frame: the game itself took the other %.0f ms",
-        allOpening, opening.frame or 0, math.max((opening.frame or 0) - allOpening, 0)))
+    print(
+        string.format(
+            "  by addon, ms in the opening frame / the slowest frame after: %s",
+            #texts > 0 and table.concat(texts, ", ") or "none measured"
+        )
+    )
+    print(
+        string.format(
+            "  all addons together %.0f ms of the %.0f ms opening frame: the game itself took the other %.0f ms",
+            allOpening,
+            opening.frame or 0,
+            math.max((opening.frame or 0) - allOpening, 0)
+        )
+    )
 end
 
 local reportCauses -- what asked for each part (below)
@@ -326,10 +365,17 @@ local function reportOpening()
     for name, part in pairs(opening.parts) do
         parts[#parts + 1] = { name = name, milliseconds = part.milliseconds, count = part.count }
     end
-    table.sort(parts, function(first, second) return first.milliseconds > second.milliseconds end)
+    table.sort(parts, function(first, second)
+        return first.milliseconds > second.milliseconds
+    end)
     local texts = {}
     for _, part in ipairs(parts) do
-        texts[#texts + 1] = string.format("%s %.1f ms%s", part.name, part.milliseconds, part.count > 1 and (" (" .. part.count .. "x)") or "")
+        texts[#texts + 1] = string.format(
+            "%s %.1f ms%s",
+            part.name,
+            part.milliseconds,
+            part.count > 1 and (" (" .. part.count .. "x)") or ""
+        )
     end
     if Timing.trace and #Timing.trace.openings < TRACE_MAX_OPENINGS then
         -- Written down for the trace, with which addons took the time and what asked for each part
@@ -346,17 +392,29 @@ local function reportOpening()
             end
         end
         table.insert(Timing.trace.openings, {
-            at = math.floor((GetTime and GetTime() or 0) - Timing.trace.startedAt), number = opening.number,
-            frame = math.floor((opening.frame or 0) + 0.5), slowestAfter = math.floor((opening.slowestAfter or 0) + 0.5),
-            ours = texts, addOns = addOns, causes = causes,
+            at = math.floor((GetTime and GetTime() or 0) - Timing.trace.startedAt),
+            number = opening.number,
+            frame = math.floor((opening.frame or 0) + 0.5),
+            slowestAfter = math.floor((opening.slowestAfter or 0) + 0.5),
+            ours = texts,
+            addOns = addOns,
+            causes = causes,
         })
     end
     if not Timing.isOn then
         return -- traced only: nothing said in the chat
     end
-    ns.print(string.format("map open #%d%s: frame %.0f ms (normal %.0f ms), next frames up to %.0f ms; ours: %s",
-        opening.number, opening.number == 1 and " (first since login or /reload)" or "", opening.frame or 0, normal,
-        opening.slowestAfter or 0, #texts > 0 and table.concat(texts, ", ") or "nothing"))
+    ns.print(
+        string.format(
+            "map open #%d%s: frame %.0f ms (normal %.0f ms), next frames up to %.0f ms; ours: %s",
+            opening.number,
+            opening.number == 1 and " (first since login or /reload)" or "",
+            opening.frame or 0,
+            normal,
+            opening.slowestAfter or 0,
+            #texts > 0 and table.concat(texts, ", ") or "nothing"
+        )
+    )
     reportAddOns(opening)
     reportCauses(opening)
 end
@@ -402,8 +460,14 @@ function Timing.startOpening()
         before[index] = Timing.frames[index]
     end
     Timing.opening = {
-        number = Timing.openCount, parts = {}, before = before, framesAfter = 0,
-        addOnNames = canProfileAddOns() and getLoadedAddOnNames() or nil, addOns = {}, allAddOns = {}, causes = {},
+        number = Timing.openCount,
+        parts = {},
+        before = before,
+        framesAfter = 0,
+        addOnNames = canProfileAddOns() and getLoadedAddOnNames() or nil,
+        addOns = {},
+        allAddOns = {},
+        causes = {},
     }
     C_Timer.After(TIMING_REPORT_SECONDS, reportOpening)
 end
@@ -447,11 +511,47 @@ local function describeCost(addOnName)
     return table.concat(parts, ", ")
 end
 
+---@return number? ours OneMoreQuest's recent average (ms a frame), as the game measures it
+---@return number? addOns every addon's together
+---@return number? game the game's own scripts' and every addon's together (what the game menu's percents are of)
+local function readRecentTimes()
+    local metric = getMetric(PROFILER_METRICS[1])
+    local function read(getter, ...)
+        if not getter then
+            return nil
+        end
+        local isRead, value = pcall(getter, ...)
+        return isRead and type(value) == "number" and value or nil
+    end
+    return read(C_AddOnProfiler.GetAddOnMetric, addonName, metric),
+        read(C_AddOnProfiler.GetOverallMetric, metric),
+        read(C_AddOnProfiler.GetApplicationMetric, metric)
+end
+
 ---Prints what OneMoreQuest, Questie and the busiest addons cost, as the game measures them.
 function Timing.printCpu()
-    if not (C_AddOnProfiler and C_AddOnProfiler.GetAddOnMetric) or (C_AddOnProfiler.IsEnabled and not C_AddOnProfiler.IsEnabled()) then
+    if
+        not (C_AddOnProfiler and C_AddOnProfiler.GetAddOnMetric)
+        or (C_AddOnProfiler.IsEnabled and not C_AddOnProfiler.IsEnabled())
+    then
         ns.print("this client does not measure addons (no C_AddOnProfiler).")
         return
+    end
+    -- The game menu's percents in milliseconds: an addon's share is of the game's own scripts' time and its own
+    local ours, addOns, game = readRecentTimes()
+    if ours and addOns and game and game > 0 then
+        local relative = game - addOns + ours
+        ns.print(
+            string.format(
+                "now, ms a frame: OneMoreQuest %.3f (the game menu's %.0f%%), every addon %.3f (%.0f%%), the game's "
+                    .. "scripts and the addons %.3f",
+                ours,
+                relative > 0 and ours / relative * 100 or 0,
+                addOns,
+                addOns / game * 100,
+                game
+            )
+        )
     end
     -- Every loaded addon the game has measured, the dearest over the session first
     local sessionMetric = getMetric(PROFILER_METRICS[2])
@@ -462,15 +562,24 @@ function Timing.printCpu()
             measured[#measured + 1] = { name = name, session = session }
         end
     end
-    table.sort(measured, function(first, second) return first.session > second.session end)
+    table.sort(measured, function(first, second)
+        return first.session > second.session
+    end)
     local names = {}
     for _, entry in ipairs(measured) do
         names[#names + 1] = entry.name
     end
     local overall = PROFILER_METRICS[1]
     local isOverallRead, allAddOns = pcall(C_AddOnProfiler.GetOverallMetric, getMetric(overall))
-    ns.print(string.format("CPU, as the game measures it%s:", isOverallRead and type(allAddOns) == "number"
-        and string.format(" (all addons together now %.2f ms/frame)", allAddOns) or ""))
+    ns.print(
+        string.format(
+            "CPU, as the game measures it%s:",
+            isOverallRead
+                    and type(allAddOns) == "number"
+                    and string.format(" (all addons together now %.2f ms/frame)", allAddOns)
+                or ""
+        )
+    )
     for _, name in ipairs(names) do
         print(string.format("  %s: %s", name, describeCost(name)))
     end
@@ -491,8 +600,10 @@ local function readCpuCounts()
         end
         if values.SessionAverageTime > 0 or values.CountTimeOver5Ms > 0 then
             counts[name] = {
-                session = tonumber(string.format("%.3f", values.SessionAverageTime)), peak = math.floor(values.PeakTime + 0.5),
-                over5 = values.CountTimeOver5Ms, over50 = values.CountTimeOver50Ms,
+                session = tonumber(string.format("%.3f", values.SessionAverageTime)),
+                peak = math.floor(values.PeakTime + 0.5),
+                over5 = values.CountTimeOver5Ms,
+                over50 = values.CountTimeOver50Ms,
             }
         end
     end
@@ -504,7 +615,10 @@ local function takeSnapshot()
     if not trace then
         return
     end
-    table.insert(trace.snapshots, { at = math.floor((GetTime and GetTime() or 0) - trace.startedAt), addOns = readCpuCounts() })
+    table.insert(
+        trace.snapshots,
+        { at = math.floor((GetTime and GetTime() or 0) - trace.startedAt), addOns = readCpuCounts() }
+    )
 end
 
 ---@return table[] parts The parts of ours that took the most of a frame, dearest first, as text
@@ -515,7 +629,9 @@ local function describeFrameParts()
             parts[#parts + 1] = { name = name, milliseconds = milliseconds }
         end
     end
-    table.sort(parts, function(first, second) return first.milliseconds > second.milliseconds end)
+    table.sort(parts, function(first, second)
+        return first.milliseconds > second.milliseconds
+    end)
     local texts = {}
     for index = 1, math.min(#parts, 8) do
         texts[index] = string.format("%s %.1f", parts[index].name, parts[index].milliseconds)
@@ -531,15 +647,41 @@ local function traceFrame(elapsed)
     local trace = Timing.trace
     local now = GetTime and GetTime() or 0
     local isRead, ours = pcall(C_AddOnProfiler.GetAddOnMetric, addonName, getLastTimeMetric())
-    if isRead and type(ours) == "number" and ours >= TRACE_SLOW_MILLISECONDS and #trace.slowFrames < TRACE_MAX_SLOW_FRAMES then
+    if
+        isRead
+        and type(ours) == "number"
+        and ours >= TRACE_SLOW_MILLISECONDS
+        and #trace.slowFrames < TRACE_MAX_SLOW_FRAMES
+    then
         table.insert(trace.slowFrames, {
-            at = math.floor((now - trace.startedAt) * 10) / 10, ours = math.floor(ours + 0.5), frame = math.floor(elapsed * 1000 + 0.5),
-            mapOpen = WorldMapFrame and WorldMapFrame:IsShown() or nil, combat = InCombatLockdown and InCombatLockdown() or nil,
-            moving = IsPlayerMoving and IsPlayerMoving() or nil, parts = describeFrameParts(),
+            at = math.floor((now - trace.startedAt) * 10) / 10,
+            ours = math.floor(ours + 0.5),
+            frame = math.floor(elapsed * 1000 + 0.5),
+            mapOpen = WorldMapFrame and WorldMapFrame:IsShown() or nil,
+            combat = InCombatLockdown and InCombatLockdown() or nil,
+            moving = IsPlayerMoving and IsPlayerMoving() or nil,
+            parts = describeFrameParts(),
         })
     end
     trace.frameCount = trace.frameCount + 1
     Timing.frameParts, Timing.frameCauses = {}, {}
+    if now - trace.lastSampleAt >= TRACE_SAMPLE_SECONDS and #trace.samples < TRACE_MAX_SAMPLES then
+        local frames = trace.frameCount - (trace.lastSampleFrames or 0)
+        local ours, addOns, game = readRecentTimes()
+        table.insert(trace.samples, {
+            at = math.floor(now - trace.startedAt),
+            fps = math.floor(frames / (now - trace.lastSampleAt) + 0.5),
+            ours = ours and math.floor(ours * 1000 + 0.5) / 1000,
+            addOns = addOns and math.floor(addOns * 1000 + 0.5) / 1000,
+            game = game and math.floor(game * 1000 + 0.5) / 1000,
+            memory = math.floor(collectgarbage("count")),
+            mapOpen = WorldMapFrame and WorldMapFrame:IsShown() or nil,
+            menuOpen = GameMenuFrame and GameMenuFrame:IsShown() or nil,
+            combat = InCombatLockdown and InCombatLockdown() or nil,
+            moving = IsPlayerMoving and IsPlayerMoving() or nil,
+        })
+        trace.lastSampleAt, trace.lastSampleFrames = now, trace.frameCount
+    end
     if now - trace.lastSnapshotAt >= TRACE_SNAPSHOT_SECONDS then
         trace.lastSnapshotAt = now
         takeSnapshot()
@@ -596,8 +738,10 @@ end
 function Timing.toggle()
     Timing.isOn = not Timing.isOn
     updateWatcher()
-    ns.print(Timing.isOn and "timing on: open the map, each opening is reported here. /omq timing again to stop."
-        or "timing off.")
+    ns.print(
+        Timing.isOn and "timing on: open the map, each opening is reported here. /omq timing again to stop."
+            or "timing off."
+    )
 end
 
 -- While a trace records, what goes wrong is written down with it (trace.problems): OneMoreQuest's own Lua errors with
@@ -622,7 +766,10 @@ function Timing.noteProblem(kind, text, where)
     end
     if #trace.problems < MAX_PROBLEMS then
         trace.problems[#trace.problems + 1] = {
-            kind = kind, text = text, where = where, count = 1,
+            kind = kind,
+            text = text,
+            where = where,
+            count = 1,
             at = math.floor((GetTime and GetTime() or 0) - (trace.startedAt or 0)),
         }
     end
@@ -647,7 +794,12 @@ function Timing.noteError(message, where)
     end
     local position = ns.Geometry and ns.Geometry.getPlayerPosition and ns.Geometry.getPlayerPosition()
     log[#log + 1] = {
-        text = message, where = where, count = 1, firstAt = now, lastAt = now, version = ns.version,
+        text = message,
+        where = where,
+        count = 1,
+        firstAt = now,
+        lastAt = now,
+        version = ns.version,
         inCombat = InCombatLockdown and InCombatLockdown() or nil,
         inInstance = IsInInstance and (IsInInstance()) or nil,
         uiMapId = position and position.uiMapId or nil,
@@ -713,12 +865,26 @@ function Timing.startTrace()
     end
     local now = GetTime and GetTime() or 0
     Timing.trace = {
-        startedAt = now, lastSnapshotAt = now, frameCount = 0, slowFrames = {}, openings = {}, snapshots = {},
-        startedOn = date and date("%Y-%m-%d %H:%M") or nil, version = ns.version or nil,
+        startedAt = now,
+        lastSnapshotAt = now,
+        frameCount = 0,
+        slowFrames = {},
+        partMilliseconds = {}, -- [part] = its milliseconds over the whole trace, and how many times it ran
+        partCounts = {},
+        samples = {},
+        lastSampleAt = now,
+        openings = {},
+        snapshots = {},
+        startedOn = date and date("%Y-%m-%d %H:%M") or nil,
+        version = ns.version or nil,
         settings = {
-            areaStyle = ns.settings.areaStyle, spawnMarker = ns.settings.spawnMarker, shouldShowMinimapPins = ns.settings.shouldShowMinimapPins,
-            shouldShowMapPins = ns.settings.shouldShowMapPins, shouldShowAvailableOnMap = ns.settings.shouldShowAvailableOnMap,
-            shouldShowNameplateIcons = ns.settings.shouldShowNameplateIcons, arePanelsHidden = ns.settings.arePanelsHidden,
+            areaStyle = ns.settings.areaStyle,
+            spawnMarker = ns.settings.spawnMarker,
+            shouldShowMinimapPins = ns.settings.shouldShowMinimapPins,
+            shouldShowMapPins = ns.settings.shouldShowMapPins,
+            shouldShowAvailableOnMap = ns.settings.shouldShowAvailableOnMap,
+            shouldShowNameplateIcons = ns.settings.shouldShowNameplateIcons,
+            arePanelsHidden = ns.settings.arePanelsHidden,
         },
     }
     ns.settings.performanceTrace = Timing.trace
@@ -726,8 +892,10 @@ function Timing.startTrace()
     watchProblems()
     takeSnapshot()
     updateWatcher()
-    ns.print("tracing: play as you usually do, and open the map now and then. When you have played a while (it stops by "
-        .. "itself after 20 minutes), type /reload: the trace is saved, and Claude can read it.")
+    ns.print(
+        "tracing: play as you usually do, and open the map now and then. When you have played a while (it stops by "
+            .. "itself after 20 minutes), type /reload: the trace is saved, and Claude can read it."
+    )
 end
 
 ---@param isLeaving boolean? The game is reloading or logging out: nothing said
@@ -738,12 +906,27 @@ function Timing.stopTrace(isLeaving)
     end
     takeSnapshot()
     trace.seconds = math.floor((GetTime and GetTime() or 0) - trace.startedAt)
-    trace.startedAt, trace.lastSnapshotAt = nil, nil -- the game's clock means nothing after a reload
+    trace.startedAt, trace.lastSnapshotAt, trace.lastSampleAt = nil, nil, nil -- the game's clock means nothing after a reload
+    -- Every part's whole time, rounded, the dearest first: { name, milliseconds, times }
+    local parts = {}
+    for name, milliseconds in pairs(trace.partMilliseconds) do
+        parts[#parts + 1] = { name, math.floor(milliseconds * 10 + 0.5) / 10, trace.partCounts[name] or 0 }
+    end
+    table.sort(parts, function(first, second)
+        return first[2] > second[2]
+    end)
+    trace.parts, trace.partMilliseconds, trace.partCounts = parts, nil, nil
     Timing.trace = nil
     updateWatcher()
     if not isLeaving then
-        ns.print(string.format("trace done: %d seconds, %d slow frames of OneMoreQuest's written down. Type /reload so it "
-            .. "is saved, then tell Claude.", trace.seconds, #trace.slowFrames))
+        ns.print(
+            string.format(
+                "trace done: %d seconds, %d slow frames of OneMoreQuest's written down. Type /reload so it "
+                    .. "is saved, then tell Claude.",
+                trace.seconds,
+                #trace.slowFrames
+            )
+        )
     end
 end
 
@@ -782,7 +965,7 @@ end
 local OLD_AREA_STYLES = {
     icons = { "filled", "glyph" }, -- "Icons and areas"
     spawns = { "none", "glyph" }, -- "Icons only"
-    shapes = { "blob", "none" }, -- "Shapes": areas alone, as they were
+    shapes = { "filled", "none" }, -- "Shapes": areas alone (the bold look there was: its strengths, below)
     dots = { "none", "square" }, -- "Squares"
 }
 
@@ -802,14 +985,28 @@ function ns.loadSettings(savedSettings)
     end
     -- PvP quests' colour, new: a player who had every quest's colour as the game has them (gold, a grey "!" far below,
     -- blue repeatable: "As the game has them") gets PvP gold as well, not the red it starts with
-    if settings.questIconPvP == nil and settings.questIconNormal ~= nil and settings.questIconEvent == "gold"
-        and settings.questIconRaid == "gold" and settings.questIconDungeon == "gold" and settings.questIconNormal == "gold" then
+    if
+        settings.questIconPvP == nil
+        and settings.questIconNormal ~= nil
+        and settings.questIconEvent == "gold"
+        and settings.questIconRaid == "gold"
+        and settings.questIconDungeon == "gold"
+        and settings.questIconNormal == "gold"
+    then
         settings.questIconPvP = "gold"
     end
     local old = OLD_AREA_STYLES[settings.areaStyle]
+    local wasBold = settings.areaStyle == "blob" or settings.areaStyle == "shapes"
     if old then
         settings.areaStyle = old[1]
         settings.spawnMarker = settings.spawnMarker or old[2]
+    end
+    if wasBold then
+        -- "Shapes", the bold look, is the one look of areas now, as strong as it was: its fill and its outline were
+        -- so many times the light look's, and the two strengths say that (up to the most they go to)
+        settings.areaStyle = "filled"
+        settings.areaFillStrength = math.min(2, (tonumber(settings.areaFillStrength) or 1) * 2)
+        settings.areaOutlineStrength = math.min(2, (tonumber(settings.areaOutlineStrength) or 1) * 1.6)
     end
     for key, value in pairs(DEFAULT_SETTINGS) do
         if settings[key] == nil then
@@ -1111,7 +1308,9 @@ local function handlePlayerLogin()
     end
     -- Every module, in order (every addon has loaded by now: translation addons, map addons)
     runModules("create")
-    C_Timer.After(TIDY_DELAY_SECONDS, function() pcall(ns.tidySavedData) end)
+    C_Timer.After(TIDY_DELAY_SECONDS, function()
+        pcall(ns.tidySavedData)
+    end)
     C_Timer.NewTicker(POSITION_REFRESH_SECONDS, handleTick)
 end
 
@@ -1138,8 +1337,13 @@ end
 
 -- The events that say the quest log, or what is tracked, changed: what was read of them this frame is forgotten
 -- before anybody acts on the event (this frame hears them before QuestState's own does)
-local LOG_CHANGE_EVENTS = { QUEST_ACCEPTED = true, QUEST_REMOVED = true, QUEST_TURNED_IN = true, QUEST_LOG_UPDATE = true,
-    QUEST_WATCH_LIST_CHANGED = true }
+local LOG_CHANGE_EVENTS = {
+    QUEST_ACCEPTED = true,
+    QUEST_REMOVED = true,
+    QUEST_TURNED_IN = true,
+    QUEST_LOG_UPDATE = true,
+    QUEST_WATCH_LIST_CHANGED = true,
+}
 
 local function handleEvent(_, event, ...)
     ns.noteActivity(event)
@@ -1150,7 +1354,11 @@ local function handleEvent(_, event, ...)
         if ... == addonName then
             -- A saved file that still cannot be read leaves the addon running on the defaults this session (the file
             -- itself left as it is), rather than not loading at all
-            if not callSafely(function() OneMoreQuestDB = ns.loadSettings(OneMoreQuestDB) end) then
+            if
+                not callSafely(function()
+                    OneMoreQuestDB = ns.loadSettings(OneMoreQuestDB)
+                end)
+            then
                 ns.loadSettings(nil)
             end
             registerModuleEvents()
@@ -1180,8 +1388,13 @@ local function handleEvent(_, event, ...)
             end
         end
     end
-    if isRefreshEvent[event] and (Timing.isRecording and Timing.measure("change check " .. event, hasChanged, event, ...)
-        or not Timing.isRecording and hasChanged(event, ...)) then
+    if
+        isRefreshEvent[event]
+        and (
+            Timing.isRecording and Timing.measure("change check " .. event, hasChanged, event, ...)
+            or not Timing.isRecording and hasChanged(event, ...)
+        )
+    then
         Timing.noteCause("everything redrawn", event)
         if not QUIET_REFRESH_EVENTS[event] then
             markLoud()
@@ -1213,7 +1426,9 @@ local function handleSlashCommand(input)
         ns.MinimapPins.printDistance()
     elseif command == "lock" then
         ns.settings.isLocked = not ns.settings.isLocked
-        ns.print(ns.L(ns.settings.isLocked and "tracker locked in place." or "tracker unlocked, drag its title to move it."))
+        ns.print(
+            ns.L(ns.settings.isLocked and "tracker locked in place." or "tracker unlocked, drag its title to move it.")
+        )
     elseif command == "reset" then
         ns.settings.position = nil
         ns.settings.collapsedZones = {}
@@ -1238,12 +1453,31 @@ local function handleSlashCommand(input)
             ns.MapDock.restoreBuiltInPanel()
         end
         ns.MapDock.apply()
-        ns.print(ns.L(ns.settings.shouldReplaceQuestLog and "the map shows the quest panels beside it." or "the map shows the game's own quest panel again; reopen the map."))
+        ns.print(
+            ns.L(
+                ns.settings.shouldReplaceQuestLog and "the map shows the quest panels beside it."
+                    or "the map shows the game's own quest panel again; reopen the map."
+            )
+        )
     elseif command == "pins" then
         ns.settings.shouldShowMapPins = not ns.settings.shouldShowMapPins
         ns.MapPins.applyGameFilter(true)
         ns.queueRefresh()
         ns.print(ns.L(ns.settings.shouldShowMapPins and "map pins shown." or "map pins hidden."))
+    elseif command == "ovals" then
+        -- (the settings' "Drawn as", from the chat: for comparing them at one spot of the map)
+        local nextOf = { ovals = "soft", soft = "traced", traced = "ovals" }
+        ns.settings.areaGeometry = nextOf[ns.settings.areaGeometry] or "soft"
+        ns.queueRefresh()
+        if ns.MapPins and ns.MapPins.queueRefresh then
+            ns.MapPins.queueRefresh()
+        end
+        local said = {
+            ovals = "areas drawn as ovals. /omq ovals again for soft shadows.",
+            soft = "areas drawn as soft shadows alone. /omq ovals again for traced shapes.",
+            traced = "areas traced round their spawns (the heaviest). /omq ovals again for ovals.",
+        }
+        ns.print(said[ns.settings.areaGeometry])
     elseif command == "timing" then
         Timing.toggle()
     elseif command == "cpu" then
@@ -1268,20 +1502,55 @@ local function handleSlashCommand(input)
         -- For telling a fault in the drawing apart: every setting passed on to the game as it used to be (slower),
         -- nothing kept from one drawing to the next (Widgets.remember). Read as things are made, so after a reload.
         ns.settings.isPlainDrawing = not ns.settings.isPlainDrawing or nil
-        ns.print(ns.settings.isPlainDrawing and "plain drawing ON after /reload: everything is set anew at every drawing, as before (slower). /omq plain again turns it off."
-            or "plain drawing OFF after /reload: what has not changed is left alone again.")
+        ns.print(
+            ns.settings.isPlainDrawing
+                    and "plain drawing ON after /reload: everything is set anew at every drawing, as before (slower). /omq plain again turns it off."
+                or "plain drawing OFF after /reload: what has not changed is left alone again."
+        )
+    elseif command == "drawing" then
+        -- The map's areas and spawn marks: kept on the map and only moved by it (MapMarks\World), or drawn again for
+        -- every view as before, for telling a fault of the kept drawing apart
+        local rest = (input or ""):lower():match("^%S+%s+(%S+)")
+        local isClassic = ns.settings.mapRenderer ~= "classic"
+        if rest == "kept" then
+            isClassic = false
+        elseif rest == "classic" then
+            isClassic = true
+        end
+        ns.settings.mapRenderer = isClassic and "classic" or nil
+        ns.MapMarks.forgetKeptPoints()
+        ns.queueRefresh()
+        ns.print(
+            isClassic
+                    and "map drawing: CLASSIC (every area and spawn mark laid out again for each view; slower). /omq drawing again for the kept one."
+                or "map drawing: KEPT (areas and spawn marks laid out once in the world and moved with the map)."
+        )
     elseif command == "hover" then
         ns.MapHover.toggleReport()
     elseif command == "mapbuiltin" then
         ns.settings.shouldHideBuiltInMapPins = not ns.settings.shouldHideBuiltInMapPins
         ns.queueRefresh()
-        ns.print(ns.L(ns.settings.shouldHideBuiltInMapPins and "the game's quest markers are hidden on the map." or "the game's quest markers return when the map next changes."))
+        ns.print(
+            ns.L(
+                ns.settings.shouldHideBuiltInMapPins and "the game's quest markers are hidden on the map."
+                    or "the game's quest markers return when the map next changes."
+            )
+        )
     elseif command == "givers" then
         ns.settings.shouldShowAvailableOnMap = not ns.settings.shouldShowAvailableOnMap
         ns.queueRefresh()
-        ns.print(ns.L(ns.settings.shouldShowAvailableOnMap and "quest givers shown on the map." or "quest givers hidden on the map."))
+        ns.print(
+            ns.L(
+                ns.settings.shouldShowAvailableOnMap and "quest givers shown on the map."
+                    or "quest givers hidden on the map."
+            )
+        )
     else
-        ns.print(ns.L("commands: /trailhead (show or hide the tracker), settings, log, available, key, pins, givers, mapbuiltin, lock, reset, builtin"))
+        ns.print(
+            ns.L(
+                "commands: /omq (show or hide the tracker), settings, log, available, key, pins, givers, mapbuiltin, lock, reset, builtin"
+            )
+        )
     end
 end
 
@@ -1297,10 +1566,9 @@ function ns.start()
     ns.handleEvent = handleEvent -- the same, for tests and the simulator to send events through
 
     watchProblems() -- (OneMoreQuest's own Lua errors and refused actions kept from the start: errorLog)
-    SLASH_TRAILHEAD1 = "/omq"
-    SLASH_TRAILHEAD2 = "/onemorequest"
-    SLASH_TRAILHEAD3 = "/trailhead" -- the addon's first name, kept for those used to it
-    SlashCmdList.TRAILHEAD = handleSlashCommand
+    SLASH_ONEMOREQUEST1 = "/omq"
+    SLASH_ONEMOREQUEST2 = "/onemorequest"
+    SlashCmdList.ONEMOREQUEST = handleSlashCommand
 end
 
 if CreateFrame then

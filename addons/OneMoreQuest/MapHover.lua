@@ -26,7 +26,8 @@ local MAX_PIN_SIZE = 48 -- a frame under the cursor this small is a pin, which s
 function MapHover.addQuestLines(tooltip, questId, note, isFirst)
     local isInLog = ns.QuestState.isInLog(questId)
     local quest = isInLog and ns.QuestState.getQuest(questId)
-    local title = quest and quest.title or ns.QuestText.getTitle(questId, ns.Database.getQuestField(questId, "name") or ("Quest " .. questId))
+    local title = quest and quest.title
+        or ns.QuestText.getTitle(questId, ns.Database.getQuestField(questId, "name") or ("Quest " .. questId))
     if not isFirst then
         tooltip:AddLine(" ")
     end
@@ -75,12 +76,25 @@ function MapHover.addDropLines(tooltip, questId, typeIndex)
     end
     for index, source in ipairs(sources) do
         if index > MAX_SOURCES then
-            tooltip:AddLine(ns.Lp(#sources - MAX_SOURCES, "   + %d more", "   + %d more"), NOTE_COLOR[1], NOTE_COLOR[2], NOTE_COLOR[3])
+            tooltip:AddLine(
+                ns.Lp(#sources - MAX_SOURCES, "   + %d more", "   + %d more"),
+                NOTE_COLOR[1],
+                NOTE_COLOR[2],
+                NOTE_COLOR[3]
+            )
             break
         end
         if source.chance and choice == "chances" then
-            tooltip:AddDoubleLine("   " .. source.name, ns.Drops.formatChance(source.chance), NOTE_COLOR[1], NOTE_COLOR[2], NOTE_COLOR[3],
-                CHANCE_COLOR[1], CHANCE_COLOR[2], CHANCE_COLOR[3])
+            tooltip:AddDoubleLine(
+                "   " .. source.name,
+                ns.Drops.formatChance(source.chance),
+                NOTE_COLOR[1],
+                NOTE_COLOR[2],
+                NOTE_COLOR[3],
+                CHANCE_COLOR[1],
+                CHANCE_COLOR[2],
+                CHANCE_COLOR[3]
+            )
         else
             tooltip:AddLine("   " .. source.name, NOTE_COLOR[1], NOTE_COLOR[2], NOTE_COLOR[3])
         end
@@ -96,7 +110,8 @@ function MapHover.isOnLine(segments, x, y)
         local ax, ay, bx, by = segment[1], segment[2], segment[3], segment[4]
         local dx, dy = bx - ax, by - ay
         local lengthSquared = dx * dx + dy * dy
-        local share = lengthSquared > 0 and math.max(0, math.min(1, ((x - ax) * dx + (y - ay) * dy) / lengthSquared)) or 0
+        local share = lengthSquared > 0 and math.max(0, math.min(1, ((x - ax) * dx + (y - ay) * dy) / lengthSquared))
+            or 0
         local nearX, nearY = ax + dx * share, ay + dy * share
         if (x - nearX) ^ 2 + (y - nearY) ^ 2 <= LINE_REACH * LINE_REACH then
             return true
@@ -131,6 +146,8 @@ function MapHover.findQuests(spots, areas, spotX, spotY, areaX, areaY)
         local isUnder
         if area.isPatrol then
             isUnder = MapHover.isOnLine(area.segments, spotX, spotY) -- a line is measured on screen, as the spots are
+        elseif area.isUnder ~= nil then
+            isUnder = area.isUnder -- (the kept drawing's: looked at where it lies, MapMarks.World.findUnder)
         else
             isUnder = ns.MapMarks.isInsideArea(area, areaX, areaY)
         end
@@ -158,7 +175,9 @@ end
 local function getFocusable(quests)
     local questIds = {}
     for _, quest in ipairs(quests) do
-        if ns.QuestState.isInLog(quest.questId) then questIds[#questIds + 1] = quest.questId end
+        if ns.QuestState.isInLog(quest.questId) then
+            questIds[#questIds + 1] = quest.questId
+        end
     end
     return questIds
 end
@@ -260,7 +279,12 @@ local function describeNearest(spots, x, y)
     if not nearest then
         return "no spawn marks"
     end
-    return string.format("nearest spawn %.1f away (counts within %.1f, quest %s)", distance, nearest.radius or 4, tostring(nearest.questId))
+    return string.format(
+        "nearest spawn %.1f away (counts within %.1f, quest %s)",
+        distance,
+        nearest.radius or 4,
+        tostring(nearest.questId)
+    )
 end
 
 local function report(text)
@@ -273,8 +297,10 @@ end
 
 function MapHover.toggleReport()
     isReporting = not isReporting
-    ns.print(isReporting and "hover report on: point at the map or the minimap; /omq hover again to stop."
-        or "hover report off.")
+    ns.print(
+        isReporting and "hover report on: point at the map or the minimap; /omq hover again to stop."
+            or "hover report off."
+    )
 end
 
 local mapKey -- the quests the world map's tooltip shows now
@@ -285,14 +311,41 @@ function MapHover.forgetShownMapQuests()
     mapKey = nil
 end
 local mapQuests = {} -- the quests under the cursor on the world map, as last looked (an alt-click takes them)
+-- The pointer resting where it was, over the same drawing at the same zoom: what is under it is what was found there.
+-- Looked at afresh this often all the same (the kept drawing brings spawn marks in under it a little each frame, and
+-- other addons' pins come and go). Twenty looks a second each went over every pin on the map otherwise, four
+-- questions a pin, for as long as the pointer lay on the map.
+local REST_SECONDS = 0.5
+local rest = {}
+local MOVING_SECONDS = 0.15 -- the zoom changed this recently: the map is moving under the pointer
 local isMapClickAdded = false -- (the alt-click's handler joined the map: addMapClick, below)
 local addMapClick
 
 ---The world map: while the cursor is on the map and not on a pin, the quest areas and spawn marks under it.
 function MapHover.updateMap()
-    if not isMapClickAdded then addMapClick() end
+    if not isMapClickAdded then
+        addMapClick()
+    end
     local drawn, markLayer = ns.MapMarks.getDrawn()
     local map = drawn.map
+    local now = GetTime and GetTime() or 0
+    -- While the map is zooming or being dragged nothing under the pointer is looked for: it would be found anew at
+    -- every look (the map moves under the pointer), for a tooltip nobody reads meanwhile. A tooltip of ours that is
+    -- up goes; the next look once the map is still finds what is there then.
+    if not isReporting and map and map:IsVisible() then
+        local isZooming = drawn.isFollowPending and now - (drawn.zoomMovedAt or 0) < MOVING_SECONDS
+        local isDragging = IsMouseButtonDown ~= nil and IsMouseButtonDown("LeftButton") == true
+        if isZooming or isDragging then
+            if mapKey then
+                if GameTooltip:GetOwner() == markLayer then
+                    GameTooltip:Hide()
+                end
+                mapKey = nil
+            end
+            mapQuests, rest.at = {}, nil
+            return
+        end
+    end
     local quests = {}
     mapQuests = quests
     local container = map and map.ScrollContainer
@@ -319,14 +372,34 @@ function MapHover.updateMap()
         else
             x, y = map:GetNormalizedCursorPosition()
         end
-        if type(x) == "number" and type(y) == "number" and x >= 0 and x <= 1 and y >= 0 and y <= 1 then
+        local canvasScale = map.GetCanvasScale and map:GetCanvasScale()
+        if
+            not isReporting
+            and rest.at
+            and now - rest.at < REST_SECONDS
+            and rest.x == x
+            and rest.y == y
+            and rest.scale == canvasScale
+            and rest.drawId == drawn.drawId
+            and rest.map == map
+        then
+            quests = rest.quests -- (resting: what was found there)
+            mapQuests = quests
+        elseif type(x) == "number" and type(y) == "number" and x >= 0 and x <= 1 and y >= 0 and y <= 1 then
+            rest.at, rest.x, rest.y, rest.scale, rest.drawId, rest.map = now, x, y, canvasScale, drawn.drawId, map
+            rest.quests = quests -- (nothing, unless found below)
             local width, height, scale = drawn.width or 1, drawn.height or 1, drawn.scale or 1
             -- On another addon's pin (or the game's), that pin is what is pointed at, though it may take no mouse
             -- (Leatrix Maps' zone arrows and entrances show their own tooltip from the cursor's place)
             local isOnTheirPin = false
             local cursorX, cursorY = x * width * scale, y * height * scale
             for _, rect in ipairs(ns.MapMarks.getForeignPins(map:GetCanvas())) do
-                if cursorX >= rect.left and cursorX <= rect.right and cursorY >= rect.top and cursorY <= rect.bottom then
+                if
+                    cursorX >= rect.left
+                    and cursorX <= rect.right
+                    and cursorY >= rect.top
+                    and cursorY <= rect.bottom
+                then
                     isOnTheirPin = true
                     break
                 end
@@ -343,21 +416,54 @@ function MapHover.updateMap()
                         local from, to = patrol.points[index - 1], patrol.points[index]
                         segments[#segments + 1] = { from.x * scale, from.y * scale, to.x * scale, to.y * scale }
                     end
-                    areas[#areas + 1] = { isPatrol = true, segments = segments, questId = patrol.questId, note = patrol.note }
+                    areas[#areas + 1] =
+                        { isPatrol = true, segments = segments, questId = patrol.questId, note = patrol.note }
                 end
-                quests = MapHover.findQuests(drawn.squares, areas, cursorX, cursorY, x * width, y * height)
+                local spots = drawn.squares
+                if ns.MapMarksWorld.isOn() then
+                    -- The kept drawing's spawn marks and areas under the cursor, beside what this drawing made (the
+                    -- walks, where the quest selected to pick up starts): each spawn mark placed from the cursor, in
+                    -- the units the others are in
+                    local keptSpots, keptAreas = ns.MapMarksWorld.findUnder(map, x, y)
+                    local nowScale = map.GetCanvasScale and map:GetCanvasScale() or scale
+                    local toDrawn = type(nowScale) == "number" and nowScale > 0 and scale / nowScale or 1
+                    if #keptSpots > 0 then
+                        spots = { unpack(drawn.squares) }
+                        for _, spot in ipairs(keptSpots) do
+                            spot.x, spot.y = cursorX + spot.x * toDrawn, cursorY + spot.y * toDrawn
+                            spot.radius = spot.radius * toDrawn
+                            spots[#spots + 1] = spot
+                        end
+                    end
+                    for _, area in ipairs(keptAreas) do
+                        areas[#areas + 1] = area
+                    end
+                end
+                quests = MapHover.findQuests(spots, areas, cursorX, cursorY, x * width, y * height)
                 mapQuests = quests
+                rest.quests = quests
             elseif isReporting then
                 report("map: the cursor is on another addon's or the game's pin; it shows its own tooltip")
             end
             if isReporting then
-                report(string.format("map: cursor %.3f, %.3f; %d spawn marks, %d areas; %s; found %d; tooltip owner %s",
-                    x, y, #drawn.squares, #drawn.areas, describeNearest(drawn.squares, x * width * scale, y * height * scale), #quests,
-                    describeFrame(GameTooltip:GetOwner())))
+                report(
+                    string.format(
+                        "map: cursor %.3f, %.3f; %d spawn marks, %d areas; %s; found %d; tooltip owner %s",
+                        x,
+                        y,
+                        #drawn.squares,
+                        #drawn.areas,
+                        describeNearest(drawn.squares, x * width * scale, y * height * scale),
+                        #quests,
+                        describeFrame(GameTooltip:GetOwner())
+                    )
+                )
             end
         end
     elseif isReporting and map and map:IsVisible() and container and container:IsMouseOver() then
-        report("map: under the cursor is " .. describeFrame(getMouseFocus()) .. ", taken for a pin with its own tooltip")
+        report(
+            "map: under the cursor is " .. describeFrame(getMouseFocus()) .. ", taken for a pin with its own tooltip"
+        )
     end
     if #quests == 0 and not mapKey then
         return -- nothing under the cursor and no tooltip of ours up (the map closed, most of the time): nothing to do
@@ -398,16 +504,28 @@ local function findMinimapQuests()
     local x, y = cursorX / scale - centerX, cursorY / scale - centerY
     local half = Minimap:GetWidth() / 2
     if half <= 0 or ns.MinimapPins.getEdgeDistance(x / half, y / half) > 1 then
-        report(string.format("minimap: cursor %.1f, %.1f from the middle is past its edge (half width %.1f)", x, y, half))
+        report(
+            string.format("minimap: cursor %.1f, %.1f from the middle is past its edge (half width %.1f)", x, y, half)
+        )
         return {} -- outside its edge, round or square
     end
     local spots, areas = ns.MinimapPins.getDrawn()
     local quests = MapHover.findQuests(spots, areas, x, y, x, y)
     if isReporting then
         local ago = (GetTime and GetTime() or 0) - (lastGameMinimapTooltip or -1)
-        report(string.format("minimap: cursor %.1f, %.1f from the middle; %d spawn marks, %d areas; %s; found %d; under the cursor %s; game's minimap tooltip %s",
-            x, y, #spots, #areas, describeNearest(spots, x, y), #quests, describeFrame(getMouseFocus()),
-            ago < 0.5 and "runs" or "does not run"))
+        report(
+            string.format(
+                "minimap: cursor %.1f, %.1f from the middle; %d spawn marks, %d areas; %s; found %d; under the cursor %s; game's minimap tooltip %s",
+                x,
+                y,
+                #spots,
+                #areas,
+                describeNearest(spots, x, y),
+                #quests,
+                describeFrame(getMouseFocus()),
+                ago < 0.5 and "runs" or "does not run"
+            )
+        )
     end
     return quests
 end
@@ -558,8 +676,15 @@ end
 local function startPeek()
     local map = WorldMapFrame
     local container = map and map.ScrollContainer
-    if isPeeking or not ns.Spoilers.isActive() or not map or not map:IsVisible() or type(container) ~= "table"
-        or not container.IsMouseOver or not container:IsMouseOver() then
+    if
+        isPeeking
+        or not ns.Spoilers.isActive()
+        or not map
+        or not map:IsVisible()
+        or type(container) ~= "table"
+        or not container.IsMouseOver
+        or not container:IsMouseOver()
+    then
         return
     end
     isPeeking = true
@@ -591,10 +716,13 @@ end
 
 ---Puts a quest in focus from the map, as a ctrl-click on its mark does (again on the focused one: let go).
 local function focusFromMap(questId)
+    local wasFocused = ns.Focus.get() == questId
     ns.Log.focusQuest(questId)
     -- Opened in the quest window beside the map too, on My quests whatever was showing there, as a click on its pin
-    -- (not when the click took the focus off: it stays open, no longer shown as focused)
-    if ns.Log.isOpen() and ns.Focus.get() == questId then
+    -- (not when the click took the focus off: it stays open, no longer shown as focused). Told by what the click
+    -- did, not by asking for the focus after it: a quest not tracked until this click is tracked by it, and the
+    -- focus does not say so until the game has, a moment later; the quest was focused and not opened.
+    if ns.Log.isOpen() and not wasFocused and ns.QuestState.isInLog(questId) then
         ns.Log.selectQuest(questId)
     end
     ns.MapPins.queueRefresh()
@@ -609,20 +737,27 @@ local function openFocusMenu(owner, questIds)
     ns.openMenu(owner, function(_, root)
         ns.Widgets.setMenuFonts(root) -- Czech letters in the game's menu
         root:CreateTitle(ns.L("Focus"))
-        local function isFocused(questId) return questId == ns.Focus.get() end
+        local function isFocused(questId)
+            return questId == ns.Focus.get()
+        end
         local function choose(questId)
-            if not isFocused(questId) then focusFromMap(questId) end
+            if not isFocused(questId) then
+                focusFromMap(questId)
+            end
         end
         for _, questId in ipairs(questIds) do
             local quest = ns.QuestState.getQuest(questId)
-            local title = quest and quest.title or ns.QuestText.getTitle(questId, ns.Database.getQuestField(questId, "name") or ("Quest " .. questId))
+            local title = quest and quest.title
+                or ns.QuestText.getTitle(questId, ns.Database.getQuestField(questId, "name") or ("Quest " .. questId))
             root:CreateRadio(title, isFocused, choose, questId)
         end
         local focusedId = ns.Focus.get()
         for _, questId in ipairs(questIds) do
             if questId == focusedId then
                 root:CreateDivider()
-                root:CreateButton(ns.L("Unfocus"), function() focusFromMap(focusedId) end)
+                root:CreateButton(ns.L("Unfocus"), function()
+                    focusFromMap(focusedId)
+                end)
                 break
             end
         end
@@ -656,7 +791,9 @@ function MapHover.focusUnderCursor(map)
     return true
 end
 ---@return { questId: number, note: string? }[] quests Under the cursor on the world map, as last looked
-function MapHover.getMapQuests() return mapQuests end
+function MapHover.getMapQuests()
+    return mapQuests
+end
 
 -- Before every other handler: map addons take every left click on the bare map for themselves (OpenMap zooms in
 -- at 1000, MapUtils at 100; the game's waypoint is 90). Ours takes only an Alt-click on a quest of the log and passes
@@ -676,7 +813,9 @@ function MapHover.create()
     local frame = CreateFrame("Frame")
     -- (its own frame's event, so the modules' list stays as it is)
     frame:RegisterEvent("MODIFIER_STATE_CHANGED")
-    frame:SetScript("OnEvent", function(_, _, key, isDown) MapHover.handleModifierChange(key, isDown) end)
+    frame:SetScript("OnEvent", function(_, _, key, isDown)
+        MapHover.handleModifierChange(key, isDown)
+    end)
     local elapsedSeconds = 0
     frame:SetScript("OnUpdate", function(_, elapsed)
         elapsedSeconds = elapsedSeconds + elapsed

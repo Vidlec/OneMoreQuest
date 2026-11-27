@@ -80,7 +80,9 @@ function UnitTooltip.compose(npcId)
         local isTold = not isSpoiling or isCreatureTold(questId, npcId)
         for _, objective in ipairs(isTold and quest and not quest.isComplete and quest.objectives or {}) do
             typeIndexes[objective.type] = (typeIndexes[objective.type] or 0) + 1
-            local count = (objective.required or 0) > 1 and string.format(" %d/%d", objective.fulfilled or 0, objective.required) or ""
+            local count = (objective.required or 0) > 1
+                    and string.format(" %d/%d", objective.fulfilled or 0, objective.required)
+                or ""
             if objective.type == "item" then
                 local target = ns.Location.getObjectiveTarget(questId, "item", typeIndexes.item)
                 local itemId = target and target.itemId
@@ -90,11 +92,19 @@ function UnitTooltip.compose(npcId)
                     isDropShown, isChanceShown = isDropTold(questId, itemId, npcId)
                 end
                 if itemId and isDropShown and (chance or ns.Drops.isDroppedBy(itemId, npcId)) then
-                    lines[#lines + 1] = { text = (objective.shownLabel or objective.label) .. count, chance = isChanceShown and chance or nil,
-                        isDone = objective.isFinished == true, kind = "loot" }
+                    lines[#lines + 1] = {
+                        text = (objective.shownLabel or objective.label) .. count,
+                        chance = isChanceShown and chance or nil,
+                        isDone = objective.isFinished == true,
+                        kind = "loot",
+                    }
                 end
             elseif objective.type == "monster" and isKillTarget(questId, typeIndexes.monster, npcId) then
-                lines[#lines + 1] = { text = (objective.shownLabel or objective.label) .. count, isDone = objective.isFinished == true, kind = "kill" }
+                lines[#lines + 1] = {
+                    text = (objective.shownLabel or objective.label) .. count,
+                    isDone = objective.isFinished == true,
+                    kind = "kill",
+                }
             end
         end
         -- Only quests it still helps with: a finished objective is shown only beside one that is not
@@ -104,10 +114,15 @@ function UnitTooltip.compose(npcId)
         end
         if hasOpen then
             local level = quest.level or ns.Database.getQuestField(questId, "questLevel")
-            local title = quest.title or ns.QuestText.getTitle(questId, ns.Database.getQuestField(questId, "name") or ("Quest " .. questId))
+            local title = quest.title
+                or ns.QuestText.getTitle(questId, ns.Database.getQuestField(questId, "name") or ("Quest " .. questId))
             -- The database gives 0 for a level it does not know: then no level is shown
             local hasLevel = type(level) == "number" and level > 0
-            quests[#quests + 1] = { questId = questId, title = hasLevel and string.format("[%d] %s", level, title) or title, lines = lines }
+            quests[#quests + 1] = {
+                questId = questId,
+                title = hasLevel and string.format("[%d] %s", level, title) or title,
+                lines = lines,
+            }
         end
     end
     return quests
@@ -125,8 +140,16 @@ function UnitTooltip.addLines(tooltip, npcId)
         for _, line in ipairs(quest.lines) do
             local color = line.isDone and DONE_COLOR or LINE_COLOR
             if line.chance then
-                tooltip:AddDoubleLine("  " .. line.text, ns.Drops.formatChance(line.chance), color[1], color[2], color[3],
-                    CHANCE_COLOR[1], CHANCE_COLOR[2], CHANCE_COLOR[3])
+                tooltip:AddDoubleLine(
+                    "  " .. line.text,
+                    ns.Drops.formatChance(line.chance),
+                    color[1],
+                    color[2],
+                    color[3],
+                    CHANCE_COLOR[1],
+                    CHANCE_COLOR[2],
+                    CHANCE_COLOR[3]
+                )
             else
                 tooltip:AddLine("  " .. line.text, color[1], color[2], color[3])
             end
@@ -178,18 +201,42 @@ function UnitTooltip.addItemLines(tooltip, itemId)
         local objective = quest and quest.objectives and quest.objectives[use.objectiveIndex]
         if objective then
             local level = quest.level or ns.Database.getQuestField(use.questId, "questLevel")
-            local title = quest.title or ns.QuestText.getTitle(use.questId, ns.Database.getQuestField(use.questId, "name") or ("Quest " .. use.questId))
+            local title = quest.title
+                or ns.QuestText.getTitle(
+                    use.questId,
+                    ns.Database.getQuestField(use.questId, "name") or ("Quest " .. use.questId)
+                )
             local hasLevel = type(level) == "number" and level > 0
-            ns.QuestTooltip.addTitle(tooltip, hasLevel and string.format("[%d] %s", level, title) or title, use.questId, TITLE_COLOR)
+            ns.QuestTooltip.addTitle(
+                tooltip,
+                hasLevel and string.format("[%d] %s", level, title) or title,
+                use.questId,
+                TITLE_COLOR
+            )
             local fulfilled, required = objective.fulfilled or 0, objective.required or 1
             local count = string.format("%d/%d", math.min(fulfilled, required), required)
             if objective.isFinished then
-                tooltip:AddDoubleLine("  " .. (objective.shownLabel or objective.label), count, DONE_COLOR[1], DONE_COLOR[2], DONE_COLOR[3],
-                    DONE_COLOR[1], DONE_COLOR[2], DONE_COLOR[3])
+                tooltip:AddDoubleLine(
+                    "  " .. (objective.shownLabel or objective.label),
+                    count,
+                    DONE_COLOR[1],
+                    DONE_COLOR[2],
+                    DONE_COLOR[3],
+                    DONE_COLOR[1],
+                    DONE_COLOR[2],
+                    DONE_COLOR[3]
+                )
             else
-                tooltip:AddDoubleLine("  " .. (objective.shownLabel or objective.label) .. " " .. count,
-                    ns.Lp(math.max(required - fulfilled, 0), "%d left", "%d left"), LINE_COLOR[1], LINE_COLOR[2], LINE_COLOR[3],
-                    LEFT_COLOR[1], LEFT_COLOR[2], LEFT_COLOR[3])
+                tooltip:AddDoubleLine(
+                    "  " .. (objective.shownLabel or objective.label) .. " " .. count,
+                    ns.Lp(math.max(required - fulfilled, 0), "%d left", "%d left"),
+                    LINE_COLOR[1],
+                    LINE_COLOR[2],
+                    LINE_COLOR[3],
+                    LEFT_COLOR[1],
+                    LEFT_COLOR[2],
+                    LEFT_COLOR[3]
+                )
             end
         end
     end
@@ -206,7 +253,9 @@ local function isQuestieShowingTooltips()
     if not isLoaded then
         return false
     end
-    local isRead, isEnabled = pcall(function() return Questie.db.profile.enableTooltips end)
+    local isRead, isEnabled = pcall(function()
+        return Questie.db.profile.enableTooltips
+    end)
     return not isRead or isEnabled ~= false -- when its setting cannot be read, it is taken to be on
 end
 UnitTooltip.isQuestieShowingTooltips = isQuestieShowingTooltips
@@ -253,17 +302,23 @@ end
 ---OnTooltipSetUnit and OnTooltipSetItem.
 function UnitTooltip.create()
     if GameTooltip and GameTooltip.HookScript then
-        GameTooltip:HookScript("OnTooltipCleared", function(tooltip) addedTo[tooltip], itemAddedTo[tooltip] = nil, nil end)
+        GameTooltip:HookScript("OnTooltipCleared", function(tooltip)
+            addedTo[tooltip], itemAddedTo[tooltip] = nil, nil
+        end)
     end
     if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType then
         TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, handleUnitTooltip)
         TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, handleItemTooltip)
     elseif GameTooltip and GameTooltip.HasScript then
         if GameTooltip:HasScript("OnTooltipSetUnit") then
-            GameTooltip:HookScript("OnTooltipSetUnit", function(tooltip) handleUnitTooltip(tooltip) end)
+            GameTooltip:HookScript("OnTooltipSetUnit", function(tooltip)
+                handleUnitTooltip(tooltip)
+            end)
         end
         if GameTooltip:HasScript("OnTooltipSetItem") then
-            GameTooltip:HookScript("OnTooltipSetItem", function(tooltip) handleItemTooltip(tooltip) end)
+            GameTooltip:HookScript("OnTooltipSetItem", function(tooltip)
+                handleItemTooltip(tooltip)
+            end)
         end
     end
 end
@@ -272,5 +327,7 @@ ns.registerModule({
     name = "UnitTooltip",
     create = UnitTooltip.create,
     -- The log changed (a redraw of everything): which quests ask for which item is worked out again at the next hover
-    invalidate = function() itemQuests = nil end,
+    invalidate = function()
+        itemQuests = nil
+    end,
 })

@@ -21,6 +21,7 @@ local AMBER = { 1, 0.69, 0.25 }
 local RED = { 1, 0.3, 0.25 }
 
 local CHAIN_ICON = "Interface\\AddOns\\" .. addonName .. "\\Media\\Chain"
+local UNLOCK_ICON = "Interface\\AddOns\\" .. addonName .. "\\Media\\Unlock" -- a quest that opens others
 local READY_ICON = "Interface\\RaidFrame\\ReadyCheck-Ready"
 local MEDIA = "Interface\\AddOns\\" .. addonName .. "\\Media\\"
 local MARK_SIZE = ns.Widgets.MARK_SIZE -- a map mark's own size; the tracker's is that, scaled down
@@ -85,7 +86,12 @@ local function addDropLines(tooltip, questId, typeIndex, choice)
     local sources = zone and zone.sources or {}
     for index, source in ipairs(sources) do
         if choice == "names" and index > MAX_DROP_SOURCES then
-            tooltip:AddLine(ns.Lp(#sources - MAX_DROP_SOURCES, "   + %d more", "   + %d more"), DROP_NOTE_COLOR[1], DROP_NOTE_COLOR[2], DROP_NOTE_COLOR[3])
+            tooltip:AddLine(
+                ns.Lp(#sources - MAX_DROP_SOURCES, "   + %d more", "   + %d more"),
+                DROP_NOTE_COLOR[1],
+                DROP_NOTE_COLOR[2],
+                DROP_NOTE_COLOR[3]
+            )
             break
         end
         if choice == "names" or ns.Spoilers.hasSeenDrop(itemId, source.npcId or source.objectId) then
@@ -128,7 +134,12 @@ local function addChainLines(entry, choice)
     GameTooltip:AddLine(ns.L("Quest chain, step %d of %d", entry.chainIndex, entry.chainTotal), 1, 0.82, 0)
     for position, chainQuestId in ipairs(ns.Chain.getQuestIds(entry.questId)) do
         if position > entry.chainIndex and choice ~= "all" then
-            GameTooltip:AddLine(ns.Lp(entry.chainTotal - entry.chainIndex, "%d more step", "%d more steps"), TAN[1], TAN[2], TAN[3])
+            GameTooltip:AddLine(
+                ns.Lp(entry.chainTotal - entry.chainIndex, "%d more step", "%d more steps"),
+                TAN[1],
+                TAN[2],
+                TAN[3]
+            )
             break
         end
         local name = ns.QuestText.getQuestName(chainQuestId) or ns.L("Quest %s", chainQuestId)
@@ -143,6 +154,44 @@ local function addChainLines(entry, choice)
     end
 end
 
+---The quests around this one that are not its chain, in the row's tooltip: what it followed, and what it unlocks
+---(by name only where the story may be told).
+local function addLinkLines(entry, canName)
+    local requiredIds, unlockIds = entry.requiredIds or {}, entry.unlockIds or {}
+    local function addQuestLines(questIds, noteText)
+        for _, linkedQuestId in ipairs(questIds) do
+            local name = ns.QuestText.getQuestName(linkedQuestId) or ns.L("Quest %s", linkedQuestId)
+            local line = string.format("[%d] %s", ns.Database.getQuestField(linkedQuestId, "questLevel") or 0, name)
+            local isDone = ns.QuestState.isTurnedIn(linkedQuestId)
+            local color = isDone and GREY or TAN
+            GameTooltip:AddDoubleLine(
+                line,
+                isDone and ns.L("done") or noteText or "",
+                color[1],
+                color[2],
+                color[3],
+                GREY[1],
+                GREY[2],
+                GREY[3]
+            )
+        end
+    end
+    if #requiredIds > 0 then
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine(ns.Chain.composeFollowText(requiredIds), 1, 0.82, 0)
+        if #requiredIds > 1 then
+            addQuestLines(requiredIds)
+        end
+    end
+    if #unlockIds > 0 then
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine(ns.Chain.composeUnlockText(unlockIds, canName), 1, 0.82, 0)
+        if #unlockIds > 1 and canName then
+            addQuestLines(unlockIds)
+        end
+    end
+end
+
 local function showTooltip(row)
     local entry = row.entry
     if not entry then
@@ -151,8 +200,15 @@ local function showTooltip(row)
     if row.isHintLine then
         GameTooltip:SetOwner(row, "ANCHOR_LEFT")
         GameTooltip:AddLine(ns.L("Need a hint?"), 1, 1, 1)
-        GameTooltip:AddLine(ns.L("Click for one step at a time: the zone, roughly where, then exactly where. A hint stays for this quest only."),
-            TAN[1], TAN[2], TAN[3], true)
+        GameTooltip:AddLine(
+            ns.L(
+                "Click for one step at a time: the zone, roughly where, then exactly where. A hint stays for this quest only."
+            ),
+            TAN[1],
+            TAN[2],
+            TAN[3],
+            true
+        )
         GameTooltip:Show()
         return
     end
@@ -173,7 +229,9 @@ local function showTooltip(row)
     local chains = isHolding and ns.Spoilers.get("chains", entry.questId) or "all"
     local typeIndexes = {}
     for _, objective in ipairs(entry.objectives) do
-        local status = objective.required > 1 and (objective.fulfilled .. "/" .. objective.required) or objective.isFinished and ns.L("done") or ""
+        local status = objective.required > 1 and (objective.fulfilled .. "/" .. objective.required)
+            or objective.isFinished and ns.L("done")
+            or ""
         GameTooltip:AddDoubleLine((objective.shownLabel or objective.label), status, 1, 1, 1, 1, 1, 1)
         -- An item still to get: what drops it (or holds it) and how often, as the map's tooltip says
         typeIndexes[objective.type] = (typeIndexes[objective.type] or 0) + 1
@@ -182,7 +240,12 @@ local function showTooltip(row)
         end
     end
     if entry.isTurnIn then
-        GameTooltip:AddLine(composeTurnInText(entry, not isHolding or ns.Model.isTurnInShown(entry.questId)), GREEN[1], GREEN[2], GREEN[3])
+        GameTooltip:AddLine(
+            composeTurnInText(entry, not isHolding or ns.Model.isTurnInShown(entry.questId)),
+            GREEN[1],
+            GREEN[2],
+            GREEN[3]
+        )
     end
     -- With Shift held: what it asks, the rewards, where it is handed in (its objectives are listed above already)
     ns.QuestTooltip.addDetails(GameTooltip, entry.questId, { hasObjectives = true, hasTurnIn = entry.isTurnIn })
@@ -190,7 +253,9 @@ local function showTooltip(row)
     -- (none while the chances are held back: KillCounter.getProgress tells nothing then)
     local isKillsHeadingShown = false
     for index, objective in ipairs(ns.settings.shouldCountKills and not entry.isTurnIn and entry.objectives or {}) do
-        local progress = not objective.isFinished and objective.type == "item" and ns.KillCounter.getProgress(entry.questId, index, objective)
+        local progress = not objective.isFinished
+            and objective.type == "item"
+            and ns.KillCounter.getProgress(entry.questId, index, objective)
         if progress then
             if not isKillsHeadingShown then
                 GameTooltip:AddLine(" ")
@@ -204,13 +269,36 @@ local function showTooltip(row)
             if progress.kills > 0 then
                 red, green, blue = isUnlucky and 1 or 0.5, isUnlucky and 0.48 or 0.88, isUnlucky and 0.35 or 0.5
             end
-            GameTooltip:AddDoubleLine((objective.shownLabel or objective.label) .. " (" .. chanceText .. ")", killsText, 1, 1, 1, red, green, blue)
+            GameTooltip:AddDoubleLine(
+                (objective.shownLabel or objective.label) .. " (" .. chanceText .. ")",
+                killsText,
+                1,
+                1,
+                1,
+                red,
+                green,
+                blue
+            )
             if (progress.earlierDrops or 0) > 0 then
-                GameTooltip:AddLine(ns.Lp(progress.earlierDrops, "%d collected before counting started", "%d collected before counting started"), GREY[1], GREY[2], GREY[3])
+                GameTooltip:AddLine(
+                    ns.Lp(
+                        progress.earlierDrops,
+                        "%d collected before counting started",
+                        "%d collected before counting started"
+                    ),
+                    GREY[1],
+                    GREY[2],
+                    GREY[3]
+                )
             end
             local remaining = math.floor(progress.remaining + 0.5)
             local restText = (progress.sharerCount or 1) > 1
-                and ns.Lp(remaining, "About %d more kill for the rest, the loot shared by %d", "About %d more kills for the rest, the loot shared by %d", progress.sharerCount)
+                    and ns.Lp(
+                        remaining,
+                        "About %d more kill for the rest, the loot shared by %d",
+                        "About %d more kills for the rest, the loot shared by %d",
+                        progress.sharerCount
+                    )
                 or ns.Lp(remaining, "About %d more kill for the rest", "About %d more kills for the rest")
             GameTooltip:AddLine(restText, GREY[1], GREY[2], GREY[3])
         end
@@ -218,10 +306,18 @@ local function showTooltip(row)
     if entry.chainIndex and chains ~= "hidden" then
         addChainLines(entry, chains)
     end
+    if chains ~= "hidden" then
+        addLinkLines(entry, chains == "all" and not (isHolding and ns.Availability.isLaterHidden("quest")))
+    end
     -- (what the map cannot show matters only where the map would show it)
     if (entry.unlocatedCount or 0) > 0 and (places == "exact" or places == "rough") then
-        local text = entry.unlocatedCount == 1 and ns.L("The database has no location for one objective, so the map cannot show where to go.")
-            or ns.Lp(entry.unlocatedCount, "The database has no location for %d objective, so the map cannot show where to go.", "The database has no location for %d objectives, so the map cannot show where to go.")
+        local text = entry.unlocatedCount == 1
+                and ns.L("The database has no location for one objective, so the map cannot show where to go.")
+            or ns.Lp(
+                entry.unlocatedCount,
+                "The database has no location for %d objective, so the map cannot show where to go.",
+                "The database has no location for %d objectives, so the map cannot show where to go."
+            )
         GameTooltip:AddLine(text, TAN[1], TAN[2], TAN[3], true)
     end
     ns.Party.addProgressToTooltip(GameTooltip, entry.questId, entry.objectives)
@@ -229,7 +325,7 @@ local function showTooltip(row)
     -- cursor on it, the prompt bar says what its buttons do)
     if not (ns.GamepadTracker and ns.GamepadTracker.isFocused()) then
         local clickHint = entry.questId == activeQuestId
-            and "Click to open it in the quest log, ctrl-click to stop focusing, shift-click to link it in chat, right-click for more"
+                and "Click to open it in the quest log, ctrl-click to stop focusing, shift-click to link it in chat, right-click for more"
             or "Click to open it in the quest log, ctrl-click to focus it, shift-click to link it in chat, right-click for more"
         GameTooltip:AddLine(ns.L(clickHint), GREY[1], GREY[2], GREY[3], true)
         ns.QuestTooltip.addHint(GameTooltip)
@@ -287,14 +383,18 @@ function Tracker.openQuestMenu(entry, owner)
         end)
         -- Something of it held back that a hint could show (never in Guide)
         if ns.Spoilers.canHint(questId) then
-            root:CreateButton(ns.L("Need a hint?"), function() openHint(questId, owner) end)
+            root:CreateButton(ns.L("Need a hint?"), function()
+                openHint(questId, owner)
+            end)
         end
         if ns.Waypoints.getQuestPlace(entry) and (not ns.Spoilers.isActive() or isPlaceTold(entry)) then
             root:CreateButton(ns.L(ns.Waypoints.hasTomTom() and "Set a TomTom waypoint" or "Set a waypoint"), function()
                 ns.Waypoints.set(entry)
             end)
         end
-        root:CreateButton(ns.L("Share to chat"), function() ns.QuestState.linkInChat(questId) end)
+        root:CreateButton(ns.L("Share to chat"), function()
+            ns.QuestState.linkInChat(questId)
+        end)
         root:CreateButton(ns.L("Open in the quest log"), function()
             if ns.GamepadTracker then
                 ns.GamepadTracker.release() -- (the quest window has the pad then, not the tracker)
@@ -307,24 +407,38 @@ function Tracker.openQuestMenu(entry, owner)
             ns.Focus.handleQuestGone(questId) -- the windows let go of it, and the focus if it was it
             Tracker.refresh()
         end)
-        local share = root:CreateButton(ns.L("Share with the party"), function() ns.Log.shareQuest(questId) end)
-        local canShare = C_QuestLog.IsPushableQuest and C_QuestLog.IsPushableQuest(questId) and IsInGroup and IsInGroup()
+        local share = root:CreateButton(ns.L("Share with the party"), function()
+            ns.Log.shareQuest(questId)
+        end)
+        local canShare = C_QuestLog.IsPushableQuest
+            and C_QuestLog.IsPushableQuest(questId)
+            and IsInGroup
+            and IsInGroup()
         if not canShare and share.SetEnabled then
             share:SetEnabled(false)
         end
         ns.QuestText.addVoiceMenuItems(root, questId) -- a translation addon's narration, when the quest has one
         -- With a controller, its item onto the gamepad's action bar, as the game's own tracker offers it
-        local editFrame = entry.item and entry.item.itemId and ns.Gamepad and ns.Gamepad.isGamepadUI() and _G.GamepadActionBarEditFrame
+        local editFrame = entry.item
+            and entry.item.itemId
+            and ns.Gamepad
+            and ns.Gamepad.isGamepadUI()
+            and _G.GamepadActionBarEditFrame
         if editFrame and editFrame.BindItem then
-            root:CreateButton(_G.CONTEXT_ACTION_LABEL_BIND_TO_GAMEPAD_ACTION_BAR or ns.L("Put its item on the action bar"), function()
-                if ns.GamepadTracker then
-                    ns.GamepadTracker.release()
+            root:CreateButton(
+                _G.CONTEXT_ACTION_LABEL_BIND_TO_GAMEPAD_ACTION_BAR or ns.L("Put its item on the action bar"),
+                function()
+                    if ns.GamepadTracker then
+                        ns.GamepadTracker.release()
+                    end
+                    editFrame:BindItem(entry.item.itemId)
                 end
-                editFrame:BindItem(entry.item.itemId)
-            end)
+            )
         end
         root:CreateDivider()
-        root:CreateButton("|cffff5040" .. ns.L("Abandon") .. "|r", function() ns.Log.abandonQuest(questId) end)
+        root:CreateButton("|cffff5040" .. ns.L("Abandon") .. "|r", function()
+            ns.Log.abandonQuest(questId)
+        end)
     end)
 end
 
@@ -453,18 +567,28 @@ local function createRow()
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
         GameTooltip:AddLine(ns.L(isFocused and "Click to stop focusing" or "Click to focus it"), 1, 1, 1)
         if not isFocused then
-            GameTooltip:AddLine(ns.L("Its waypoint, and its marks lit on the map and the minimap."), TAN[1], TAN[2], TAN[3], true)
+            GameTooltip:AddLine(
+                ns.L("Its waypoint, and its marks lit on the map and the minimap."),
+                TAN[1],
+                TAN[2],
+                TAN[3],
+                true
+            )
         end
         GameTooltip:Show()
     end)
-    row.mark:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    row.mark:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
     row.mark:SetScale(RING_SIZE / MARK_SIZE)
     row.mark:SetPoint("CENTER", row, "LEFT", (RING_SIZE / 2) / (RING_SIZE / MARK_SIZE), 0)
     row.mark:Hide()
     row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     row:SetScript("OnClick", handleRowClick)
     row:SetScript("OnEnter", showTooltip)
-    row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    row:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
     return row
 end
 
@@ -492,6 +616,7 @@ local function flushRow()
         place(row.voiceIcon, "RIGHT", voiceTo, "LEFT", want.chain and -4 or -2, 0)
     end
     row.voiceIcon:SetShown(voiceTo ~= nil)
+    row.chainIcon:SetTexture(want.isUnlock and UNLOCK_ICON or CHAIN_ICON)
     row.chainIcon:SetAlpha(want.chain and 0.7 or 1)
     row.chainIcon:SetShown(want.chain)
     -- The left text runs from its indent to whatever stands right of it: the speaker, the chain's icon, the right
@@ -546,6 +671,7 @@ local function addRow(height, indent)
     want.leftText, want.rightText = "", ""
     want.leftFont, want.rightFont, want.leftColor, want.rightColor = nil, nil, nil, nil
     want.mark, want.box, want.tick, want.chain, want.voice = false, false, false, false, false
+    want.isUnlock = false
     want.faces = 0
     want.mouse = currentEntry ~= nil
     openRow = row
@@ -602,7 +728,9 @@ local function addObjectiveRow(entry, index, objective)
     if objective.required > 1 then
         -- The count leads the line, as in the game's own tracker, so the right column stays empty
         local count = objective.fulfilled .. "/" .. objective.required
-        text = (objective.isFinished and count or ("|cffffd100" .. count .. "|r")) .. " " .. (objective.shownLabel or objective.label)
+        text = (objective.isFinished and count or ("|cffffd100" .. count .. "|r"))
+            .. " "
+            .. (objective.shownLabel or objective.label)
     else
         -- A one-off objective is a checkbox, so the right column holds only real counts
         row.want.box, row.want.tick = true, objective.isFinished and true or false
@@ -610,7 +738,9 @@ local function addObjectiveRow(entry, index, objective)
     end
     -- An item still to drop says how often it does, quietly after its name (what drops it: the row's tooltip); not
     -- while the chances are held back
-    local chance = not objective.isFinished and objective.type == "item" and questDrops == "chances"
+    local chance = not objective.isFinished
+        and objective.type == "item"
+        and questDrops == "chances"
         and ns.KillCounter.getDropChance(entry.questId, index)
     if chance then
         text = text .. " |cff8a8a8a(" .. ns.Drops.formatChance(chance) .. ")|r"
@@ -683,21 +813,32 @@ local function addQuestRows(entry, isActive)
     row.want.rightFont, row.want.rightColor = Look.getFont("text"), TAN
     if entry.number then
         ns.MapMarks.applyMarkLook(row.mark, {
-            kind = entry.isTurnIn and "turnIn" or "objective", questId = entry.questId, number = entry.number,
+            kind = entry.isTurnIn and "turnIn" or "objective",
+            questId = entry.questId,
+            number = entry.number,
             glyph = ns.MapMarks.getQuestGlyph(entry.questId, entry.objectives),
-            progress = entry.isTurnIn and 1 or ns.MapMarks.getProgress(entry), isFocused = false, lines = {},
+            progress = entry.isTurnIn and 1 or ns.MapMarks.getProgress(entry),
+            isFocused = false,
+            lines = {},
         }, (row:GetFrameLevel() or 1) + 1)
         row.want.mark, row.want.indent = true, INDENT
     end
     -- The party is shown under the focused quest, its portraits heading a column each; on the others it is in
     -- the tooltip
-    local members = isActive and ns.Party.getProgress(entry.questId, entry.objectives, entry.eventText ~= nil and not entry.isTurnIn) or {}
+    local members = isActive
+            and ns.Party.getProgress(entry.questId, entry.objectives, entry.eventText ~= nil and not entry.isTurnIn)
+        or {}
     -- Right of the title: the chain step, as the quest list writes it (the chain and "2 of 5", no outline); none while
     -- the chain is held back
     if entry.chainIndex and questChains ~= "hidden" then
         row.want.rightText = ns.L("%d of %d", entry.chainIndex, entry.chainTotal)
         row.want.rightColor = BADGE_TEXT
         row.want.chain = true
+    elseif #(entry.unlockIds or {}) > 0 and questChains ~= "hidden" then
+        -- Not a step of a chain, but other quests wait for it: the branching mark and how many ("+2")
+        row.want.rightText = "+" .. #entry.unlockIds
+        row.want.rightColor = BADGE_TEXT
+        row.want.chain, row.want.isUnlock = true, true
     end
     -- Its narration, only while it plays (the right-click menu plays, queues and stops it)
     if ns.QuestText.getVoiceState(entry.questId) == "playing" then
@@ -822,9 +963,20 @@ end
 -- icon stays, beside what is ready.
 local FILTERS = {
     { value = "all", label = "All quests", note = "Every quest you track.", atlas = "questlog-tab-icon-quest" },
-    { value = "here", label = "Here", note = "Only the quests of the zone you are in; it follows you from zone to zone.", atlas = "Waypoint-MapPin-Untracked" },
+    {
+        value = "here",
+        label = "Here",
+        note = "Only the quests of the zone you are in; it follows you from zone to zone.",
+        atlas = "Waypoint-MapPin-Untracked",
+    },
     { value = "ready", label = "Ready", note = "Only the quests ready to hand in.", atlas = "QuestTurnin" },
-    { value = "focus", label = "Focus", note = "Only the quest in focus.", atlas = "navigation-tracked-icon", iconSize = 15 }, -- (the game's own mark for the quest it guides you to)
+    {
+        value = "focus",
+        label = "Focus",
+        note = "Only the quest in focus.",
+        atlas = "navigation-tracked-icon",
+        iconSize = 15,
+    }, -- (the game's own mark for the quest it guides you to)
 }
 local FILTERS_BY_VALUE = {}
 for _, filter in ipairs(FILTERS) do
@@ -832,8 +984,10 @@ for _, filter in ipairs(FILTERS) do
 end
 -- The order in a zone, as the settings' "Order in a zone" (settings.trackerOrder), from the sort button's menu
 local SORT_CHOICES = {
-    { value = "number", label = "As tracked" }, { value = "distance", label = "Nearest" },
-    { value = "level", label = "By level" }, { value = "progress", label = "Most done" },
+    { value = "number", label = "As tracked" },
+    { value = "distance", label = "Nearest" },
+    { value = "level", label = "By level" },
+    { value = "progress", label = "Most done" },
 }
 local FILTER_BUTTON_SIZE, FILTER_BUTTON_GAP = 18, 2
 
@@ -871,7 +1025,8 @@ local function filterGroups(model)
     for _, group in ipairs(model.groups) do
         local entries = {}
         for _, entry in ipairs(group.entries) do
-            local isKept = (filter == "here" and group.isCurrent) or (filter == "ready" and entry.isTurnIn)
+            local isKept = (filter == "here" and group.isCurrent)
+                or (filter == "ready" and entry.isTurnIn)
                 or (filter == "focus" and entry.questId == model.activeQuestId)
             if isKept then
                 entries[#entries + 1] = entry
@@ -880,7 +1035,10 @@ local function filterGroups(model)
             end
         end
         if #entries > 0 then
-            kept[#kept + 1] = setmetatable({ entries = entries, isCollapsed = filter == "here" and group.isCollapsed or false }, { __index = group })
+            kept[#kept + 1] = setmetatable(
+                { entries = entries, isCollapsed = filter == "here" and group.isCollapsed or false },
+                { __index = group }
+            )
         end
     end
     return kept, hiddenCount, counts
@@ -1038,7 +1196,12 @@ local function showFilterTooltip(button)
     local filter = button.filter
     local counts = filterCounts
     GameTooltip:SetOwner(button, "ANCHOR_BOTTOM")
-    GameTooltip:AddLine(ns.L(filter.label) .. (counts[filter.value] and string.format(" |cff9a9a9a(%d)|r", counts[filter.value]) or ""), 1, 1, 1)
+    GameTooltip:AddLine(
+        ns.L(filter.label) .. (counts[filter.value] and string.format(" |cff9a9a9a(%d)|r", counts[filter.value]) or ""),
+        1,
+        1,
+        1
+    )
     GameTooltip:AddLine(ns.L(filter.note), TAN[1], TAN[2], TAN[3], true)
     if filter.value ~= "all" and Tracker.getFilter() == filter.value then
         GameTooltip:AddLine(ns.L("Click again for all quests."), GREY[1], GREY[2], GREY[3], true)
@@ -1071,7 +1234,8 @@ local function openSortMenu(owner)
         -- A quick switch of how much is told (Spoilers): the four presets in a submenu, the one on checked (none
         -- while it is changed by hand); a menu without submenus lists them under it
         root:CreateDivider()
-        local submenu = root:CreateButton(ns.L("Spoilers: %s", ns.L(ns.Spoilers.getPresetName(ns.Spoilers.getPreset()))))
+        local submenu =
+            root:CreateButton(ns.L("Spoilers: %s", ns.L(ns.Spoilers.getPresetName(ns.Spoilers.getPreset()))))
         local parent = type(submenu) == "table" and type(submenu.CreateRadio) == "function" and submenu or root
         for _, preset in ipairs(ns.Spoilers.PRESET_ORDER) do
             parent:CreateRadio(ns.L(ns.Spoilers.getPresetName(preset)), isPreset, ns.Spoilers.setPreset, preset)
@@ -1084,7 +1248,11 @@ local function createBandButton(parent, atlas, file)
     local button = CreateFrame("Button", nil, parent, BackdropTemplateMixin and "BackdropTemplate" or nil)
     button:SetSize(FILTER_BUTTON_SIZE, FILTER_BUTTON_SIZE)
     if button.SetBackdrop then
-        button:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+        button:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8X8",
+            edgeFile = "Interface\\Buttons\\WHITE8X8",
+            edgeSize = 1,
+        })
     end
     button.icon = button:CreateTexture(nil, "ARTWORK")
     button.icon:SetSize(13, 13)
@@ -1134,9 +1302,13 @@ function Tracker.createFilterBar()
         end
         button.filter = filter
         button:SetPoint("LEFT", bar, "LEFT", (index - 1) * (FILTER_BUTTON_SIZE + FILTER_BUTTON_GAP), 0)
-        button:SetScript("OnClick", function() chooseFilter(filter.value) end)
+        button:SetScript("OnClick", function()
+            chooseFilter(filter.value)
+        end)
         button:SetScript("OnEnter", showFilterTooltip)
-        button:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        button:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+        end)
         bar.buttons[filter.value] = button
     end
     local rule = bar:CreateTexture(nil, "ARTWORK")
@@ -1156,26 +1328,45 @@ function Tracker.createFilterBar()
             end
         end
         if ns.Spoilers.isActive() then
-            GameTooltip:AddLine(ns.L("Spoilers: %s", ns.L(ns.Spoilers.getPresetName(ns.Spoilers.getPreset()))), TAN[1], TAN[2], TAN[3])
+            GameTooltip:AddLine(
+                ns.L("Spoilers: %s", ns.L(ns.Spoilers.getPresetName(ns.Spoilers.getPreset()))),
+                TAN[1],
+                TAN[2],
+                TAN[3]
+            )
         end
         GameTooltip:Show()
     end)
-    sort:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    sort:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
     local resize = createBandButton(bar, nil, "Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
     resize:SetPoint("LEFT", sort, "RIGHT", FILTER_BUTTON_GAP, 0)
     setBandButtonChosen(resize, false)
-    resize:SetScript("OnClick", function() Tracker.toggleResizing() end)
+    resize:SetScript("OnClick", function()
+        Tracker.toggleResizing()
+    end)
     resize:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
         GameTooltip:AddLine(ns.L("Resize"), 1, 1, 1)
-        GameTooltip:AddLine(ns.L("Shows its outline: drag the arrows to make it wider, narrower, taller or shorter."), TAN[1], TAN[2], TAN[3], true)
+        GameTooltip:AddLine(
+            ns.L("Shows its outline: drag the arrows to make it wider, narrower, taller or shorter."),
+            TAN[1],
+            TAN[2],
+            TAN[3],
+            true
+        )
         GameTooltip:Show()
     end)
-    resize:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    resize:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
     bar.resize = resize
     -- Comes in softly, as the game's own controls do on hover
     local group = bar.CreateAnimationGroup and bar:CreateAnimationGroup()
-    local alpha = type(group) == "table" and type(group.CreateAnimation) == "function" and group:CreateAnimation("Alpha")
+    local alpha = type(group) == "table"
+        and type(group.CreateAnimation) == "function"
+        and group:CreateAnimation("Alpha")
     if type(alpha) == "table" and alpha.SetFromAlpha then
         alpha:SetFromAlpha(0)
         alpha:SetToAlpha(1)
@@ -1263,8 +1454,10 @@ end
 function Tracker.watchHover()
     -- (kept while its sort menu is open, which closes with the button it came from, and while resizing)
     local isMenuOpen = type(sortMenu) == "table" and sortMenu.IsShown and sortMenu:IsShown() == true
-    local isOnBand = frame.header:IsMouseOver() or (frame.filterBar:IsShown() and frame.filterBar:IsMouseOver())
-        or isMenuOpen or isResizing == true
+    local isOnBand = frame.header:IsMouseOver()
+        or (frame.filterBar:IsShown() and frame.filterBar:IsMouseOver())
+        or isMenuOpen
+        or isResizing == true
     if isOnBand ~= frame.filterBar:IsShown() then
         Tracker.setFiltersShown(isOnBand)
     end
@@ -1393,7 +1586,8 @@ local function createResizeHandle(kind)
             local cursorX, cursorY = GetCursorPosition()
             cursorX, cursorY = cursorX / scale, cursorY / scale
             if self.kind ~= "height" then
-                local width = math.floor(math.max(MIN_WIDTH, math.min(MAX_WIDTH, self.startWidth + self.startX - cursorX)) + 0.5)
+                local width =
+                    math.floor(math.max(MIN_WIDTH, math.min(MAX_WIDTH, self.startWidth + self.startX - cursorX)) + 0.5)
                 if width ~= getWidth() then
                     ns.settings.trackerWidth = width
                     Tracker.refresh()
@@ -1420,8 +1614,16 @@ local function createResizeHandle(kind)
             pcall(SetCursor, "UI_RESIZE_CURSOR")
         end
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        GameTooltip:AddLine(ns.L(self.kind == "width" and "Drag: wider or narrower" or self.kind == "height" and "Drag: taller or shorter"
-            or "Drag: wider, narrower, taller or shorter"), 1, 1, 1)
+        GameTooltip:AddLine(
+            ns.L(
+                self.kind == "width" and "Drag: wider or narrower"
+                    or self.kind == "height" and "Drag: taller or shorter"
+                    or "Drag: wider, narrower, taller or shorter"
+            ),
+            1,
+            1,
+            1
+        )
         GameTooltip:Show()
     end)
     handle:SetScript("OnLeave", function()
@@ -1440,7 +1642,12 @@ local function createResizeFrame()
     local fill = resizeFrame:CreateTexture(nil, "BACKGROUND")
     fill:SetAllPoints(resizeFrame)
     fill:SetColorTexture(1, 0.82, 0, 0.06)
-    for _, side in ipairs({ { "TOPLEFT", "TOPRIGHT" }, { "BOTTOMLEFT", "BOTTOMRIGHT" }, { "TOPLEFT", "BOTTOMLEFT" }, { "TOPRIGHT", "BOTTOMRIGHT" } }) do
+    for _, side in ipairs({
+        { "TOPLEFT", "TOPRIGHT" },
+        { "BOTTOMLEFT", "BOTTOMRIGHT" },
+        { "TOPLEFT", "BOTTOMLEFT" },
+        { "TOPRIGHT", "BOTTOMRIGHT" },
+    }) do
         local edge = resizeFrame:CreateTexture(nil, "BORDER")
         edge:SetColorTexture(GOLD[1], GOLD[2], GOLD[3], 0.9)
         edge:SetPoint(side[1], resizeFrame, side[1], 0, 0)
@@ -1457,7 +1664,9 @@ local function createResizeFrame()
     done:SetSize(84, 22)
     done:SetPoint("BOTTOMRIGHT", resizeFrame, "BOTTOM", -4, 18)
     done:SetText(ns.L("Done"))
-    done:SetScript("OnClick", function() resizeFrame:Hide() end)
+    done:SetScript("OnClick", function()
+        resizeFrame:Hide()
+    end)
     local reset = CreateFrame("Button", nil, resizeFrame, "UIPanelButtonTemplate")
     reset:SetSize(84, 22)
     reset:SetPoint("BOTTOMLEFT", resizeFrame, "BOTTOM", 4, 18)
@@ -1510,14 +1719,14 @@ local function createWatcher()
             return
         end
         elapsed = 0
-        Tracker.watchHover()
+        ns.Timing.measure("tracker hover watch", Tracker.watchHover)
     end)
     return watcher
 end
 
 ---@return number? questId The game's own focus (its super-tracked quest), when it is a quest in the log
 function Tracker.create()
-    frame = CreateFrame("Frame", "TrailheadTracker", UIParent)
+    frame = CreateFrame("Frame", "OneMoreQuestTracker", UIParent)
     -- Under every window, as the game's own quest tracker: in one layer a frame's parts sort by level, and the
     -- tracker's rows would draw over the quest window's page when the map is moved over it
     frame:SetFrameStrata("LOW")
@@ -1546,7 +1755,9 @@ function Tracker.create()
     end)
     -- A click on the band folds the tracker to it, or unfolds it, as its arrow does
     frame.header:RegisterForClicks("LeftButtonUp")
-    frame.header:SetScript("OnMouseDown", function(self) self.wasDragged = false end)
+    frame.header:SetScript("OnMouseDown", function(self)
+        self.wasDragged = false
+    end)
     frame.header:SetScript("OnClick", function(self)
         if self.wasDragged then
             return
@@ -1614,9 +1825,15 @@ function Tracker.create()
         GameTooltip:AddLine(ns.L(Tracker.isFolded() and "Unfold the tracker" or "Fold the tracker"), 1, 1, 1)
         GameTooltip:Show()
     end)
-    frame.foldButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    frame.foldButton:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
     frame.foldButton:SetScript("OnClick", Tracker.toggleFold)
-    frame.title = ns.Widgets.createFontString(frame.header, "OVERLAY", _G.GameFontNormalMed2 and "GameFontNormalMed2" or "GameFontNormal")
+    frame.title = ns.Widgets.createFontString(
+        frame.header,
+        "OVERLAY",
+        _G.GameFontNormalMed2 and "GameFontNormalMed2" or "GameFontNormal"
+    )
     frame.title:SetPoint("LEFT", frame.foldButton, "RIGHT", 3, 0)
     frame.title:SetText(ns.L("Quests"))
     -- The log's places: its count, orange as the last places go
@@ -1728,7 +1945,9 @@ local function placeFlash(questId, top, bottom)
             fade:SetToAlpha(0)
             fade:SetDuration(FLASH_SECONDS)
             fade:SetSmoothing("OUT")
-            group:SetScript("OnFinished", function() flash:SetAlpha(0) end)
+            group:SetScript("OnFinished", function()
+                flash:SetAlpha(0)
+            end)
             fadeGroups[questId] = group
         end
         flashes[questId] = flash
@@ -1771,7 +1990,10 @@ end
 local function getOrderKey(model)
     local parts, activeEntry = { tostring(model.activeQuestId) }, nil
     for _, group in ipairs(model.groups) do
-        parts[#parts + 1] = "#" .. tostring(group.zoneId) .. (group.isCollapsed and "-" or "+") .. (group.isCurrent and "c" or "")
+        parts[#parts + 1] = "#"
+            .. tostring(group.zoneId)
+            .. (group.isCollapsed and "-" or "+")
+            .. (group.isCurrent and "c" or "")
         for _, entry in ipairs(group.entries) do
             parts[#parts + 1] = entry.questId
             activeEntry = entry.questId == model.activeQuestId and entry or activeEntry
@@ -1788,8 +2010,13 @@ function Tracker.tick()
         return
     end
     local position = ns.Geometry.getPlayerPosition()
-    local isMoved = not refreshedAt or (position and position.uiMapId) ~= refreshedAt.uiMapId
-        or (position and ns.Geometry.getDistance(position.north, position.west, refreshedAt.north, refreshedAt.west) >= TICK_YARDS)
+    local isMoved = not refreshedAt
+        or (position and position.uiMapId) ~= refreshedAt.uiMapId
+        or (
+            position
+            and ns.Geometry.getDistance(position.north, position.west, refreshedAt.north, refreshedAt.west)
+                >= TICK_YARDS
+        )
     if hasTimer then
         Tracker.refresh()
         return
@@ -1836,7 +2063,11 @@ function Tracker.refresh()
     Tracker.applySize()
     hasTimer = false
     local position = ns.Geometry.getPlayerPosition()
-    refreshedAt = { uiMapId = position and position.uiMapId, north = position and position.north, west = position and position.west }
+    refreshedAt = {
+        uiMapId = position and position.uiMapId,
+        north = position and position.north,
+        west = position and position.west,
+    }
     usedRowCount, cursor = 0, 0
     local itemPlacements = {}
     local activeTop, activeBottom -- the quest in focus: where its lines are, for its band and bar
@@ -1874,7 +2105,8 @@ function Tracker.refresh()
                 end
                 placeFlash(entry.questId, top, bottom)
                 if entry.item then
-                    itemPlacements[#itemPlacements + 1] = { item = entry.item, offset = top, size = isActive and 32 or 26 }
+                    itemPlacements[#itemPlacements + 1] =
+                        { item = entry.item, offset = top, size = isActive and 32 or 26 }
                 end
                 if isActive then
                     activeTop, activeBottom = top, bottom
@@ -1897,8 +2129,14 @@ function Tracker.refresh()
         -- The filter kept nothing: said plainly first
         local filter = Tracker.getFilter()
         if #shownGroups == 0 then
-            addInfoRow(ns.L(filter == "focus" and "No quest in focus" or filter == "ready" and "No quest ready to hand in"
-                or "No quest in this zone"), GREY)
+            addInfoRow(
+                ns.L(
+                    filter == "focus" and "No quest in focus"
+                        or filter == "ready" and "No quest ready to hand in"
+                        or "No quest in this zone"
+                ),
+                GREY
+            )
         end
         addInfoRow(ns.Lp(hiddenCount, "%d more hidden by the filter", "%d more hidden by the filter"), GREY)
     end
@@ -2011,7 +2249,12 @@ function Tracker.getDrawnLines()
     local lines = {}
     for index = 1, usedRowCount do
         local row = rows[index]
-        lines[index] = { left = tostring(row.want.leftText), right = tostring(row.want.rightText), isHint = row.isHintLine, row = row }
+        lines[index] = {
+            left = tostring(row.want.leftText),
+            right = tostring(row.want.rightText),
+            isHint = row.isHintLine,
+            row = row,
+        }
     end
     return lines
 end
@@ -2030,7 +2273,9 @@ function Tracker.queueRefresh()
     end)
 end
 
-ns.on("FOCUS_CHANGED", function() Tracker.refresh() end) -- the quest in focus is the one shown in full
+ns.on("FOCUS_CHANGED", function()
+    Tracker.refresh()
+end) -- the quest in focus is the one shown in full
 
 ns.registerModule({
     name = "Tracker",

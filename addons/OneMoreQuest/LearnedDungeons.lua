@@ -26,7 +26,10 @@ local fulfilledByQuestId = {} -- the objectives done of each quest in the log, a
 
 ---@return boolean isPlace A saved entrance that can be used: a zone and a spot on its map
 local function isPlace(place)
-    return type(place) == "table" and type(place.zoneId) == "number" and type(place.x) == "number" and type(place.y) == "number"
+    return type(place) == "table"
+        and type(place.zoneId) == "number"
+        and type(place.x) == "number"
+        and type(place.y) == "number"
 end
 
 ---Mends what a damaged saved file left of the records, so every login does not fail on them: a record not a table, or
@@ -66,7 +69,6 @@ local function getRecords()
     return records
 end
 
-
 ---@return number areaId The dungeon's area ID: the one of the same name another provider gave (the DungeonJournal
 ---addon's Drowned City), so a dungeon listed from the start and later learned by playing is one dungeon; else its own
 function LearnedDungeons.getAreaId(instanceId)
@@ -78,7 +80,9 @@ end
 local function getRecordsForAreaId(areaId)
     local found = {}
     for instanceId, record in pairs(type(areaId) == "number" and getRecords() or {}) do
-        if LearnedDungeons.getAreaId(instanceId) == areaId then found[#found + 1] = record end
+        if LearnedDungeons.getAreaId(instanceId) == areaId then
+            found[#found + 1] = record
+        end
     end
     return found
 end
@@ -88,7 +92,9 @@ function LearnedDungeons.getAreaIds()
     local areaIds, isAdded = {}, {}
     for instanceId in pairs(getRecords()) do
         local areaId = LearnedDungeons.getAreaId(instanceId)
-        if not isAdded[areaId] then areaIds[#areaIds + 1], isAdded[areaId] = areaId, true end
+        if not isAdded[areaId] then
+            areaIds[#areaIds + 1], isAdded[areaId] = areaId, true
+        end
     end
     table.sort(areaIds)
     return areaIds
@@ -99,7 +105,9 @@ function LearnedDungeons.getQuestIds(areaId)
     local questIds, isAdded = {}, {}
     for _, record in ipairs(getRecordsForAreaId(areaId)) do
         for questId in pairs(record.questIds) do
-            if not isAdded[questId] then questIds[#questIds + 1], isAdded[questId] = questId, true end
+            if not isAdded[questId] then
+                questIds[#questIds + 1], isAdded[questId] = questId, true
+            end
         end
     end
     table.sort(questIds)
@@ -109,7 +117,9 @@ end
 ---@return boolean isPickedUpInside The quest was seen picked up inside the learned dungeon
 function LearnedDungeons.isPickedUpInside(areaId, questId)
     for _, record in ipairs(getRecordsForAreaId(areaId)) do
-        if record.pickedUpQuestIds[questId] then return true end
+        if record.pickedUpQuestIds[questId] then
+            return true
+        end
     end
     return false
 end
@@ -132,7 +142,9 @@ end
 ns.Database.registerProvider({
     name = "Learned",
     order = 30,
-    isAvailable = function() return ns.settings ~= nil end,
+    isAvailable = function()
+        return ns.settings ~= nil
+    end,
     questFields = { zoneOrSort = true },
     getQuestField = function(questId, field)
         local instanceId = field == "zoneOrSort" and getQuestInstanceId(questId)
@@ -141,10 +153,17 @@ ns.Database.registerProvider({
     getDungeons = function()
         local list = {}
         for instanceId, record in pairs(getRecords()) do
-            list[#list + 1] = { name = record.name, areaId = AREA_ID_BASE + instanceId, entrances = record.entrance and { record.entrance } or {},
-                isRaid = record.isRaid == true, isLearned = true }
+            list[#list + 1] = {
+                name = record.name,
+                areaId = AREA_ID_BASE + instanceId,
+                entrances = record.entrance and { record.entrance } or {},
+                isRaid = record.isRaid == true,
+                isLearned = true,
+            }
         end
-        table.sort(list, function(first, second) return first.areaId < second.areaId end)
+        table.sort(list, function(first, second)
+            return first.areaId < second.areaId
+        end)
         return list
     end,
 })
@@ -156,7 +175,11 @@ local function getUnknownInstance()
         return nil
     end
     local name, instanceType, _, _, _, _, _, instanceId = GetInstanceInfo()
-    if (instanceType ~= "party" and instanceType ~= "raid") or not instanceId or ns.Database.getKnownInstanceDungeonId(instanceId) then
+    if
+        (instanceType ~= "party" and instanceType ~= "raid")
+        or not instanceId
+        or ns.Database.getKnownInstanceDungeonId(instanceId)
+    then
         return nil
     end
     return instanceId, name, instanceType == "raid"
@@ -254,7 +277,8 @@ local function handleWorldEntered()
         local records = getRecords()
         local record = records[instanceId]
         if not record then
-            record = { name = name or ("Instance " .. instanceId), isRaid = isRaid, questIds = {}, pickedUpQuestIds = {} }
+            record =
+                { name = name or ("Instance " .. instanceId), isRaid = isRaid, questIds = {}, pickedUpQuestIds = {} }
             records[instanceId] = record
             handleChange()
         end
@@ -336,13 +360,26 @@ end
 function LearnedDungeons.composeReportLines()
     local lines = {}
     for instanceId, record in pairs(getRecords()) do
-        local entrance = record.entrance and string.format("%s %.1f, %.1f", ns.Database.getZoneName(record.entrance.zoneId), record.entrance.x, record.entrance.y) or "-"
+        local entrance = record.entrance
+                and string.format(
+                    "%s %.1f, %.1f",
+                    ns.Database.getZoneName(record.entrance.zoneId),
+                    record.entrance.x,
+                    record.entrance.y
+                )
+            or "-"
         local questIds = {}
         for questId in pairs(record.questIds) do
             questIds[#questIds + 1] = tostring(questId) .. (record.pickedUpQuestIds[questId] and "*" or "")
         end
         table.sort(questIds)
-        lines[#lines + 1] = string.format("%d | %s | %s | %s", instanceId, record.name, entrance, #questIds > 0 and table.concat(questIds, ", ") or "-")
+        lines[#lines + 1] = string.format(
+            "%d | %s | %s | %s",
+            instanceId,
+            record.name,
+            entrance,
+            #questIds > 0 and table.concat(questIds, ", ") or "-"
+        )
     end
     table.sort(lines)
     return lines
@@ -350,7 +387,8 @@ end
 
 ---Forgets the cached dungeons and the state of a run, for tests.
 function LearnedDungeons.reset()
-    lastOutside, learningInstanceId, isLeavingToEntrance, fulfilledByQuestId, instanceIdByQuestId = nil, nil, false, {}, nil
+    lastOutside, learningInstanceId, isLeavingToEntrance, fulfilledByQuestId, instanceIdByQuestId =
+        nil, nil, false, {}, nil
     ns.Database.forgetDungeons()
 end
 

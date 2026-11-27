@@ -64,7 +64,9 @@ function QuestState.getKillWords()
     local pattern = type(QUEST_MONSTERS_KILLED) == "string" and QUEST_MONSTERS_KILLED or ""
     for word in pattern:gsub("%%%d*%$?%a", " "):gmatch("[^%s%p%d]+") do
         word = word:lower()
-        if word ~= "slain" and word ~= "killed" then killWords[#killWords + 1] = word end
+        if word ~= "slain" and word ~= "killed" then
+            killWords[#killWords + 1] = word
+        end
     end
     return killWords
 end
@@ -73,7 +75,9 @@ end
 function QuestState.isKillWording(label)
     local lower = (label or ""):lower()
     for _, word in ipairs(QuestState.getKillWords()) do
-        if lower:find(word, 1, true) then return true end
+        if lower:find(word, 1, true) then
+            return true
+        end
     end
     return false
 end
@@ -193,8 +197,14 @@ local function readQuest(questId)
     local gameObjectives = C_QuestLog.GetQuestObjectives(questId) or {}
     for _, objective in ipairs(gameObjectives) do
         -- The line in the player's language, from a translation addon; the English stays for matching
-        local shownText = ns.QuestText.getObjective(questId, objective.text, objective.numFulfilled, objective.numRequired,
-            objective.type, #gameObjectives)
+        local shownText = ns.QuestText.getObjective(
+            questId,
+            objective.text,
+            objective.numFulfilled,
+            objective.numRequired,
+            objective.type,
+            #gameObjectives
+        )
         objectives[#objectives + 1] = {
             label = QuestState.getObjectiveLabel(objective.text),
             text = objective.text, -- as the game's own tooltips show it: "Kraul Guano: 3/12"
@@ -207,7 +217,9 @@ local function readQuest(questId)
         }
     end
     local level = C_QuestLog.GetQuestDifficultyLevel and C_QuestLog.GetQuestDifficultyLevel(questId)
-    local englishTitle = C_QuestLog.GetTitleForQuestID(questId) or ns.Database.getQuestField(questId, "name") or ("Quest " .. questId)
+    local englishTitle = C_QuestLog.GetTitleForQuestID(questId)
+        or ns.Database.getQuestField(questId, "name")
+        or ("Quest " .. questId)
     return {
         questId = questId,
         title = ns.QuestText.getTitle(questId, englishTitle, true), -- as shown: from a translation addon, when one has it
@@ -229,8 +241,12 @@ function QuestState.getQuest(questId)
         end
     end
     return {
-        questId = read.questId, title = read.title, englishTitle = read.englishTitle, level = read.level,
-        isComplete = read.isComplete, objectives = read.objectives,
+        questId = read.questId,
+        title = read.title,
+        englishTitle = read.englishTitle,
+        level = read.level,
+        isComplete = read.isComplete,
+        objectives = read.objectives,
     }
 end
 
@@ -282,15 +298,92 @@ end
 
 -- Told first of every change to the log and to what is tracked (this file loads before the modules that listen for
 -- the same events on frames of their own)
-local LOG_EVENTS = { "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_TURNED_IN", "QUEST_LOG_UPDATE", "QUEST_WATCH_LIST_CHANGED",
-    "UNIT_QUEST_LOG_CHANGED" }
+local LOG_EVENTS = {
+    "QUEST_ACCEPTED",
+    "QUEST_REMOVED",
+    "QUEST_TURNED_IN",
+    "QUEST_LOG_UPDATE",
+    "QUEST_WATCH_LIST_CHANGED",
+    "UNIT_QUEST_LOG_CHANGED",
+}
 if CreateFrame then
     local logWatcher = CreateFrame("Frame")
     if logWatcher and logWatcher.RegisterEvent and logWatcher.SetScript then
         for _, event in ipairs(LOG_EVENTS) do
             pcall(logWatcher.RegisterEvent, logWatcher, event)
         end
-        logWatcher:SetScript("OnEvent", function() QuestState.forgetFrame() end)
+        logWatcher:SetScript("OnEvent", function()
+            QuestState.forgetFrame()
+        end)
+    end
+end
+
+-- The game tracks a quest whenever its objectives move on (QuestMapFrame on QUEST_WATCH_UPDATE, while the
+-- autoQuestWatch setting is on, as it is by default): picking up an item for a quest the player had untracked
+-- tracked it again. With "Quests you untrack stay untracked" on (settings.shouldKeepUntracked, off by default: the
+-- game's way), a quest is tracked when it is taken (the game's own, kept) and when the player tracks it; never by
+-- its progress alone: what the game tracks so is untracked again, the next frame, once the game is done.
+local PROGRESS_SECONDS = 0.5 -- a quest tracked this soon after it moved on was tracked for that
+local ACCEPT_SECONDS = 3 -- one taken this recently keeps its tracking (items already carried move it on at once)
+local progressedAt, acceptedAt = {}, {}
+local knownWatched -- [questId] = true: what was tracked as last seen (nil until first looked)
+local isWatchCheckQueued = false
+
+local function readWatchedSet()
+    local watched = {}
+    for index = 1, C_QuestLog.GetNumQuestWatches() or 0 do
+        local questId = C_QuestLog.GetQuestIDForQuestWatchIndex(index)
+        if questId and questId > 0 then
+            watched[questId] = true
+        end
+    end
+    return watched
+end
+
+local function undoProgressWatches()
+    isWatchCheckQueued = false
+    local now = GetTime and GetTime() or 0
+    local watched = readWatchedSet()
+    for questId in pairs(knownWatched and watched or {}) do
+        local isProgress = progressedAt[questId] and now - progressedAt[questId] <= PROGRESS_SECONDS
+        local isJustTaken = acceptedAt[questId] and now - acceptedAt[questId] <= ACCEPT_SECONDS
+        if ns.settings.shouldKeepUntracked and not knownWatched[questId] and isProgress and not isJustTaken then
+            C_QuestLog.RemoveQuestWatch(questId)
+            watched[questId] = nil
+        end
+    end
+    knownWatched = watched
+end
+
+---What the game said of the log or the tracked quests, for keeping progress from tracking a quest (above).
+---@param event string QUEST_WATCH_UPDATE (a quest moved on), QUEST_ACCEPTED or QUEST_WATCH_LIST_CHANGED
+function QuestState.noteWatchEvent(event, questId)
+    local now = GetTime and GetTime() or 0
+    if event == "QUEST_WATCH_UPDATE" and questId then
+        progressedAt[questId] = now
+    elseif event == "QUEST_ACCEPTED" and questId then
+        acceptedAt[questId] = now
+    end
+    if isWatchCheckQueued then
+        return
+    end
+    isWatchCheckQueued = true
+    if C_Timer and C_Timer.After then
+        C_Timer.After(0, undoProgressWatches)
+    else
+        undoProgressWatches()
+    end
+end
+
+if CreateFrame then
+    local watchGuard = CreateFrame("Frame")
+    if watchGuard and watchGuard.RegisterEvent and watchGuard.SetScript then
+        for _, event in ipairs({ "QUEST_WATCH_UPDATE", "QUEST_ACCEPTED", "QUEST_WATCH_LIST_CHANGED" }) do
+            pcall(watchGuard.RegisterEvent, watchGuard, event)
+        end
+        watchGuard:SetScript("OnEvent", function(_, event, questId)
+            QuestState.noteWatchEvent(event, questId)
+        end)
     end
 end
 
@@ -468,12 +561,16 @@ function QuestState.addWatch(questId)
     if QuestState.isWatched(questId) then
         return true
     end
-    local maxWatches = Constants and Constants.QuestWatchConsts and Constants.QuestWatchConsts.MAX_QUEST_WATCHES or DEFAULT_MAX_WATCHES
+    local maxWatches = Constants and Constants.QuestWatchConsts and Constants.QuestWatchConsts.MAX_QUEST_WATCHES
+        or DEFAULT_MAX_WATCHES
     if (C_QuestLog.GetNumQuestWatches() or 0) >= maxWatches then
         showError(OBJECTIVES_WATCH_TOO_MANY or ns.L("You can only track %d quests at a time.", maxWatches))
         return false
     end
     C_QuestLog.AddQuestWatch(questId)
+    if knownWatched then
+        knownWatched[questId] = true -- (the player's own: kept, whatever moved on just before)
+    end
     QuestState.forgetWatches()
     if not QuestState.isWatched(questId) then
         showError(ns.L("The game would not track this quest."))
@@ -535,7 +632,9 @@ function QuestState.getDescription(questId)
         return nil
     end
     -- Selecting makes the game announce a quest log change, so it is done only when the selection differs
-    if C_QuestLog.SetSelectedQuest and not (C_QuestLog.GetSelectedQuest and C_QuestLog.GetSelectedQuest() == questId) then
+    if
+        C_QuestLog.SetSelectedQuest and not (C_QuestLog.GetSelectedQuest and C_QuestLog.GetSelectedQuest() == questId)
+    then
         C_QuestLog.SetSelectedQuest(questId)
     end
     local description = GetQuestLogQuestText(C_QuestLog.GetLogIndexForQuestID(questId))
@@ -551,7 +650,13 @@ local function getRewardItems(getCount, getInfo, questId, rewardType)
         if name then
             -- The kind, position and quest are what the game's tooltip needs to show the item
             items[#items + 1] = {
-                name = name, texture = texture, count = count or 1, rewardType = rewardType, index = index, questId = questId, itemId = itemId,
+                name = name,
+                texture = texture,
+                count = count or 1,
+                rewardType = rewardType,
+                index = index,
+                questId = questId,
+                itemId = itemId,
                 quality = type(quality) == "number" and quality or nil,
             }
         end
@@ -709,8 +814,13 @@ function QuestState.getLogSignature()
         local info = C_QuestLog.GetInfo(index)
         local questId = info and not info.isHeader and info.questID
         if questId and questId > 0 then
-            parts[#parts + 1] = string.format("%d:%s:%s:%s", questId, tostring(C_QuestLog.GetTitleForQuestID and C_QuestLog.GetTitleForQuestID(questId)),
-                tostring(C_QuestLog.IsComplete and C_QuestLog.IsComplete(questId)), tostring(C_QuestLog.IsFailed and C_QuestLog.IsFailed(questId)))
+            parts[#parts + 1] = string.format(
+                "%d:%s:%s:%s",
+                questId,
+                tostring(C_QuestLog.GetTitleForQuestID and C_QuestLog.GetTitleForQuestID(questId)),
+                tostring(C_QuestLog.IsComplete and C_QuestLog.IsComplete(questId)),
+                tostring(C_QuestLog.IsFailed and C_QuestLog.IsFailed(questId))
+            )
             for _, objective in ipairs(C_QuestLog.GetQuestObjectives(questId) or {}) do
                 parts[#parts + 1] = tostring(objective.text) .. (objective.finished and "+" or "-")
             end
@@ -730,7 +840,7 @@ end
 local countedItems = {}
 
 local function readItemCount(itemId)
-    local getCount = (C_Item and C_Item.GetItemCount) or GetItemCount
+    local getCount = (C_Item and C_Item.GetItemCount) or GetItemCount -- luacheck: ignore 113 (an older client's fallback)
     return getCount and getCount(itemId) or 0
 end
 

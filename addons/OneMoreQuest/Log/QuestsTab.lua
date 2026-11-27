@@ -4,12 +4,15 @@ local CreateFrame = ns.CreateFrame -- (Core: frames made inside an open gamepad 
 -- The quest log window: the My quests tab (its filters and the quests grouped by zone).
 local Log = ns.Log
 local Style, State, Actions = ns.LogStyle, ns.LogState, ns.LogActions
-local List, QuestPage, QuestsTab, AvailableTab, SettingsView, Window = ns.LogList, ns.LogQuestPage, ns.LogQuestsTab, ns.LogAvailableTab, ns.LogSettingsView, ns.LogWindow
+local List, QuestPage, QuestsTab, AvailableTab, SettingsView, Window =
+    ns.LogList, ns.LogQuestPage, ns.LogQuestsTab, ns.LogAvailableTab, ns.LogSettingsView, ns.LogWindow
 local isMatch = Actions.isMatch
 local addListQuest = List.addListQuest
-local composeProgress, drawLogQuest, drawZonePage = QuestPage.composeProgress, QuestPage.drawLogQuest, QuestPage.drawZonePage
+local composeProgress, drawLogQuest, drawZonePage =
+    QuestPage.composeProgress, QuestPage.drawLogQuest, QuestPage.drawZonePage
 local filterDropdown, listOpening, selectedQuestIds = State.filterDropdown, State.listOpening, State.selectedQuestIds
-local COLORS, FILTERS, HEADER_BAR_HIGH, HEADER_BAR_LOW, ITEM_ICON, PADDING = Style.COLORS, Style.FILTERS, Style.HEADER_BAR_HIGH, Style.HEADER_BAR_LOW, Style.ITEM_ICON, Style.PADDING
+local COLORS, FILTERS, HEADER_BAR_HIGH, HEADER_BAR_LOW, ITEM_ICON, PADDING =
+    Style.COLORS, Style.FILTERS, Style.HEADER_BAR_HIGH, Style.HEADER_BAR_LOW, Style.ITEM_ICON, Style.PADDING
 local SWITCH_EDGE, SWITCH_TRACK, TAB_QUESTS = Style.SWITCH_EDGE, Style.SWITCH_TRACK, Style.TAB_QUESTS
 
 ---------------------------------------------------------------------------------------------------------------
@@ -44,7 +47,11 @@ local function addFilters(y, counts)
             State.list:addRect(x, y + 3, 1, height - 6, SWITCH_EDGE, 5)
         end
         State.list:addText(label, x, y + 5, {
-            font = "GameFontHighlightSmall", color = isSelected and COLORS.gold or COLORS.tan, width = partWidth, justify = "CENTER", isSingleLine = true,
+            font = "GameFontHighlightSmall",
+            color = isSelected and COLORS.gold or COLORS.tan,
+            width = partWidth,
+            justify = "CENTER",
+            isSingleLine = true,
         })
         State.list:addButton(x, y, partWidth, height, selectFilter, filter)
     end
@@ -69,7 +76,11 @@ local DROP_EDGE, DROP_BACK = { 0.42, 0.29, 0.13 }, { 0.03, 0.02, 0.01, 0.95 }
 local dropWindow
 
 local function setEdged(frame, edge, back)
-    frame:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+    frame:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Buttons\\WHITE8X8",
+        edgeSize = 1,
+    })
     frame:SetBackdropColor(back[1], back[2], back[3], back[4] or 1)
     frame:SetBackdropBorderColor(edge[1], edge[2], edge[3], 1)
 end
@@ -96,8 +107,12 @@ local function createDropRow(parent)
     local glow = abandonButton:CreateTexture(nil, "HIGHLIGHT")
     glow:SetAllPoints(abandonButton)
     glow:SetColorTexture(1, 0.6, 0.48, 0.12)
-    abandonButton:SetScript("OnClick", function() abandon(row.questId) end)
-    row:SetScript("OnClick", function() showQuest(row.questId) end)
+    abandonButton:SetScript("OnClick", function()
+        abandon(row.questId)
+    end)
+    row:SetScript("OnClick", function()
+        showQuest(row.questId)
+    end)
     -- With a controller the row is one stop: A opens the quest, its menu (Y) abandons (Gamepad.lua)
     row.isDropSuggestion, row.abandonButton = true, abandonButton
     for _, text in ipairs({ row.title, row.reason }) do
@@ -127,7 +142,9 @@ local function fillDropWindow()
             dropWindow.rows[index] = row
         end
         row.questId, row.data = suggestion.questId, suggestion.questId -- (data: the quest a controller's cursor is on)
-        local title = C_QuestLog.GetTitleForQuestID(suggestion.questId) or ns.QuestText.getQuestName(suggestion.questId) or ("Quest " .. suggestion.questId)
+        local title = C_QuestLog.GetTitleForQuestID(suggestion.questId)
+            or ns.QuestText.getQuestName(suggestion.questId)
+            or ("Quest " .. suggestion.questId)
         row.title:SetText(string.format("[%d] %s", suggestion.level, title))
         row.reason:SetText(suggestion.reason)
         row:Show()
@@ -173,7 +190,9 @@ local function createDropWindow()
     lit:SetTexture(crossFile)
     lit:SetBlendMode("ADD")
     lit:SetAlpha(0.5)
-    close:SetScript("OnClick", function() dropWindow:Hide() end)
+    close:SetScript("OnClick", function()
+        dropWindow:Hide()
+    end)
     dropWindow.rows = {}
     dropWindow:Hide()
     if type(UISpecialFrames) == "table" then
@@ -215,7 +234,9 @@ function QuestsTab.getDropRows()
     local shown = {}
     if dropWindow and dropWindow:IsShown() then
         for _, row in ipairs(dropWindow.rows) do
-            if row:IsShown() then shown[#shown + 1] = row end
+            if row:IsShown() then
+                shown[#shown + 1] = row
+            end
         end
     end
     return shown
@@ -245,7 +266,12 @@ local function addDropSuggestions(y)
     local left, width = 6, State.list.width - 12
     local buttonWidth = 78
     local buttonLeft = left + width - buttonWidth
-    State.list:addText(ns.L("Log %d/%d", count, max), left + 4, y + 4, { font = "GameFontNormalSmall", color = COLORS.gold, isSingleLine = true })
+    State.list:addText(
+        ns.L("Log %d/%d", count, max),
+        left + 4,
+        y + 4,
+        { font = "GameFontNormalSmall", color = COLORS.gold, isSingleLine = true }
+    )
     -- How full: one thin bar, the full part in the warning colour once nothing is left
     local gaugeLeft = left + 64
     local gaugeWidth = math.max(buttonLeft - 8 - gaugeLeft, 10)
@@ -257,7 +283,11 @@ local function addDropSuggestions(y)
     State.list:addRect(buttonLeft, y + 1, buttonWidth, 18, ABANDON_EDGE, 3)
     State.list:addRect(buttonLeft + 1, y + 2, buttonWidth - 2, 16, { 0.1, 0.04, 0.02 }, 4)
     State.list:addText(ns.Lp(#suggestions, "%d to drop", "%d to drop") .. " >", buttonLeft, y + 4, {
-        font = "GameFontHighlightSmall", color = GAUGE_WARN, width = buttonWidth, justify = "CENTER", isSingleLine = true,
+        font = "GameFontHighlightSmall",
+        color = GAUGE_WARN,
+        width = buttonWidth,
+        justify = "CENTER",
+        isSingleLine = true,
     })
     State.list:addButton(buttonLeft, y + 1, buttonWidth, 18, toggleDropWindow)
     fillDropWindow() -- (open: the quests in it follow the log)
@@ -317,8 +347,13 @@ local function drawLogTab()
     end
     -- A quest chosen outside the list (its map pin, the tracker) that a search or filter left there hides: the
     -- search and filter give way, rather than the quest being let go of with no row to show for it
-    if State.scrollTargetQuestId and State.scrollTargetQuestId == selectedQuestIds[TAB_QUESTS] and not selectedEntry
-        and (State.searchText ~= "" or State.logFilter ~= "all") and ns.QuestState.isInLog(State.scrollTargetQuestId) then
+    if
+        State.scrollTargetQuestId
+        and State.scrollTargetQuestId == selectedQuestIds[TAB_QUESTS]
+        and not selectedEntry
+        and (State.searchText ~= "" or State.logFilter ~= "all")
+        and ns.QuestState.isInLog(State.scrollTargetQuestId)
+    then
         State.searchText, State.logFilter = "", "all"
         if type(State.frame.search) == "table" and type(State.frame.search.SetText) == "function" then
             State.frame.search:SetText("") -- (its OnTextChanged finds the text already cleared: no second drawing)
@@ -359,7 +394,6 @@ local function drawLogTab()
     for _, group in ipairs(model.groups) do
         if #group.shownEntries > 0 then
             State.shownZoneIds[#State.shownZoneIds + 1] = group.zoneId
-            local isZoneSelected = group.zoneId == State.selectedLogZoneId
             -- The first time a zone is listed it is open only if it holds a tracked quest. Its state is kept
             -- from then on, and changes only when the player opens or shuts it.
             local collapsedZones = ns.settings.collapsedLogZones
@@ -397,16 +431,22 @@ local function drawLogTab()
             for _, entry in ipairs(isCollapsed and {} or group.shownEntries) do
                 local progressText = composeProgress(entry)
                 y = addListQuest(y, entry.questId, {
-                    title = entry.title, level = entry.level, isReady = entry.isTurnIn,
+                    title = entry.title,
+                    level = entry.level,
+                    isReady = entry.isTurnIn,
                     isTracked = isTracked[entry.questId],
                     canShareWithParty = Log.canShareWithParty(entry.questId),
+                    partyCount = Log.getPartyCount(entry.questId),
                     number = entry.number,
                     progress = ns.MapMarks.getProgress(entry),
                     isFocused = entry.questId == ns.Focus.get(),
                     canFocus = true,
                     itemTexture = entry.item and (entry.item.texture or ITEM_ICON) or nil,
                     subText = progressText ~= "" and progressText or nil,
-                    chainText = entry.chainIndex and isChainShown and string.format("%d/%d", entry.chainIndex, entry.chainTotal) or nil,
+                    chainText = isChainShown
+                            and (entry.chainIndex and string.format("%d/%d", entry.chainIndex, entry.chainTotal) or (#(entry.unlockIds or {}) > 0 and "+" .. #entry.unlockIds))
+                        or nil,
+                    chainIcon = not entry.chainIndex and ns.LogStyle.UNLOCK_ICON or nil,
                     profitText = ns.settings.shouldShowProfit and ns.Profit.format(ns.Profit.get(entry.questId)) or nil,
                 })
             end
@@ -414,7 +454,12 @@ local function drawLogTab()
         end
     end
     if model.questCount == 0 then
-        State.list:addText(ns.L("Your quest log is empty."), 10, y + 4, { color = COLORS.tan, width = State.list.width - 20 })
+        State.list:addText(
+            ns.L("Your quest log is empty."),
+            10,
+            y + 4,
+            { color = COLORS.tan, width = State.list.width - 20 }
+        )
     elseif not firstEntry then
         State.list:addText(ns.L("No quest matches."), 10, y + 4, { color = COLORS.tan, width = State.list.width - 20 })
     end
@@ -426,7 +471,9 @@ local function drawLogTab()
     State.frame.status:SetText("")
 
     if selectedGroup then
-        State.frame.finishPage(function() return drawZonePage(selectedGroup) end)
+        State.frame.finishPage(function()
+            return drawZonePage(selectedGroup)
+        end)
         return selectedGroup, count
     end
     if selectedQuestIds[TAB_QUESTS] and not selectedEntry then
@@ -440,11 +487,20 @@ local function drawLogTab()
     end
     State.mapQuestId = nil
     if selectedEntry then
-        State.frame.finishPage(function() return drawLogQuest(selectedEntry) end)
-    else
-        local hint = model.questCount > 0 and ns.L("Select a quest to open its page and highlight it on the map. Click it again to let go of it.") or ""
         State.frame.finishPage(function()
-            State.detail:addText(hint, PADDING, PADDING, { font = "QuestFont", color = COLORS.softInk, width = State.detail.width - 2 * PADDING })
+            return drawLogQuest(selectedEntry)
+        end)
+    else
+        local hint = model.questCount > 0
+                and ns.L("Select a quest to open its page and highlight it on the map. Click it again to let go of it.")
+            or ""
+        State.frame.finishPage(function()
+            State.detail:addText(
+                hint,
+                PADDING,
+                PADDING,
+                { font = "QuestFont", color = COLORS.softInk, width = State.detail.width - 2 * PADDING }
+            )
             return 80
         end)
     end

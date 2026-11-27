@@ -40,7 +40,8 @@ function Party.getUnits()
     return units
 end
 
-local UNKNOWN_REASON = "Not on this quest. Whether they did it already or could take it, only OneMoreQuest on their side can tell."
+local UNKNOWN_REASON =
+    "Not on this quest. Whether they did it already or could take it, only OneMoreQuest on their side can tell."
 
 ---What a member is to a quest: on it; or, when not, their own answer if their OneMoreQuest gave one (done it, can
 ---take it, can't and why), else what their race, class and level say; unknown when nothing rules them out, as
@@ -56,7 +57,11 @@ function Party.getStatus(member, questId)
     elseif answer and answer.state == "can" then
         return { state = "can", reason = ns.L("Can take it"), shortReason = ns.L("can take") }
     elseif answer then
-        return { state = "cannot", reason = answer.reason or ns.L("Can't take it"), shortReason = answer.shortReason or ns.L("can't") }
+        return {
+            state = "cannot",
+            reason = answer.reason or ns.L("Can't take it"),
+            shortReason = answer.shortReason or ns.L("can't"),
+        }
     end
     local reason, shortReason = ns.Availability.getUnmetRequirement(questId, ns.Availability.getPlayer(member.unit))
     if reason then
@@ -143,11 +148,13 @@ function Party.getProgress(questId, objectives, hasEvent)
                     if not required then
                         -- A one-off objective has no count; the game greys it out once done
                         local color = line.leftColor
-                        local isGrey = type(color) == "table" and math.abs((color.r or 1) - (color.g or 1)) < 0.05
+                        local isGrey = type(color) == "table"
+                            and math.abs((color.r or 1) - (color.g or 1)) < 0.05
                             and (color.r or 1) < 0.8
                         fulfilled, required = isGrey and 1 or 0, 1
                     end
-                    current.counts[index] = { fulfilled = fulfilled, required = required, isDone = fulfilled >= required }
+                    current.counts[index] =
+                        { fulfilled = fulfilled, required = required, isDone = fulfilled >= required }
                 end
             end
         end
@@ -158,7 +165,8 @@ function Party.getProgress(questId, objectives, hasEvent)
         isAnyUnknown = isAnyUnknown or member.status.state == "unknown"
         for index, count in ipairs(member.sharedQuest and member.sharedQuest.objectives or {}) do
             if index <= #objectives then
-                member.counts[index] = { fulfilled = count.fulfilled, required = count.required, isDone = count.isFinished }
+                member.counts[index] =
+                    { fulfilled = count.fulfilled, required = count.required, isDone = count.isFinished }
             end
         end
     end
@@ -233,7 +241,11 @@ end
 
 local RACE_PORTRAIT = "Interface\\CharacterFrame\\TemporaryPortrait-%s-%s"
 local STATE_COLORS = {
-    has = { 1, 1, 1 }, done = { 0.49, 0.88, 0.49 }, can = { 1, 0.82, 0 }, cannot = { 1, 0.4, 0.3 }, unknown = { 0.66, 0.66, 0.66 },
+    has = { 1, 1, 1 },
+    done = { 0.49, 0.88, 0.49 },
+    can = { 1, 0.82, 0 },
+    cannot = { 1, 0.4, 0.3 },
+    unknown = { 0.66, 0.66, 0.66 },
 }
 Party.STATE_COLORS = STATE_COLORS
 
@@ -259,7 +271,12 @@ end
 function Party.addMemberToTooltip(tooltip, member)
     local _, classFile = UnitClass(member.unit)
     local classColor = classFile and RAID_CLASS_COLORS and RAID_CLASS_COLORS[classFile]
-    tooltip:AddLine(member.name, classColor and classColor.r or 1, classColor and classColor.g or 1, classColor and classColor.b or 1)
+    tooltip:AddLine(
+        member.name,
+        classColor and classColor.r or 1,
+        classColor and classColor.g or 1,
+        classColor and classColor.b or 1
+    )
     if not member.isOnQuest then
         local color = STATE_COLORS[member.status.state]
         tooltip:AddLine(member.status.reason, color[1], color[2], color[3], true)
@@ -268,14 +285,29 @@ function Party.addMemberToTooltip(tooltip, member)
     if member.share == 1 then
         tooltip:AddLine(ns.L("Ready to turn in"), STATE_COLORS.done[1], STATE_COLORS.done[2], STATE_COLORS.done[3])
     elseif member.share == nil then
-        tooltip:AddLine(ns.L("On the quest; how far is unknown here (inside a dungeon, without their addon)"), 0.66, 0.66, 0.66, true)
+        tooltip:AddLine(
+            ns.L("On the quest; how far is unknown here (inside a dungeon, without their addon)"),
+            0.66,
+            0.66,
+            0.66,
+            true
+        )
     else
         tooltip:AddLine(ns.L("In progress, %d%%", math.floor(member.share * 100 + 0.5)), 1, 1, 1)
     end
     for index, objective in ipairs(member.objectives or {}) do
         local count = member.counts and member.counts[index]
         local shade = count and count.isDone and 0.6 or 1
-        tooltip:AddDoubleLine((objective.shownLabel or objective.label), Party.formatCount(count), shade, shade, shade, 1, 1, 1)
+        tooltip:AddDoubleLine(
+            (objective.shownLabel or objective.label),
+            Party.formatCount(count),
+            shade,
+            shade,
+            shade,
+            1,
+            1,
+            1
+        )
     end
 end
 
@@ -292,7 +324,8 @@ function Party.addProgressToTooltip(tooltip, questId, objectives)
     tooltip:AddLine(ns.L("Party"), 1, 0.82, 0)
     for _, member in ipairs(members) do
         local classColor = member.classFile and RAID_CLASS_COLORS and RAID_CLASS_COLORS[member.classFile]
-        local red, green, blue = classColor and classColor.r or 1, classColor and classColor.g or 1, classColor and classColor.b or 1
+        local red, green, blue =
+            classColor and classColor.r or 1, classColor and classColor.g or 1, classColor and classColor.b or 1
         if not member.isOnQuest then
             -- Why not, in a word or two, as the badge on their face says it: done it, can take it, the level
             local color = STATE_COLORS[member.status.state]
@@ -302,7 +335,8 @@ function Party.addProgressToTooltip(tooltip, questId, objectives)
             tooltip:AddLine(member.name, red, green, blue)
             for index, objective in ipairs(objectives) do
                 local count = member.counts[index]
-                local countText = count and (count.fulfilled .. "/" .. count.required .. " ") or "?/" .. objective.required .. " "
+                local countText = count and (count.fulfilled .. "/" .. count.required .. " ")
+                    or "?/" .. objective.required .. " "
                 local shade = count and count.isDone and 0.6 or 1
                 tooltip:AddLine("  - " .. countText .. (objective.shownLabel or objective.label), shade, shade, shade)
             end
@@ -320,7 +354,8 @@ ns.registerModule({
         GROUP_ROSTER_UPDATE = function()
             local parts = {}
             for _, unit in ipairs(Party.getUnits()) do
-                parts[#parts + 1] = tostring(UnitGUID and UnitGUID(unit) or UnitName and UnitName(unit)) .. (UnitIsConnected and not UnitIsConnected(unit) and "-" or "+")
+                parts[#parts + 1] = tostring(UnitGUID and UnitGUID(unit) or UnitName and UnitName(unit))
+                    .. (UnitIsConnected and not UnitIsConnected(unit) and "-" or "+")
             end
             local roster = table.concat(parts, ",")
             local changed = roster ~= lastRoster

@@ -208,14 +208,21 @@ end)
 local function addHeading(page, y, text, note)
     local height = page:addText(text, PADDING, y, { font = "QuestFont_Large", color = COLORS.ink, isSingleLine = true })
     if note then
-        page:addText(note, PADDING, y + 4, { font = "GameFontHighlightSmall", color = COLORS.softInk, width = page.width - 2 * PADDING, justify = "RIGHT", isSingleLine = true })
+        page:addText(note, PADDING, y + 4, {
+            font = "GameFontHighlightSmall",
+            color = COLORS.softInk,
+            width = page.width - 2 * PADDING,
+            justify = "RIGHT",
+            isSingleLine = true,
+        })
     end
     page:addRect(PADDING, y + height + 3, page.width - 2 * PADDING, 2, BAR_HIGHLIGHT)
     return y + height + 12
 end
 
 local ICONS = "Interface\\Icons\\"
-local STRIP_EDGE, STRIP_RIM, STRIP_FILL, STRIP_SHINE = { 0, 0, 0 }, { 0.42, 0.29, 0.15 }, { 0.16, 0.1, 0.05 }, { 0.22, 0.15, 0.08 }
+local STRIP_EDGE, STRIP_RIM, STRIP_FILL, STRIP_SHINE =
+    { 0, 0, 0 }, { 0.42, 0.29, 0.15 }, { 0.16, 0.1, 0.05 }, { 0.22, 0.15, 0.08 }
 local STRIP_LABEL, STRIP_UNLUCKY, STRIP_LUCKY = { 0.85, 0.81, 0.66 }, { 1, 0.48, 0.35 }, { 0.54, 0.82, 0.54 }
 local STRIP_ROW_HEIGHT = 44
 
@@ -252,8 +259,18 @@ local function addRewardStrip(page, y, cells, columns)
         if cell.luck then
             color = cell.luck < 0 and STRIP_UNLUCKY or STRIP_LUCKY
         end
-        page:addText(cell.value, x + 38, top + 1, { font = "GameFontNormalLarge", color = color, width = cellWidth - 42, isSingleLine = true })
-        page:addText(cell.label, x + 38, top + 21, { font = "GameFontHighlightSmall", color = STRIP_LABEL, width = cellWidth - 42, isSingleLine = true })
+        page:addText(
+            cell.value,
+            x + 38,
+            top + 1,
+            { font = "GameFontNormalLarge", color = color, width = cellWidth - 42, isSingleLine = true }
+        )
+        page:addText(
+            cell.label,
+            x + 38,
+            top + 21,
+            { font = "GameFontHighlightSmall", color = STRIP_LABEL, width = cellWidth - 42, isSingleLine = true }
+        )
         page:addButton(x - 2, top - 2, cellWidth - 4, STRIP_ROW_HEIGHT - 4, nil, cell, showStripNote)
     end
     return y + height + 10
@@ -264,7 +281,13 @@ local LINE_HEIGHTS = { GameFontHighlightSmall = 12, QuestFont = 16, GameFontNorm
 
 ---@return string text Coloured for the page, as the game writes colours in text
 local function colorText(text, color)
-    return string.format("|cff%02x%02x%02x%s|r", math.floor(color[1] * 255 + 0.5), math.floor(color[2] * 255 + 0.5), math.floor(color[3] * 255 + 0.5), text)
+    return string.format(
+        "|cff%02x%02x%02x%s|r",
+        math.floor(color[1] * 255 + 0.5),
+        math.floor(color[2] * 255 + 0.5),
+        math.floor(color[3] * 255 + 0.5),
+        text
+    )
 end
 
 ---Entries two to a row, as the spellbook lists its spells: each an icon with its lines beside it, no box round it.
@@ -282,7 +305,10 @@ local function addEntryGrid(page, y, cells)
                 local lineY = y - 1
                 for _, line in ipairs(cell.lines) do
                     page:addText(line.text, x + ENTRY_ICON_SIZE + 8, lineY, {
-                        font = line.font, color = line.color or COLORS.ink, width = columnWidth - ENTRY_ICON_SIZE - 10, isSingleLine = true,
+                        font = line.font,
+                        color = line.color or COLORS.ink,
+                        width = columnWidth - ENTRY_ICON_SIZE - 10,
+                        isSingleLine = true,
                     })
                     lineY = lineY + LINE_HEIGHTS[line.font]
                 end
@@ -302,7 +328,10 @@ end
 local function addFact(page, y, label, value, valueColor)
     page:addText(label, PADDING, y, { font = "QuestFont", color = COLORS.softInk, isSingleLine = true })
     local height = page:addText(value, PADDING + 110, y, {
-        font = "QuestFont", color = valueColor or COLORS.ink, width = page.width - 2 * PADDING - 110, justify = "RIGHT",
+        font = "QuestFont",
+        color = valueColor or COLORS.ink,
+        width = page.width - 2 * PADDING - 110,
+        justify = "RIGHT",
     })
     return y + math.max(height, 14) + 5
 end
@@ -317,11 +346,29 @@ local function addLuckBar(page, y, kills, expected)
     local innerLeft, innerTop, innerWidth, innerHeight = page:addStatBar(PADDING, y - 2, width, 14, {
         { share = kills / total, color = isUnlucky and { 0.75, 0.25, 0.16 } or { 0.25, 0.62, 0.25 } },
     })
-    local mark = page:addImage(innerLeft + innerWidth * expected / total - 1, innerTop - 2, 2, innerHeight + 4, "Interface\\Buttons\\WHITE8X8", nil, nil, 3)
+    local mark = page:addImage(
+        innerLeft + innerWidth * expected / total - 1,
+        innerTop - 2,
+        2,
+        innerHeight + 4,
+        "Interface\\Buttons\\WHITE8X8",
+        nil,
+        nil,
+        3
+    )
     mark:SetVertexColor(COLORS.gold[1], COLORS.gold[2], COLORS.gold[3])
-    page:addText(ns.L("%s kills", formatNumber(kills)), PADDING, y + 13, { font = "GameFontHighlightSmall", color = COLORS.softInk, isSingleLine = true })
+    page:addText(
+        ns.L("%s kills", formatNumber(kills)),
+        PADDING,
+        y + 13,
+        { font = "GameFontHighlightSmall", color = COLORS.softInk, isSingleLine = true }
+    )
     page:addText(ns.L("expected %s", formatNumber(expected)), PADDING, y + 13, {
-        font = "GameFontHighlightSmall", color = BAR_HIGHLIGHT, width = width, justify = "RIGHT", isSingleLine = true,
+        font = "GameFontHighlightSmall",
+        color = BAR_HIGHLIGHT,
+        width = width,
+        justify = "RIGHT",
+        isSingleLine = true,
     })
     return y + 30
 end
@@ -333,40 +380,103 @@ local function drawGlance(page)
     local summary = ns.Chronicle.composeSummary()
     local book = ns.Chronicle.getBook()
     pageTitle = ns.L("At a glance")
-    pageNote = ns.L("Level %d%skept since %s", UnitLevel and UnitLevel("player") or 1, DOT, ns.Chronicle.formatShownDate("%d %b %Y", book.startedAt))
+    pageNote = ns.L(
+        "Level %d%skept since %s",
+        UnitLevel and UnitLevel("player") or 1,
+        DOT,
+        ns.Chronicle.formatShownDate("%d %b %Y", book.startedAt)
+    )
     local overview = ns.Ledger.composeOverview()
     local y = 10
     y = ChroniclePage.addToday(page, y, overview)
     -- Altogether: from the days kept, once there are any; before them, quest rewards are all that was kept
     local hasDays = overview.firstKey ~= nil
-    local since = hasDays and ns.L("Kept day by day since %s", ns.Chronicle.formatShownDate("%d %b", ns.Ledger.getDayStamp(overview.firstKey))) or ns.L("Quest rewards only, so far")
+    local since = hasDays
+            and ns.L(
+                "Kept day by day since %s",
+                ns.Chronicle.formatShownDate("%d %b", ns.Ledger.getDayStamp(overview.firstKey))
+            )
+        or ns.L("Quest rewards only, so far")
     local luckText = summary.luck and (formatLuck(summary.luck)) or "-"
     local money = hasDays and overview.totals.net or summary.money
-    y = addHeading(page, y, ns.L("Altogether"), hasDays and ns.L("since %s", ns.Chronicle.formatShownDate("%d %b", ns.Ledger.getDayStamp(overview.firstKey))) or nil)
+    y = addHeading(
+        page,
+        y,
+        ns.L("Altogether"),
+        hasDays and ns.L("since %s", ns.Chronicle.formatShownDate("%d %b", ns.Ledger.getDayStamp(overview.firstKey)))
+            or nil
+    )
     y = addRewardStrip(page, y, {
-        { label = ns.L("Quests done"), value = formatNumber(summary.questCount), icon = ICONS .. "INV_Scroll_03",
-            note = ns.L("%s handed in since the chronicle began; the rest from the game's own record", formatNumber(summary.chronicledCount)) },
-        { label = ns.L("Gold earned, net"), value = money ~= 0 and ChroniclePage.formatTileMoney(money) or "-", icon = ICONS .. "INV_Misc_Coin_01",
-            note = since },
-        { label = ns.L("Experience"), value = formatNumber(hasDays and overview.totals.experience or summary.experience), icon = ICONS .. "XP_Icon", note = since },
-        { label = ns.L("Time played"), value = formatDuration(math.max(summary.playedSeconds, overview.totals.played)), icon = ICONS .. "INV_Misc_PocketWatch_01",
-            note = ns.L("Since the chronicle began") },
-        { label = ns.L("Kills"), value = formatNumber(hasDays and overview.totals.kills or summary.kills), icon = ICONS .. "Ability_Tracking",
-            note = hasDays and since or ns.L("Kills for quest drops") },
-        { label = ns.L("Luck with drops"), value = luckText, icon = ICONS .. "INV_Misc_Ticket_Tarot_Madness", luck = summary.luck,
-            note = summary.luck and ns.L("Kills against the average: %s", describeLuck(summary.luck)) or ns.L("No kills counted yet") },
+        {
+            label = ns.L("Quests done"),
+            value = formatNumber(summary.questCount),
+            icon = ICONS .. "INV_Scroll_03",
+            note = ns.L(
+                "%s handed in since the chronicle began; the rest from the game's own record",
+                formatNumber(summary.chronicledCount)
+            ),
+        },
+        {
+            label = ns.L("Gold earned, net"),
+            value = money ~= 0 and ChroniclePage.formatTileMoney(money) or "-",
+            icon = ICONS .. "INV_Misc_Coin_01",
+            note = since,
+        },
+        {
+            label = ns.L("Experience"),
+            value = formatNumber(hasDays and overview.totals.experience or summary.experience),
+            icon = ICONS .. "XP_Icon",
+            note = since,
+        },
+        {
+            label = ns.L("Time played"),
+            value = formatDuration(math.max(summary.playedSeconds, overview.totals.played)),
+            icon = ICONS .. "INV_Misc_PocketWatch_01",
+            note = ns.L("Since the chronicle began"),
+        },
+        {
+            label = ns.L("Kills"),
+            value = formatNumber(hasDays and overview.totals.kills or summary.kills),
+            icon = ICONS .. "Ability_Tracking",
+            note = hasDays and since or ns.L("Kills for quest drops"),
+        },
+        {
+            label = ns.L("Luck with drops"),
+            value = luckText,
+            icon = ICONS .. "INV_Misc_Ticket_Tarot_Madness",
+            luck = summary.luck,
+            note = summary.luck and ns.L("Kills against the average: %s", describeLuck(summary.luck))
+                or ns.L("No kills counted yet"),
+        },
     })
 
     -- Found yourself: only once spoilers were ever held back (a player always in Guide sees nothing of it)
     if summary.hasSpoilers then
         local Spoilers = ns.Spoilers
-        y = addHeading(page, y, ns.L("Found yourself"), ns.L("Spoilers: %s", ns.L(Spoilers.getPresetName(Spoilers.getPreset()))))
+        y = addHeading(
+            page,
+            y,
+            ns.L("Found yourself"),
+            ns.L("Spoilers: %s", ns.L(Spoilers.getPresetName(Spoilers.getPreset())))
+        )
         y = addRewardStrip(page, y, {
-            { label = ns.L("Quests found yourself"), value = formatNumber(summary.foundCount), icon = ICONS .. "INV_Misc_Spyglass_02",
-                note = ns.L("Handed in with spoilers held back and no hint taken, of %s with spoilers held back", formatNumber(summary.spoilerCount)) },
-            { label = ns.L("Hints used"), value = formatNumber(summary.hintedCount + summary.peekCount), icon = ICONS .. "INV_Misc_Note_01",
-                note = ns.Lp(summary.hintedCount, "%d quest done with a hint", "%d quests done with a hint") .. ", "
-                    .. ns.Lp(summary.peekCount, "%d peek at the whole map (Alt)", "%d peeks at the whole map (Alt)") },
+            {
+                label = ns.L("Quests found yourself"),
+                value = formatNumber(summary.foundCount),
+                icon = ICONS .. "INV_Misc_Spyglass_02",
+                note = ns.L(
+                    "Handed in with spoilers held back and no hint taken, of %s with spoilers held back",
+                    formatNumber(summary.spoilerCount)
+                ),
+            },
+            {
+                label = ns.L("Hints used"),
+                value = formatNumber(summary.hintedCount + summary.peekCount),
+                icon = ICONS .. "INV_Misc_Note_01",
+                note = ns.Lp(summary.hintedCount, "%d quest done with a hint", "%d quests done with a hint")
+                    .. ", "
+                    .. ns.Lp(summary.peekCount, "%d peek at the whole map (Alt)", "%d peeks at the whole map (Alt)"),
+            },
         }, 2)
     end
 
@@ -383,40 +493,96 @@ local function drawGlance(page)
         return entry.turnedInAt and ns.Chronicle.formatShownDate("%d %b", entry.turnedInAt) or nil
     end
     if overview.bestGold then
-        addRecord("INV_Misc_Coin_01", ns.L("Best day for gold"), ns.Widgets.formatMoney(overview.bestGold.value), dayWhen(overview.bestGold))
+        addRecord(
+            "INV_Misc_Coin_01",
+            ns.L("Best day for gold"),
+            ns.Widgets.formatMoney(overview.bestGold.value),
+            dayWhen(overview.bestGold)
+        )
     end
     if overview.bestExperience then
-        addRecord("XP_Icon", ns.L("Best day for experience"), formatNumber(overview.bestExperience.value), dayWhen(overview.bestExperience))
+        addRecord(
+            "XP_Icon",
+            ns.L("Best day for experience"),
+            formatNumber(overview.bestExperience.value),
+            dayWhen(overview.bestExperience)
+        )
     end
     if overview.mostQuests then
-        addRecord("INV_Scroll_03", ns.L("Most quests in a day"), formatNumber(overview.mostQuests.value), dayWhen(overview.mostQuests))
+        addRecord(
+            "INV_Scroll_03",
+            ns.L("Most quests in a day"),
+            formatNumber(overview.mostQuests.value),
+            dayWhen(overview.mostQuests)
+        )
     end
     if overview.streak > 1 then
         addRecord("INV_Misc_PocketWatch_02", ns.L("Days in a row"), formatNumber(overview.streak))
     end
     if summary.fastest then
-        addRecord("Spell_Holy_BorrowedTime", ns.L("Fastest"), getShownTitle(summary.fastest) .. DOT .. formatDuration(summary.fastest.duration), entryWhen(summary.fastest))
+        addRecord(
+            "Spell_Holy_BorrowedTime",
+            ns.L("Fastest"),
+            getShownTitle(summary.fastest) .. DOT .. formatDuration(summary.fastest.duration),
+            entryWhen(summary.fastest)
+        )
     end
     if summary.longest and summary.longest ~= summary.fastest then
-        addRecord("INV_Misc_PocketWatch_01", ns.L("Longest"), getShownTitle(summary.longest) .. DOT .. formatDuration(summary.longest.duration), entryWhen(summary.longest))
+        addRecord(
+            "INV_Misc_PocketWatch_01",
+            ns.L("Longest"),
+            getShownTitle(summary.longest) .. DOT .. formatDuration(summary.longest.duration),
+            entryWhen(summary.longest)
+        )
     end
     if summary.unluckiest then
         local kills, expected = ns.Chronicle.getEntryKills(summary.unluckiest)
-        addRecord("Ability_Rogue_FeignDeath", ns.L("Unluckiest"), ns.L("%s: %s, %d expected", getShownTitle(summary.unluckiest), ns.Lp(kills, "%d kill", "%d kills"), math.floor(expected + 0.5)), entryWhen(summary.unluckiest))
+        addRecord(
+            "Ability_Rogue_FeignDeath",
+            ns.L("Unluckiest"),
+            ns.L(
+                "%s: %s, %d expected",
+                getShownTitle(summary.unluckiest),
+                ns.Lp(kills, "%d kill", "%d kills"),
+                math.floor(expected + 0.5)
+            ),
+            entryWhen(summary.unluckiest)
+        )
     end
     if summary.luckiest and summary.luckiest ~= summary.unluckiest then
         local kills, expected = ns.Chronicle.getEntryKills(summary.luckiest)
-        addRecord("INV_Misc_Ticket_Tarot_Madness", ns.L("Luckiest"), ns.L("%s: %s, %d expected", getShownTitle(summary.luckiest), ns.Lp(kills, "%d kill", "%d kills"), math.floor(expected + 0.5)), entryWhen(summary.luckiest))
+        addRecord(
+            "INV_Misc_Ticket_Tarot_Madness",
+            ns.L("Luckiest"),
+            ns.L(
+                "%s: %s, %d expected",
+                getShownTitle(summary.luckiest),
+                ns.Lp(kills, "%d kill", "%d kills"),
+                math.floor(expected + 0.5)
+            ),
+            entryWhen(summary.luckiest)
+        )
     end
     if summary.mostKilled then
-        addRecord("Ability_Tracking", ns.L("Most killed"), getNpcName(summary.mostKilled.npcId) .. DOT .. formatNumber(summary.mostKilled.kills))
+        addRecord(
+            "Ability_Tracking",
+            ns.L("Most killed"),
+            getNpcName(summary.mostKilled.npcId) .. DOT .. formatNumber(summary.mostKilled.kills)
+        )
     end
     addRecord("INV_Misc_Book_09", ns.L("Chains finished"), formatNumber(summary.chainCount))
     if summary.abandonedCount > 0 then
         addRecord("Ability_Rogue_Sprint", ns.L("Abandoned"), formatNumber(summary.abandonedCount))
     end
     if summary.chronicledCount == 0 and not hasDays then
-        y = y + page:addText(ns.L("Records start with the first quest you hand in."), PADDING, y, { font = "QuestFont", color = COLORS.softInk, width = page.width - 2 * PADDING }) + 8
+        y = y
+            + page:addText(
+                ns.L("Records start with the first quest you hand in."),
+                PADDING,
+                y,
+                { font = "QuestFont", color = COLORS.softInk, width = page.width - 2 * PADDING }
+            )
+            + 8
     end
     y = ChroniclePage.addTrophies(page, y, records)
     return y + PADDING
@@ -456,8 +622,14 @@ local function getSearchText(entry)
         return known.text
     end
     local objectives = ns.Database.getQuestField(entry.questId, "objectivesText")
-    local text = table.concat({ getEntryTitle(entry), ns.Database.getZoneName(entry.zoneId) or "", getEntryGiver(entry) or "",
-        type(objectives) == "table" and table.concat(objectives, " ") or "" }, " "):lower()
+    local text = table
+        .concat({
+            getEntryTitle(entry),
+            ns.Database.getZoneName(entry.zoneId) or "",
+            getEntryGiver(entry) or "",
+            type(objectives) == "table" and table.concat(objectives, " ") or "",
+        }, " ")
+        :lower()
     searchTexts[entry] = { language = language, text = text }
     return text
 end
@@ -468,10 +640,12 @@ local function isJournalShown(entry)
     if filter.when ~= "all" then
         local now = ns.Chronicle.getNow()
         local day = ns.Chronicle.getDay(entry.turnedInAt)
-        if filter.when == "today" and day ~= ns.Chronicle.getDay(now)
+        if
+            filter.when == "today" and day ~= ns.Chronicle.getDay(now)
             or filter.when == "yesterday" and day ~= ns.Chronicle.getDay(now - 86400)
             or filter.when == "week" and now - entry.turnedInAt > WEEK_SECONDS
-            or filter.when:match("^%d") and day ~= filter.when then
+            or filter.when:match("^%d") and day ~= filter.when
+        then
             return false
         end
     end
@@ -499,7 +673,11 @@ end
 ---@return boolean isFiltered The journal shows less than everything
 local function isJournalFiltered()
     local filter = journalFilter
-    return filter.text ~= "" or filter.when ~= "all" or filter.zoneId ~= nil or filter.kind ~= nil or filter.source ~= nil
+    return filter.text ~= ""
+        or filter.when ~= "all"
+        or filter.zoneId ~= nil
+        or filter.kind ~= nil
+        or filter.source ~= nil
 end
 
 local function setJournalFilter(key, value)
@@ -533,11 +711,20 @@ local function getJournalControls(page)
         return isCreated and type(dropdown) == "table" and dropdown.SetupMenu and dropdown or nil
     end
     local when, filter = createDropdown(), createDropdown()
-    local function isWhen(value) return journalFilter.when == value end
+    local function isWhen(value)
+        return journalFilter.when == value
+    end
     if when then
         when:SetupMenu(function(_, root)
-            for _, choice in ipairs({ { "all", "All days" }, { "today", "Today" }, { "yesterday", "Yesterday" }, { "week", "This week" } }) do
-                root:CreateRadio(ns.L(choice[2]), isWhen, function(value) setJournalFilter("when", value) end, choice[1])
+            for _, choice in ipairs({
+                { "all", "All days" },
+                { "today", "Today" },
+                { "yesterday", "Yesterday" },
+                { "week", "This week" },
+            }) do
+                root:CreateRadio(ns.L(choice[2]), isWhen, function(value)
+                    setJournalFilter("when", value)
+                end, choice[1])
             end
             -- Each recent day with quests, with how many
             local counts, days = {}, {}
@@ -548,14 +735,22 @@ local function getJournalControls(page)
                 end
                 counts[day] = (counts[day] or 0) + 1
             end
-            table.sort(days, function(first, second) return first.stamp > second.stamp end)
+            table.sort(days, function(first, second)
+                return first.stamp > second.stamp
+            end)
             if #days > 0 then
                 root:CreateTitle(ns.L("Days"))
             end
             for index = 1, math.min(#days, 14) do
                 local day = days[index]
-                root:CreateRadio(string.format("%s (%d)", formatDayHeading(day.stamp), counts[day.key]), isWhen,
-                    function(value) setJournalFilter("when", value) end, day.key)
+                root:CreateRadio(
+                    string.format("%s (%d)", formatDayHeading(day.stamp), counts[day.key]),
+                    isWhen,
+                    function(value)
+                        setJournalFilter("when", value)
+                    end,
+                    day.key
+                )
             end
         end)
     end
@@ -563,33 +758,65 @@ local function getJournalControls(page)
         filter:SetupMenu(function(_, root)
             local entries = ns.Chronicle.getEntries()
             root:CreateTitle(ns.L("Zone"))
-            root:CreateRadio(ns.L("Every zone"), function() return journalFilter.zoneId == nil end, function() setJournalFilter("zoneId", nil) end)
+            root:CreateRadio(ns.L("Every zone"), function()
+                return journalFilter.zoneId == nil
+            end, function()
+                setJournalFilter("zoneId", nil)
+            end)
             local zoneCounts, zoneIds = {}, {}
             for _, entry in ipairs(entries) do
                 local zoneId = entry.zoneId
                 if zoneId then
-                    if not zoneCounts[zoneId] then zoneIds[#zoneIds + 1] = zoneId end
+                    if not zoneCounts[zoneId] then
+                        zoneIds[#zoneIds + 1] = zoneId
+                    end
                     zoneCounts[zoneId] = (zoneCounts[zoneId] or 0) + 1
                 end
             end
-            table.sort(zoneIds, function(first, second) return zoneCounts[first] > zoneCounts[second] end)
+            table.sort(zoneIds, function(first, second)
+                return zoneCounts[first] > zoneCounts[second]
+            end)
             for _, zoneId in ipairs(zoneIds) do
-                root:CreateRadio(string.format("%s (%d)", ns.Database.getZoneName(zoneId) or "?", zoneCounts[zoneId]),
-                    function(value) return journalFilter.zoneId == value end, function(value) setJournalFilter("zoneId", value) end, zoneId)
+                root:CreateRadio(
+                    string.format("%s (%d)", ns.Database.getZoneName(zoneId) or "?", zoneCounts[zoneId]),
+                    function(value)
+                        return journalFilter.zoneId == value
+                    end,
+                    function(value)
+                        setJournalFilter("zoneId", value)
+                    end,
+                    zoneId
+                )
             end
             root:CreateTitle(ns.L("Kind"))
-            root:CreateRadio(ns.L("Every kind"), function() return journalFilter.kind == nil end, function() setJournalFilter("kind", nil) end)
+            root:CreateRadio(ns.L("Every kind"), function()
+                return journalFilter.kind == nil
+            end, function()
+                setJournalFilter("kind", nil)
+            end)
             for _, kind in ipairs({ "kill", "loot", "use", "talk" }) do
-                root:CreateRadio(ns.L(KIND_LABELS[kind]), function(value) return journalFilter.kind == value end, function(value) setJournalFilter("kind", value) end, kind)
+                root:CreateRadio(ns.L(KIND_LABELS[kind]), function(value)
+                    return journalFilter.kind == value
+                end, function(value)
+                    setJournalFilter("kind", value)
+                end, kind)
             end
             -- Where each entry was written down, once another history fills the journal too
             local names = ns.History.getSourceNames()
             if #names > 2 then -- (the game's own record dates nothing: listed only with another)
                 root:CreateTitle(ns.L("Kept by"))
-                root:CreateRadio(ns.L("Every history"), function() return journalFilter.source == nil end, function() setJournalFilter("source", nil) end)
+                root:CreateRadio(ns.L("Every history"), function()
+                    return journalFilter.source == nil
+                end, function()
+                    setJournalFilter("source", nil)
+                end)
                 for _, name in ipairs(names) do
                     if name ~= "Game" then
-                        root:CreateRadio(name, function(value) return journalFilter.source == value end, function(value) setJournalFilter("source", value) end, name)
+                        root:CreateRadio(name, function(value)
+                            return journalFilter.source == value
+                        end, function(value)
+                            setJournalFilter("source", value)
+                        end, name)
                     end
                 end
             end
@@ -649,7 +876,9 @@ local function placeJournalControls(page, y, isShown)
     end
     if controls.filter and controls.filter.OverrideText then
         -- Says what it keeps: "Filter" alone, else how many filters are on
-        local count = (journalFilter.zoneId and 1 or 0) + (journalFilter.kind and 1 or 0) + (journalFilter.source and 1 or 0)
+        local count = (journalFilter.zoneId and 1 or 0)
+            + (journalFilter.kind and 1 or 0)
+            + (journalFilter.source and 1 or 0)
         controls.filter:OverrideText(count > 0 and ns.L("Filter (%d)", count) or ns.L("Filter"))
     end
     return y + JOURNAL_CONTROLS_HEIGHT
@@ -663,8 +892,19 @@ local FOUND_MARK, FOUND_MARK_SIZE = { atlas = "PetJournal-FavoritesIcon" }, 13
 ---@return number y Below the row
 local function addJournalRow(page, y, entry, index)
     local width = page.width - 2 * PADDING
-    page:addText(ns.Chronicle.formatDate("%H:%M", entry.turnedInAt), PADDING + 4, y + 5, { font = "GameFontHighlightSmall", color = COLORS.softInk, isSingleLine = true })
-    page:addImage(PADDING + 44, y + 5, JOURNAL_KIND_SIZE, JOURNAL_KIND_SIZE, ns.MapMarks.OBJECTIVE_ICONS[ChroniclePage.getEntryKind(entry)] or ns.MapMarks.OBJECTIVE_ICONS.use)
+    page:addText(
+        ns.Chronicle.formatDate("%H:%M", entry.turnedInAt),
+        PADDING + 4,
+        y + 5,
+        { font = "GameFontHighlightSmall", color = COLORS.softInk, isSingleLine = true }
+    )
+    page:addImage(
+        PADDING + 44,
+        y + 5,
+        JOURNAL_KIND_SIZE,
+        JOURNAL_KIND_SIZE,
+        ns.MapMarks.OBJECTIVE_ICONS[ChroniclePage.getEntryKind(entry)] or ns.MapMarks.OBJECTIVE_ICONS.use
+    )
     local facts = {}
     local kills, expected = ns.Chronicle.getEntryKills(entry)
     if expected > 0 then
@@ -688,7 +928,11 @@ local function addJournalRow(page, y, entry, index)
     end
     local factsWidth = math.floor(width * 0.36)
     page:addText(table.concat(facts, DOT), PADDING + width - factsWidth, y + 5, {
-        font = "GameFontHighlightSmall", color = COLORS.softInk, width = factsWidth - 4, justify = "RIGHT", isSingleLine = true,
+        font = "GameFontHighlightSmall",
+        color = COLORS.softInk,
+        width = factsWidth - 4,
+        justify = "RIGHT",
+        isSingleLine = true,
     })
     local titleLeft = PADDING + 44 + JOURNAL_KIND_SIZE + 6
     local titleWidth = width - factsWidth - (titleLeft - PADDING) - 8
@@ -696,7 +940,12 @@ local function addJournalRow(page, y, entry, index)
     if isFound then
         titleWidth = titleWidth - FOUND_MARK_SIZE - 4 -- (room kept for the star, so a long title is cut before it)
     end
-    local _, shownWidth = page:addText(getEntryTitle(entry), titleLeft, y + 3, { font = "QuestFont", color = COLORS.ink, width = titleWidth, isSingleLine = true })
+    local _, shownWidth = page:addText(
+        getEntryTitle(entry),
+        titleLeft,
+        y + 3,
+        { font = "QuestFont", color = COLORS.ink, width = titleWidth, isSingleLine = true }
+    )
     if isFound then
         local markLeft = titleLeft + math.min(tonumber(shownWidth) or titleWidth, titleWidth) + 4
         page:addImage(markLeft, y + 5, FOUND_MARK_SIZE, FOUND_MARK_SIZE, FOUND_MARK, nil, nil, 3)
@@ -748,21 +997,33 @@ local function drawJournalPage(page)
     local olderCount = oldestShown - 1
     if olderCount > 0 then
         local text = ns.Lp(olderCount, "Show older quests (%d more)", "Show older quests (%d more)")
-        local _, linkWidth = page:addText(text, PADDING + 4, y + 10, { font = "QuestFont", color = COLORS.brown, isSingleLine = true })
+        local _, linkWidth =
+            page:addText(text, PADDING + 4, y + 10, { font = "QuestFont", color = COLORS.brown, isSingleLine = true })
         page:addRect(PADDING + 4, y + 25, linkWidth, 1, COLORS.brown, 1)
         page:addButton(PADDING, y + 7, linkWidth + 10, 22, showOlderEntries)
         y = y + 34
     end
     if earlierCount > 0 then
         y = addHeading(page, y + 10, ns.L("Before the chronicle"), formatNumber(earlierCount))
-        local _, linkWidth = page:addText(ns.L("%s quests, no dates", formatNumber(earlierCount)), PADDING + 4, y, { font = "QuestFont", color = COLORS.brown, isSingleLine = true })
+        local _, linkWidth = page:addText(
+            ns.L("%s quests, no dates", formatNumber(earlierCount)),
+            PADDING + 4,
+            y,
+            { font = "QuestFont", color = COLORS.brown, isSingleLine = true }
+        )
         page:addRect(PADDING + 4, y + 15, linkWidth, 1, COLORS.brown, 1)
         page:addButton(PADDING, y - 3, linkWidth + 10, 22, selectEntry, 0)
         y = y + 24
     end
     if #entries == 0 and earlierCount == 0 then
-        local emptyText = isFiltered and ns.L("No quest matches. Clear the search or a filter.") or ns.L("Quests you hand in are written down here.")
-        page:addText(emptyText, PADDING + 4, y + 10, { font = "QuestFont", color = COLORS.softInk, width = page.width - 2 * PADDING })
+        local emptyText = isFiltered and ns.L("No quest matches. Clear the search or a filter.")
+            or ns.L("Quests you hand in are written down here.")
+        page:addText(
+            emptyText,
+            PADDING + 4,
+            y + 10,
+            { font = "QuestFont", color = COLORS.softInk, width = page.width - 2 * PADDING }
+        )
         y = y + 34
     end
     return y + PADDING
@@ -773,8 +1034,15 @@ local function drawEarlier(page)
     pageTitle, pageNote = ns.L("Before the chronicle"), ns.L("Quests done before it began")
     local y = 10
     local earlierQuestIds = ns.Chronicle.getEarlierQuestIds()
-    page:addText(ns.L("%s quests the game says this character completed before the chronicle began. When and how they went is not known; their names and places come from the quest database.",
-        formatNumber(#earlierQuestIds)), PADDING, y, { font = "QuestFont", color = COLORS.softInk, width = page.width - 2 * PADDING })
+    page:addText(
+        ns.L(
+            "%s quests the game says this character completed before the chronicle began. When and how they went is not known; their names and places come from the quest database.",
+            formatNumber(#earlierQuestIds)
+        ),
+        PADDING,
+        y,
+        { font = "QuestFont", color = COLORS.softInk, width = page.width - 2 * PADDING }
+    )
     y = y + 54
     local countByZone, zoneIds = {}, {}
     for _, questId in ipairs(earlierQuestIds) do
@@ -784,10 +1052,17 @@ local function drawEarlier(page)
         end
         countByZone[zoneId] = (countByZone[zoneId] or 0) + 1
     end
-    table.sort(zoneIds, function(first, second) return countByZone[first] > countByZone[second] end)
+    table.sort(zoneIds, function(first, second)
+        return countByZone[first] > countByZone[second]
+    end)
     y = addHeading(page, y, ns.L("By zone"))
     for _, zoneId in ipairs(zoneIds) do
-        y = addFact(page, y, zoneId ~= 0 and ns.Database.getZoneName(zoneId) or ns.L("Elsewhere"), formatNumber(countByZone[zoneId]))
+        y = addFact(
+            page,
+            y,
+            zoneId ~= 0 and ns.Database.getZoneName(zoneId) or ns.L("Elsewhere"),
+            formatNumber(countByZone[zoneId])
+        )
     end
     return y + PADDING
 end
@@ -820,7 +1095,12 @@ function ChroniclePage.addSourceTag(page, y, entry)
     local text = isOwn and ns.L("Filled in from %s: when it was taken and at what level.", names)
         or ns.L("From %s's history: only when it was done and at what level are known.", names)
     page:addIcon(PADDING, y - 1, 16, ICONS .. "INV_Scroll_03", nil, 3, { 0.08, 0.92, 0.08, 0.92 })
-    local height = page:addText(text, PADDING + 22, y, { font = "GameFontHighlightSmall", color = COLORS.softInk, width = page.width - 2 * PADDING - 22 })
+    local height = page:addText(
+        text,
+        PADDING + 22,
+        y,
+        { font = "GameFontHighlightSmall", color = COLORS.softInk, width = page.width - 2 * PADDING - 22 }
+    )
     return y + math.max(tonumber(height) or 12, 16) + 10
 end
 
@@ -858,34 +1138,61 @@ local function drawEntry(page, entry)
     end
     local tiles = {}
     if entry.duration then
-        tiles[#tiles + 1] = { label = ns.L("Played"), value = formatDuration(entry.duration), icon = ICONS .. "INV_Misc_PocketWatch_01",
-            note = entry.acceptedAt and ns.Chronicle.getDay(entry.acceptedAt) ~= ns.Chronicle.getDay(entry.turnedInAt) and ns.L("Over more than a day") or nil }
+        tiles[#tiles + 1] = {
+            label = ns.L("Played"),
+            value = formatDuration(entry.duration),
+            icon = ICONS .. "INV_Misc_PocketWatch_01",
+            note = entry.acceptedAt
+                    and ns.Chronicle.getDay(entry.acceptedAt) ~= ns.Chronicle.getDay(entry.turnedInAt)
+                    and ns.L("Over more than a day")
+                or nil,
+        }
     end
     if kills > 0 then
-        tiles[#tiles + 1] = { label = ns.L("Kills"), value = formatNumber(kills), icon = ICONS .. "Ability_Tracking", note = ns.L("Kills for its drops") }
+        tiles[#tiles + 1] = {
+            label = ns.L("Kills"),
+            value = formatNumber(kills),
+            icon = ICONS .. "Ability_Tracking",
+            note = ns.L("Kills for its drops"),
+        }
     end
     if (entry.deaths or 0) > 0 then
-        tiles[#tiles + 1] = { label = ns.L("Deaths"), value = formatNumber(entry.deaths), icon = ICONS .. "Ability_Rogue_FeignDeath" }
+        tiles[#tiles + 1] =
+            { label = ns.L("Deaths"), value = formatNumber(entry.deaths), icon = ICONS .. "Ability_Rogue_FeignDeath" }
     end
     if entry.wasGrouped then
-        tiles[#tiles + 1] = { label = ns.L("In a group"), value = ns.L("yes"), icon = ICONS .. "INV_Misc_GroupNeedMore" }
+        tiles[#tiles + 1] =
+            { label = ns.L("In a group"), value = ns.L("yes"), icon = ICONS .. "INV_Misc_GroupNeedMore" }
     end
     -- Done with spoilers held back: found yourself, or with a hint (in Guide nothing is said)
     if entry.spoilers then
         local presetName = ns.L(ns.Spoilers.getPresetName(entry.spoilers))
         if entry.hinted then
-            tiles[#tiles + 1] = { label = ns.L("Hints"), value = ns.L("used"), icon = ICONS .. "INV_Misc_Note_01",
-                note = ns.L("A hint was taken for this quest. Spoilers: %s", presetName) }
+            tiles[#tiles + 1] = {
+                label = ns.L("Hints"),
+                value = ns.L("used"),
+                icon = ICONS .. "INV_Misc_Note_01",
+                note = ns.L("A hint was taken for this quest. Spoilers: %s", presetName),
+            }
         else
-            tiles[#tiles + 1] = { label = ns.L("Found yourself"), value = ns.L("yes"), icon = ICONS .. "INV_Misc_Spyglass_02",
-                note = ns.L("Done with no hints. Spoilers: %s", presetName) }
+            tiles[#tiles + 1] = {
+                label = ns.L("Found yourself"),
+                value = ns.L("yes"),
+                icon = ICONS .. "INV_Misc_Spyglass_02",
+                note = ns.L("Done with no hints. Spoilers: %s", presetName),
+            }
         end
     end
     if (entry.experience or 0) > 0 then
-        tiles[#tiles + 1] = { label = ns.L("Experience"), value = formatNumber(entry.experience), icon = ICONS .. "XP_Icon" }
+        tiles[#tiles + 1] =
+            { label = ns.L("Experience"), value = formatNumber(entry.experience), icon = ICONS .. "XP_Icon" }
     end
     if (entry.money or 0) > 0 then
-        tiles[#tiles + 1] = { label = ns.L("Money"), value = ChroniclePage.formatTileMoney(entry.money), icon = ICONS .. "INV_Misc_Coin_01" }
+        tiles[#tiles + 1] = {
+            label = ns.L("Money"),
+            value = ChroniclePage.formatTileMoney(entry.money),
+            icon = ICONS .. "INV_Misc_Coin_01",
+        }
     end
     if #tiles > 0 then
         y = addRewardStrip(page, y, tiles)
@@ -901,10 +1208,23 @@ local function drawEntry(page, entry)
             local luck = ns.Chronicle.getLuck(drop.kills, drop.expected)
             local gap = math.floor(drop.kills - drop.expected + 0.5)
             if gap ~= 0 then
-                local text = gap > 0 and ns.Lp(math.abs(gap), "%d kill more than expected: %s.", "%d kills more than expected: %s.", describeLuck(luck))
-                    or ns.Lp(math.abs(gap), "%d kill fewer than expected: %s.", "%d kills fewer than expected: %s.", describeLuck(luck))
+                local text = gap > 0
+                        and ns.Lp(
+                            math.abs(gap),
+                            "%d kill more than expected: %s.",
+                            "%d kills more than expected: %s.",
+                            describeLuck(luck)
+                        )
+                    or ns.Lp(
+                        math.abs(gap),
+                        "%d kill fewer than expected: %s.",
+                        "%d kills fewer than expected: %s.",
+                        describeLuck(luck)
+                    )
                 page:addText(text, PADDING, y, {
-                    font = "GameFontHighlightSmall", color = gap > 0 and UNLUCKY or LUCKY, width = page.width - 2 * PADDING,
+                    font = "GameFontHighlightSmall",
+                    color = gap > 0 and UNLUCKY or LUCKY,
+                    width = page.width - 2 * PADDING,
                 })
                 y = y + 18
             end
@@ -915,7 +1235,9 @@ local function drawEntry(page, entry)
         for npcId in pairs(drop.killsByNpcId or {}) do
             npcIds[#npcIds + 1] = npcId
         end
-        table.sort(npcIds, function(first, second) return drop.killsByNpcId[first] > drop.killsByNpcId[second] end)
+        table.sort(npcIds, function(first, second)
+            return drop.killsByNpcId[first] > drop.killsByNpcId[second]
+        end)
         for _, npcId in ipairs(npcIds) do
             local chance = drop.itemId and ns.Drops.getChance(drop.itemId, npcId)
             local kills = ns.Lp(drop.killsByNpcId[npcId], "%d kill", "%d kills")
@@ -960,7 +1282,11 @@ local function addZoneBar(canvas, x, y, width, height, zone)
     }, 2)
     if height >= 12 then
         canvas:addText(zone.doneCount .. " / " .. zone.totalCount, x, y + (height - 12) / 2, {
-            font = "GameFontHighlightSmall", color = COLORS.white, width = width, justify = "CENTER", isSingleLine = true,
+            font = "GameFontHighlightSmall",
+            color = COLORS.white,
+            width = width,
+            justify = "CENTER",
+            isSingleLine = true,
         })
     end
 end
@@ -970,10 +1296,30 @@ local function showZoneNote(button, zone)
     GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
     GameTooltip:SetText(zone.name, 1, 1, 1)
     if zone.minLevel then
-        GameTooltip:AddLine(ns.L("Levels %s", zone.minLevel == zone.maxLevel and zone.minLevel or (zone.minLevel .. "-" .. zone.maxLevel)), 1, 0.82, 0)
+        GameTooltip:AddLine(
+            ns.L(
+                "Levels %s",
+                zone.minLevel == zone.maxLevel and zone.minLevel or (zone.minLevel .. "-" .. zone.maxLevel)
+            ),
+            1,
+            0.82,
+            0
+        )
     end
     local summary = zone.summary or { inLog = 0, available = 0, notYet = 0, lowAvailable = 0, lowNotYet = 0 }
-    GameTooltip:AddLine(ns.L("%d done, %d in your log, %d to pick up, %d not yet", zone.doneCount, summary.inLog, summary.available, summary.notYet), 0.85, 0.81, 0.66, true)
+    GameTooltip:AddLine(
+        ns.L(
+            "%d done, %d in your log, %d to pick up, %d not yet",
+            zone.doneCount,
+            summary.inLog,
+            summary.available,
+            summary.notYet
+        ),
+        0.85,
+        0.81,
+        0.66,
+        true
+    )
     local lowCount = (summary.lowAvailable or 0) + (summary.lowNotYet or 0)
     if lowCount > 0 then
         GameTooltip:AddLine(ns.L("%d of what is left is low-level", lowCount), 0.6, 0.6, 0.6, true)
@@ -981,7 +1327,8 @@ local function showZoneNote(button, zone)
     GameTooltip:Show()
 end
 
-local CONTINENT_ORDER = { ["Eastern Kingdoms"] = 1, Kalimdor = 2, Dungeons = 7, Raids = 8, Battlegrounds = 9, Elsewhere = 10 }
+local CONTINENT_ORDER =
+    { ["Eastern Kingdoms"] = 1, Kalimdor = 2, Dungeons = 7, Raids = 8, Battlegrounds = 9, Elsewhere = 10 }
 local OWN_CONTINENT_NAMES = { Dungeons = true, Raids = true, Battlegrounds = true, Elsewhere = true } -- the addon's, not the game's maps'
 
 ---Every zone with a quest done, on the page as a table, continent by continent: the name to open it, the levels
@@ -995,7 +1342,12 @@ local function drawZoneTable(page, zones)
     pageNote = ns.L("%d places%s%d complete", #zones, DOT, completeCount)
     local y = 10
     if #zones == 0 then
-        page:addText(ns.L("Zones show here once a quest is done in them."), PADDING, y, { font = "QuestFont", color = COLORS.softInk, width = page.width - 2 * PADDING })
+        page:addText(
+            ns.L("Zones show here once a quest is done in them."),
+            PADDING,
+            y,
+            { font = "QuestFont", color = COLORS.softInk, width = page.width - 2 * PADDING }
+        )
         return y + 40
     end
     local continents, zonesByContinent = {}, {}
@@ -1015,8 +1367,6 @@ local function drawZoneTable(page, zones)
         return first < second
     end)
     local width = page.width - 2 * PADDING
-    local nameWidth = math.floor(width * 0.4)
-    local barLeft, barWidth = PADDING + nameWidth + 10, width - nameWidth - 10
     for _, continent in ipairs(continents) do
         y = addHeading(page, y, OWN_CONTINENT_NAMES[continent] and ns.L(continent) or continent)
         local continentZones = zonesByContinent[continent]
@@ -1027,7 +1377,8 @@ local function drawZoneTable(page, zones)
             if isByLevel and (first.minLevel or 999) ~= (second.minLevel or 999) then
                 return (first.minLevel or 999) < (second.minLevel or 999) -- one without known levels goes last
             end
-            local firstShare, secondShare = first.doneCount / math.max(first.totalCount, 1), second.doneCount / math.max(second.totalCount, 1)
+            local firstShare, secondShare =
+                first.doneCount / math.max(first.totalCount, 1), second.doneCount / math.max(second.totalCount, 1)
             if not isByLevel and firstShare ~= secondShare then
                 return firstShare > secondShare
             end
@@ -1037,7 +1388,9 @@ local function drawZoneTable(page, zones)
         y = ChroniclePage.addZoneCards(page, y, continentZones) + 6
     end
     page:addText(ns.L("Point at a zone for its levels and what is left; click it for its quests."), PADDING, y, {
-        font = "GameFontHighlightSmall", color = COLORS.softInk, width = width,
+        font = "GameFontHighlightSmall",
+        color = COLORS.softInk,
+        width = width,
     })
     return y + 24 + PADDING
 end
@@ -1050,9 +1403,18 @@ addDungeonQuests = function(page, y, zone)
     local width = page.width - 2 * PADDING
     local dungeon = ns.Database.getDungeon(zone.zoneId)
     if dungeon and dungeon.isLearned then
-        local noteHeight = page:addText(ns.L("Learned from your runs: the quest database does not know this dungeon yet, so only the quests you picked up, worked on or handed in inside are listed. More may be done here. The QuestieTrace addon helps the database learn it."), PADDING, y, {
-            font = "GameFontHighlightSmall", color = COLORS.softInk, width = width,
-        })
+        local noteHeight = page:addText(
+            ns.L(
+                "Learned from your runs: the quest database does not know this dungeon yet, so only the quests you picked up, worked on or handed in inside are listed. More may be done here. The QuestieTrace addon helps the database learn it."
+            ),
+            PADDING,
+            y,
+            {
+                font = "GameFontHighlightSmall",
+                color = COLORS.softInk,
+                width = width,
+            }
+        )
         y = y + 8 + math.max(tonumber(noteHeight) or 0, 28)
     end
     local function getTitle(quest)
@@ -1063,10 +1425,17 @@ addDungeonQuests = function(page, y, zone)
             status = status .. DOT .. ns.L("low-level")
         end
         page:addText(getTitle(quest), PADDING, y, {
-            font = "GameFontNormal", color = quest.blocker and COLORS.softInk or COLORS.brown, width = width * 0.55, isSingleLine = true,
+            font = "GameFontNormal",
+            color = quest.blocker and COLORS.softInk or COLORS.brown,
+            width = width * 0.55,
+            isSingleLine = true,
         })
         page:addText(status, PADDING + width * 0.55 + 6, y + 1, {
-            font = "GameFontHighlightSmall", color = COLORS.softInk, width = width * 0.45 - 6, justify = "RIGHT", isSingleLine = true,
+            font = "GameFontHighlightSmall",
+            color = COLORS.softInk,
+            width = width * 0.45 - 6,
+            justify = "RIGHT",
+            isSingleLine = true,
         })
         page:addButton(PADDING - 3, y - 3, width + 6, 20, function()
             ns.Log.showQuestAnywhere(quest.questId) -- the window leaves the chronicle for the quest
@@ -1077,14 +1446,21 @@ addDungeonQuests = function(page, y, zone)
         if #quests == 0 then
             return
         end
-        page:addText(title .. DOT .. #quests, PADDING, y + 2, { font = "GameFontHighlightSmall", color = COLORS.softInk, isSingleLine = true })
+        page:addText(
+            title .. DOT .. #quests,
+            PADDING,
+            y + 2,
+            { font = "GameFontHighlightSmall", color = COLORS.softInk, isSingleLine = true }
+        )
         y = y + 18
         for _, quest in ipairs(quests) do
             addQuestLine(quest, getStatus(quest))
         end
         y = y + 6
     end
-    addSection(ns.L("In your log"), run.inLog, function() return ns.L("in your log") end)
+    addSection(ns.L("In your log"), run.inLog, function()
+        return ns.L("in your log")
+    end)
     addSection(ns.L("Pick up before you go"), run.pickUp, function(quest)
         local startZoneId = ns.Availability.getStartZoneId(quest.questId)
         if quest.isLeadIn then
@@ -1100,7 +1476,8 @@ addDungeonQuests = function(page, y, zone)
         if not firstName then
             return ns.L("after a lead-in")
         end
-        return #quest.leadInIds > 1 and ns.L("after %s and %d more", firstName, #quest.leadInIds - 1) or ns.L("after %s", firstName)
+        return #quest.leadInIds > 1 and ns.L("after %s and %d more", firstName, #quest.leadInIds - 1)
+            or ns.L("after %s", firstName)
     end)
     addSection(ns.L("Not yet"), run.notYet, function(quest)
         return quest.blocker and quest.blocker.text or ns.L("not yet")
@@ -1109,10 +1486,20 @@ addDungeonQuests = function(page, y, zone)
 end
 
 local function drawZone(page, zone)
-    pageTitle, pageNote = zone.name, zone.isDungeon and ns.L("%d of %d quests in this dungeon done", zone.doneCount, zone.totalCount)
-        or ns.L("%d of %d quests that start here done", zone.doneCount, zone.totalCount)
+    pageTitle, pageNote =
+        zone.name,
+        zone.isDungeon and ns.L("%d of %d quests in this dungeon done", zone.doneCount, zone.totalCount) or ns.L(
+            "%d of %d quests that start here done",
+            zone.doneCount,
+            zone.totalCount
+        )
     local y = 8
-    local _, backWidth = page:addText(ns.L("< All zones"), PADDING, y, { font = "GameFontNormal", color = COLORS.brown, isSingleLine = true })
+    local _, backWidth = page:addText(
+        ns.L("< All zones"),
+        PADDING,
+        y,
+        { font = "GameFontNormal", color = COLORS.brown, isSingleLine = true }
+    )
     page:addButton(PADDING - 3, y - 3, backWidth + 6, 20, selectZone, false)
     y = y + 24
     -- The same bar as in the table of zones, across the page
@@ -1121,18 +1508,38 @@ local function drawZone(page, zone)
     y = y + 30
     local luck = ns.Chronicle.getLuck(zone.kills, zone.expected)
     y = addRewardStrip(page, y, {
-        { label = ns.L("Time here"), value = zone.playedSeconds > 0 and formatDuration(zone.playedSeconds) or "-", icon = ICONS .. "INV_Misc_PocketWatch_01",
-            note = ns.L("The time its quests took, added up, since the chronicle began") },
-        { label = ns.L("Experience"), value = formatNumber(zone.experience), icon = ICONS .. "XP_Icon", note = ns.L("From %d quests handed in since the chronicle began", #zone.entries) },
-        { label = ns.L("Kills for drops"), value = formatNumber(zone.kills), icon = ICONS .. "Ability_Tracking", luck = zone.expected > 0 and luck or nil,
-            note = luck and ns.L("Against an average of %s: %s", formatNumber(zone.expected), describeLuck(luck)) or ns.L("None counted yet") },
+        {
+            label = ns.L("Time here"),
+            value = zone.playedSeconds > 0 and formatDuration(zone.playedSeconds) or "-",
+            icon = ICONS .. "INV_Misc_PocketWatch_01",
+            note = ns.L("The time its quests took, added up, since the chronicle began"),
+        },
+        {
+            label = ns.L("Experience"),
+            value = formatNumber(zone.experience),
+            icon = ICONS .. "XP_Icon",
+            note = ns.L("From %d quests handed in since the chronicle began", #zone.entries),
+        },
+        {
+            label = ns.L("Kills for drops"),
+            value = formatNumber(zone.kills),
+            icon = ICONS .. "Ability_Tracking",
+            luck = zone.expected > 0 and luck or nil,
+            note = luck and ns.L("Against an average of %s: %s", formatNumber(zone.expected), describeLuck(luck))
+                or ns.L("None counted yet"),
+        },
     })
 
     local summary = zone.summary or { inLog = 0, available = 0, notYet = 0 }
     local left = summary.inLog + summary.available + summary.notYet
     y = addHeading(page, y, ns.L("Still to do here"), tostring(left))
     if left == 0 then
-        page:addText(zone.isDungeon and ns.L("Nothing left to do in here.") or ns.L("Nothing left that starts here."), PADDING, y, { font = "QuestFont", color = COLORS.softInk, isSingleLine = true })
+        page:addText(
+            zone.isDungeon and ns.L("Nothing left to do in here.") or ns.L("Nothing left that starts here."),
+            PADDING,
+            y,
+            { font = "QuestFont", color = COLORS.softInk, isSingleLine = true }
+        )
         y = y + 22
     else
         -- Each count says how many of it are low-level: far below the character, and so is all they lead to
@@ -1148,7 +1555,9 @@ local function drawZone(page, zone)
         y = addFact(page, y, ns.L("Not yet"), formatLeft(summary.notYet, lowNotYet))
         if summary.inLog == 0 and lowAvailable + lowNotYet == left then
             page:addText(ns.L("Everything left here is low-level: little to gain at your level."), PADDING, y, {
-                font = "QuestFont", color = COLORS.softInk, width = page.width - 2 * PADDING,
+                font = "QuestFont",
+                color = COLORS.softInk,
+                width = page.width - 2 * PADDING,
             })
             y = y + 22
         end
@@ -1156,7 +1565,12 @@ local function drawZone(page, zone)
         if zone.isDungeon then
             y = addDungeonQuests(page, y, zone)
         end
-        local _, linkWidth = page:addText(ns.L("Open in Available"), PADDING, y, { font = "QuestFont", color = COLORS.brown, isSingleLine = true })
+        local _, linkWidth = page:addText(
+            ns.L("Open in Available"),
+            PADDING,
+            y,
+            { font = "QuestFont", color = COLORS.brown, isSingleLine = true }
+        )
         page:addRect(PADDING, y + 15, linkWidth, 1, COLORS.brown, 1)
         page:addButton(PADDING - 3, y - 2, linkWidth + 6, 20, function()
             ns.Log.showZone(zone.zoneId) -- the window leaves the chronicle for the zone
@@ -1171,10 +1585,20 @@ local function drawZone(page, zone)
             break
         end
         local kills, expected = ns.Chronicle.getEntryKills(entry)
-        y = addFact(page, y, getEntryTitle(entry), formatWhen(entry.turnedInAt) .. (expected > 0 and (DOT .. ns.Lp(kills, "%d kill", "%d kills")) or ""))
+        y = addFact(
+            page,
+            y,
+            getEntryTitle(entry),
+            formatWhen(entry.turnedInAt) .. (expected > 0 and (DOT .. ns.Lp(kills, "%d kill", "%d kills")) or "")
+        )
     end
     if #zone.earlierQuestIds > 0 then
-        page:addText(ns.L("Before the chronicle") .. DOT .. #zone.earlierQuestIds, PADDING, y + 2, { font = "GameFontHighlightSmall", color = COLORS.softInk, isSingleLine = true })
+        page:addText(
+            ns.L("Before the chronicle") .. DOT .. #zone.earlierQuestIds,
+            PADDING,
+            y + 2,
+            { font = "GameFontHighlightSmall", color = COLORS.softInk, isSingleLine = true }
+        )
         y = y + 20
         local columnWidth = (page.width - 2 * PADDING - 12) / 2
         local earlierQuestIds = {}
@@ -1182,15 +1606,24 @@ local function drawZone(page, zone)
             earlierQuestIds[#earlierQuestIds + 1] = questId
         end
         table.sort(earlierQuestIds, function(first, second)
-            return (ns.Database.getQuestField(first, "questLevel") or 0) < (ns.Database.getQuestField(second, "questLevel") or 0)
+            return (ns.Database.getQuestField(first, "questLevel") or 0)
+                < (ns.Database.getQuestField(second, "questLevel") or 0)
         end)
         for index, questId in ipairs(earlierQuestIds) do
             local level = ns.Database.getQuestField(questId, "questLevel") or 0
             local title = ns.QuestText.getQuestName(questId) or ns.L("Quest %d", questId)
             local column = (index - 1) % 2
-            page:addText(level > 0 and string.format("[%d] %s", level, title) or title, PADDING + column * (columnWidth + 12), y, {
-                font = "GameFontHighlightSmall", color = COLORS.ink, width = columnWidth, isSingleLine = true,
-            })
+            page:addText(
+                level > 0 and string.format("[%d] %s", level, title) or title,
+                PADDING + column * (columnWidth + 12),
+                y,
+                {
+                    font = "GameFontHighlightSmall",
+                    color = COLORS.ink,
+                    width = columnWidth,
+                    isSingleLine = true,
+                }
+            )
             if column == 1 or index == #earlierQuestIds then
                 y = y + 16
             end
@@ -1204,7 +1637,11 @@ end
 
 ---@return string texture An item's icon, the game's question mark when it is not known yet
 local function getItemIcon(itemId)
-    local icon = itemId and (C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(itemId) or GetItemIcon and GetItemIcon(itemId))
+    local icon = itemId
+        and (
+            C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(itemId)
+            or GetItemIcon and GetItemIcon(itemId) -- luacheck: ignore 113 (an older client's fallback)
+        )
     return icon or (ICONS .. "INV_Misc_QuestionMark")
 end
 
@@ -1212,8 +1649,9 @@ end
 ---shows it), in ink otherwise, since white does not read on parchment
 local function getItemName(itemId)
     local name, _, quality = nil, nil, nil
-    if GetItemInfo then
-        name, _, quality = GetItemInfo(itemId)
+    local getItemInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo -- luacheck: ignore 113 (an older client's fallback)
+    if getItemInfo then
+        name, _, quality = getItemInfo(itemId)
     end
     if not name then
         ns.Prices.requestItem(itemId)
@@ -1239,9 +1677,25 @@ local function drawKills(page)
     local y = 10
     local luckText = summary.luck and (formatLuck(summary.luck)) or "-"
     y = addRewardStrip(page, y, {
-        { label = ns.L("Kills for drops"), value = formatNumber(summary.kills), icon = ICONS .. "Ability_Tracking", note = ns.L("Counted since the chronicle began") },
-        { label = ns.L("Expected"), value = formatNumber(summary.expected), icon = ICONS .. "INV_Misc_Note_01", note = ns.L("What an average player needs for the same drops") },
-        { label = ns.L("Luck"), value = luckText, icon = ICONS .. "INV_Misc_Ticket_Tarot_Madness", luck = summary.luck, note = summary.luck and describeLuck(summary.luck) or ns.L("No kills counted yet") },
+        {
+            label = ns.L("Kills for drops"),
+            value = formatNumber(summary.kills),
+            icon = ICONS .. "Ability_Tracking",
+            note = ns.L("Counted since the chronicle began"),
+        },
+        {
+            label = ns.L("Expected"),
+            value = formatNumber(summary.expected),
+            icon = ICONS .. "INV_Misc_Note_01",
+            note = ns.L("What an average player needs for the same drops"),
+        },
+        {
+            label = ns.L("Luck"),
+            value = luckText,
+            icon = ICONS .. "INV_Misc_Ticket_Tarot_Madness",
+            luck = summary.luck,
+            note = summary.luck and describeLuck(summary.luck) or ns.L("No kills counted yet"),
+        },
     })
 
     -- Highlights: a record each, never a list that grows
@@ -1254,10 +1708,14 @@ local function drawKills(page)
             lines = {
                 { text = kind, font = "GameFontHighlightSmall", color = COLORS.softInk },
                 { text = getShownTitle(entry), font = "QuestFont" },
-                { text = ns.L("%s, %d expected", ns.Lp(kills, "%d kill", "%d kills"), math.floor(expected + 0.5)), font = "GameFontHighlightSmall",
-                    color = kills > expected and WORSE or BETTER },
+                {
+                    text = ns.L("%s, %d expected", ns.Lp(kills, "%d kill", "%d kills"), math.floor(expected + 0.5)),
+                    font = "GameFontHighlightSmall",
+                    color = kills > expected and WORSE or BETTER,
+                },
             },
-            handleClick = openEntry, data = entry,
+            handleClick = openEntry,
+            data = entry,
         }
     end
     if summary.luckiest then
@@ -1273,9 +1731,14 @@ local function drawKills(page)
             lines = {
                 { text = ns.L("Rarest drop"), font = "GameFontHighlightSmall", color = COLORS.softInk },
                 { text = getItemName(drop.itemId), font = "QuestFont" },
-                { text = ns.L("a %s chance a kill", ns.Drops.formatChance(summary.rarest.chance)), font = "GameFontHighlightSmall", color = COLORS.softInk },
+                {
+                    text = ns.L("a %s chance a kill", ns.Drops.formatChance(summary.rarest.chance)),
+                    font = "GameFontHighlightSmall",
+                    color = COLORS.softInk,
+                },
             },
-            handleClick = openEntry, data = summary.rarest.entry,
+            handleClick = openEntry,
+            data = summary.rarest.entry,
         }
     end
     if summary.longestHunt then
@@ -1285,9 +1748,14 @@ local function drawKills(page)
             lines = {
                 { text = ns.L("Longest hunt"), font = "GameFontHighlightSmall", color = COLORS.softInk },
                 { text = getShownTitle(summary.longestHunt.entry), font = "QuestFont" },
-                { text = ns.L("%d kills for %d", drop.kills, drop.drops), font = "GameFontHighlightSmall", color = COLORS.softInk },
+                {
+                    text = ns.L("%d kills for %d", drop.kills, drop.drops),
+                    font = "GameFontHighlightSmall",
+                    color = COLORS.softInk,
+                },
             },
-            handleClick = openEntry, data = summary.longestHunt.entry,
+            handleClick = openEntry,
+            data = summary.longestHunt.entry,
         }
     end
     if summary.longestDry then
@@ -1299,7 +1767,8 @@ local function drawKills(page)
                 { text = ns.L("%s kills", formatNumber(drop.longestDry)), font = "QuestFont" },
                 { text = ns.L("before a drop came"), font = "GameFontHighlightSmall", color = COLORS.softInk },
             },
-            handleClick = openEntry, data = summary.longestDry.entry,
+            handleClick = openEntry,
+            data = summary.longestDry.entry,
         }
     end
     if summary.firstKillDrops > 0 then
@@ -1307,23 +1776,41 @@ local function drawKills(page)
             icon = ICONS .. "INV_Misc_Dice_01",
             lines = {
                 { text = ns.L("Dropped on the first kill"), font = "GameFontHighlightSmall", color = COLORS.softInk },
-                { text = summary.firstKillDrops == 1 and ns.L("Once") or ns.L("%s times", formatNumber(summary.firstKillDrops)), font = "QuestFont" },
+                {
+                    text = summary.firstKillDrops == 1 and ns.L("Once")
+                        or ns.L("%s times", formatNumber(summary.firstKillDrops)),
+                    font = "QuestFont",
+                },
                 { text = ns.L("no kill wasted"), font = "GameFontHighlightSmall", color = COLORS.softInk },
             },
         }
     end
     y = addHeading(page, y, ns.L("Highlights"))
     if #cells == 0 then
-        y = y + page:addText(ns.L("Highlights start with the first quest handed in whose drops had their kills counted."), PADDING, y, {
-            font = "QuestFont", color = COLORS.softInk, width = page.width - 2 * PADDING,
-        }) + 10
+        y = y
+            + page:addText(
+                ns.L("Highlights start with the first quest handed in whose drops had their kills counted."),
+                PADDING,
+                y,
+                {
+                    font = "QuestFont",
+                    color = COLORS.softInk,
+                    width = page.width - 2 * PADDING,
+                }
+            )
+            + 10
     else
         y = addEntryGrid(page, y, cells)
     end
 
     -- The creatures killed most for drops, a few at most
     if #summary.mostKilledList > 0 then
-        y = addHeading(page, y + 2, ns.L("Killed most for drops"), #summary.mostKilledList > 1 and ns.L("top %d", #summary.mostKilledList) or nil)
+        y = addHeading(
+            page,
+            y + 2,
+            ns.L("Killed most for drops"),
+            #summary.mostKilledList > 1 and ns.L("top %d", #summary.mostKilledList) or nil
+        )
         for _, killed in ipairs(summary.mostKilledList) do
             y = addFact(page, y, getNpcName(killed.npcId), formatNumber(killed.kills))
         end
@@ -1336,7 +1823,12 @@ local function drawList(list)
     local width = list.width
     -- Under the flat border's buttons when they stand at the top of this side, as the settings' sections are
     local y = ns.settings.windowBorder == "flat" and ns.Log.TITLE_HEIGHT or 4
-    list:addText(ns.L("CHRONICLE"), 8, y + 4, { font = "GameFontNormalSmall", color = COLORS.parchment, isSingleLine = true })
+    list:addText(
+        ns.L("CHRONICLE"),
+        8,
+        y + 4,
+        { font = "GameFontNormalSmall", color = COLORS.parchment, isSingleLine = true }
+    )
     y = y + 22
     for index, chapter in ipairs(CHAPTERS) do
         local isChosen = index == ChroniclePage.chapterIndex
@@ -1346,7 +1838,12 @@ local function drawList(list)
             list:addRect(0, y, 3, ROW_HEIGHT, SELECTED_EDGE, 2)
         end
         list:addIcon(12, y + 4, ROW_HEIGHT - 8, chapter.icon, nil, 3, { 0.08, 0.92, 0.08, 0.92 })
-        list:addText(ns.L(chapter.title), 18 + ROW_HEIGHT - 8, y + 9, { font = "GameFontNormal", color = isChosen and COLORS.gold or COLORS.parchment, isSingleLine = true, width = width - 50 })
+        list:addText(ns.L(chapter.title), 18 + ROW_HEIGHT - 8, y + 9, {
+            font = "GameFontNormal",
+            color = isChosen and COLORS.gold or COLORS.parchment,
+            isSingleLine = true,
+            width = width - 50,
+        })
         list:addButton(0, y, width, ROW_HEIGHT, selectChapter, index)
         y = y + ROW_HEIGHT + 2
     end
@@ -1431,13 +1928,13 @@ end
 
 ---Money for a tile: a gold or more without its copper, to fit.
 function ChroniclePage.formatTileMoney(copper)
-    local amount = math.abs(copper) >= 10000 and (copper < 0 and -1 or 1) * (math.abs(copper) - math.abs(copper) % 100) or copper
+    local amount = math.abs(copper) >= 10000 and (copper < 0 and -1 or 1) * (math.abs(copper) - math.abs(copper) % 100)
+        or copper
     if amount < 0 then
         return "|cffa33224-|r" .. ns.Widgets.formatMoney(-amount)
     end
     return ns.Widgets.formatMoney(amount)
 end
-
 
 ---Today on the first page: four cards, net gold, experience, quests and level, each set against an average day.
 ---@return number y Below the cards
@@ -1450,7 +1947,9 @@ function ChroniclePage.addToday(page, y, overview)
     end
     y = addHeading(page, y, ns.L("Today"), note)
     if not day then
-        return y + page:addText(ns.L("Nothing yet today."), PADDING, y, { font = "QuestFont", color = COLORS.softInk }) + 14
+        return y
+            + page:addText(ns.L("Nothing yet today."), PADDING, y, { font = "QuestFont", color = COLORS.softInk })
+            + 14
     end
     ---@return string text, number[] color "2.2x average" (your average day), green when above it and red when below
     local function compare(value, averageValue)
@@ -1466,7 +1965,8 @@ function ChroniclePage.addToday(page, y, overview)
         return ns.L("about average"), COLORS.softInk
     end
     local level = UnitLevel and UnitLevel("player") or 0
-    local levelText = day.levelFrom and day.levelFrom < level and ns.L("%d to %d", day.levelFrom, level) or tostring(level)
+    local levelText = day.levelFrom and day.levelFrom < level and ns.L("%d to %d", day.levelFrom, level)
+        or tostring(level)
     local levelNote = ""
     local hours = totals.played / 3600
     local left = UnitXPMax and UnitXP and (UnitXPMax("player") or 0) - (UnitXP("player") or 0) or 0
@@ -1482,23 +1982,59 @@ function ChroniclePage.addToday(page, y, overview)
     -- The level's icon is the game's for the ten it is in
     local levelIcon = ICONS .. "Achievement_Level_" .. math.min(math.max(math.floor(level / 10) * 10, 10), 60)
     local function cell(icon, value, label)
-        return { icon = icon, lines = { { text = value, font = "GameFontNormalLarge" }, { text = label, font = "GameFontHighlightSmall", color = COLORS.softInk } } }
+        return {
+            icon = icon,
+            lines = {
+                { text = value, font = "GameFontNormalLarge" },
+                { text = label, font = "GameFontHighlightSmall", color = COLORS.softInk },
+            },
+        }
     end
     return addEntryGrid(page, y + 2, {
-        cell(ICONS .. "INV_Misc_Coin_01", ChroniclePage.formatTileMoney(totals.net), describe(ns.L("Gold, net"), goldNote, goldColor)),
-        cell(ICONS .. "XP_Icon", formatNumber(totals.experience), describe(ns.L("Experience"), experienceNote, experienceColor)),
-        cell(ICONS .. "INV_Scroll_03", formatNumber(day.quests or 0), describe(ns.L("Quests"), average and ns.L("average %s", formatNumber(average.quests)) or "", COLORS.softInk)),
+        cell(
+            ICONS .. "INV_Misc_Coin_01",
+            ChroniclePage.formatTileMoney(totals.net),
+            describe(ns.L("Gold, net"), goldNote, goldColor)
+        ),
+        cell(
+            ICONS .. "XP_Icon",
+            formatNumber(totals.experience),
+            describe(ns.L("Experience"), experienceNote, experienceColor)
+        ),
+        cell(
+            ICONS .. "INV_Scroll_03",
+            formatNumber(day.quests or 0),
+            describe(ns.L("Quests"), average and ns.L("average %s", formatNumber(average.quests)) or "", COLORS.softInk)
+        ),
         cell(levelIcon, levelText, describe(ns.L("Level"), levelNote, COLORS.softInk)),
     }) + 2
 end
 
 local MAX_DAYS_LISTED = 60
 local DAY_LINES = {
-    gold = { { "looted", "Coins looted" }, { "quests", "Quest rewards" }, { "vendor", "Sold to vendors" }, { "auction", "Auction house" },
-        { "mail", "Mail" }, { "other", "Other" } },
-    spent = { { "repairs", "Repairs" }, { "training", "Training" }, { "flights", "Flights" }, { "bought", "Bought" },
-        { "auction", "Auction house" }, { "other", "Other" } },
-    xp = { { "quests", "Quests" }, { "kills", "Kills" }, { "rested", "  Rested bonus" }, { "discovery", "Discovery" }, { "other", "Other" } },
+    gold = {
+        { "looted", "Coins looted" },
+        { "quests", "Quest rewards" },
+        { "vendor", "Sold to vendors" },
+        { "auction", "Auction house" },
+        { "mail", "Mail" },
+        { "other", "Other" },
+    },
+    spent = {
+        { "repairs", "Repairs" },
+        { "training", "Training" },
+        { "flights", "Flights" },
+        { "bought", "Bought" },
+        { "auction", "Auction house" },
+        { "other", "Other" },
+    },
+    xp = {
+        { "quests", "Quests" },
+        { "kills", "Kills" },
+        { "rested", "  Rested bonus" },
+        { "discovery", "Discovery" },
+        { "other", "Other" },
+    },
 }
 local SPENT_COLOR = { 0.64, 0.2, 0.14 }
 
@@ -1508,7 +2044,9 @@ function ChroniclePage.getDayKeys()
     for key in pairs(ns.Ledger.getDays()) do
         keys[#keys + 1] = key
     end
-    table.sort(keys, function(first, second) return first > second end)
+    table.sort(keys, function(first, second)
+        return first > second
+    end)
     return keys
 end
 
@@ -1521,7 +2059,8 @@ end
 
 ---@return string text An item as its link (its name in its quality's colour), asked of the game when not known yet
 local function getItemText(itemId)
-    local link = GetItemInfo and select(2, GetItemInfo(itemId))
+    local getItemInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo -- luacheck: ignore 113 (an older client's fallback)
+    local link = getItemInfo and select(2, getItemInfo(itemId))
     if link then
         return link
     end
@@ -1549,14 +2088,22 @@ function ChroniclePage.drawDayList(list, y)
             list:addRect(3, y + 1, width - 6, 34, { 0.29, 0.24, 0.09 }, 1)
         end
         list:addText(formatDayHeading(ns.Ledger.getDayStamp(key)), 8, y + 3, {
-            font = "GameFontNormal", color = isSelected and COLORS.white or COLORS.parchment, width = width - 14, isSingleLine = true,
+            font = "GameFontNormal",
+            color = isSelected and COLORS.white or COLORS.parchment,
+            width = width - 14,
+            isSingleLine = true,
         })
         local facts = { formatSignedMoney(totals.net) }
         local levels = (day.levelTo or day.levelFrom or 0) - (day.levelFrom or 0)
         if levels > 0 then
             facts[#facts + 1] = ns.Lp(levels, "+%d level", "+%d levels")
         end
-        list:addText(table.concat(facts, DOT), 8, y + 19, { font = "GameFontHighlightSmall", color = COLORS.tan, width = width - 14, isSingleLine = true })
+        list:addText(
+            table.concat(facts, DOT),
+            8,
+            y + 19,
+            { font = "GameFontHighlightSmall", color = COLORS.tan, width = width - 14, isSingleLine = true }
+        )
         list:addButton(0, y, width, 36, selectDay, key)
         y = y + 38
     end
@@ -1571,7 +2118,9 @@ function ChroniclePage.drawDay(page)
     local day = key and ns.Ledger.getDays()[key]
     if not day then
         page:addText(ns.L("Nothing kept yet: from now on, each day you play gets a page here."), PADDING, 14, {
-            font = "QuestFont", color = COLORS.softInk, width = page.width - 2 * PADDING,
+            font = "QuestFont",
+            color = COLORS.softInk,
+            width = page.width - 2 * PADDING,
         })
         return 60, ns.L("Days"), ""
     end
@@ -1580,7 +2129,8 @@ function ChroniclePage.drawDay(page)
     local title = ns.Chronicle.formatShownDate("%A %d %B", stamp)
     local noteParts = {}
     if day.levelFrom then
-        noteParts[#noteParts + 1] = day.levelTo and ns.L("Level %d to %d", day.levelFrom, day.levelTo) or ns.L("Level %d", day.levelFrom)
+        noteParts[#noteParts + 1] = day.levelTo and ns.L("Level %d to %d", day.levelFrom, day.levelTo)
+            or ns.L("Level %d", day.levelFrom)
     end
     noteParts[#noteParts + 1] = ns.L("%s played", formatDuration(totals.played))
     local y = 10
@@ -1590,14 +2140,40 @@ function ChroniclePage.drawDay(page)
     local hours = totals.played / 3600
     y = addRewardStrip(page, y, {
         -- In a tile, a gold or more without its copper, to fit
-        { label = ns.L("Gold, net"), value = formatSignedMoney(math.abs(totals.net) >= 10000 and (totals.net < 0 and -1 or 1) * (math.abs(totals.net) - math.abs(totals.net) % 100) or totals.net),
-            icon = ICONS .. "INV_Misc_Coin_01", note = ns.L("What came in, less what was spent: %s", formatSignedMoney(totals.net)) },
-        { label = ns.L("Experience"), value = formatNumber(totals.experience), icon = ICONS .. "XP_Icon",
-            note = hours >= 0.2 and ns.L("%s an hour", formatNumber(totals.experience / hours)) or nil },
-        { label = ns.L("Quests"), value = formatNumber(day.quests or 0), icon = ICONS .. "INV_Scroll_03", note = ns.L("Handed in") },
-        { label = ns.L("Kills"), value = formatNumber(day.kills or 0), icon = ICONS .. "Ability_Tracking", note = ns.L("Creatures you or your group fought") },
+        {
+            label = ns.L("Gold, net"),
+            value = formatSignedMoney(
+                math.abs(totals.net) >= 10000
+                        and (totals.net < 0 and -1 or 1) * (math.abs(totals.net) - math.abs(totals.net) % 100)
+                    or totals.net
+            ),
+            icon = ICONS .. "INV_Misc_Coin_01",
+            note = ns.L("What came in, less what was spent: %s", formatSignedMoney(totals.net)),
+        },
+        {
+            label = ns.L("Experience"),
+            value = formatNumber(totals.experience),
+            icon = ICONS .. "XP_Icon",
+            note = hours >= 0.2 and ns.L("%s an hour", formatNumber(totals.experience / hours)) or nil,
+        },
+        {
+            label = ns.L("Quests"),
+            value = formatNumber(day.quests or 0),
+            icon = ICONS .. "INV_Scroll_03",
+            note = ns.L("Handed in"),
+        },
+        {
+            label = ns.L("Kills"),
+            value = formatNumber(day.kills or 0),
+            icon = ICONS .. "Ability_Tracking",
+            note = ns.L("Creatures you or your group fought"),
+        },
         { label = ns.L("Deaths"), value = formatNumber(day.deaths or 0), icon = ICONS .. "Ability_Rogue_FeignDeath" },
-        { label = ns.L("Time played"), value = formatDuration(totals.played), icon = ICONS .. "INV_Misc_PocketWatch_01" },
+        {
+            label = ns.L("Time played"),
+            value = formatDuration(totals.played),
+            icon = ICONS .. "INV_Misc_PocketWatch_01",
+        },
     })
     -- Gold: where it came from, then where it went
     if totals.income > 0 or totals.spent > 0 then
@@ -1658,9 +2234,11 @@ function ChroniclePage.drawDay(page)
     if day.loot and #day.loot > 0 then
         y = addHeading(page, y, ns.L("Notable loot"), formatNumber(#day.loot))
         for _, loot in ipairs(day.loot) do
-            local from = loot.from == "quest" and ns.L("quest reward") or loot.from == "chest" and ns.L("from a chest")
+            local from = loot.from == "quest" and ns.L("quest reward")
+                or loot.from == "chest" and ns.L("from a chest")
                 or loot.from == "fishing" and ns.L("fished")
-                or type(loot.from) == "number" and getNpcName(loot.from) or ""
+                or type(loot.from) == "number" and getNpcName(loot.from)
+                or ""
             y = addFact(page, y, from, getItemText(loot.itemId))
         end
     end

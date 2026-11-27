@@ -12,14 +12,18 @@ local Object, Quest = G.LibQuestieDB.Object, G.LibQuestieDB.Quest
 
 local herbNames = {}
 for _, item in pairs(game.items) do
-    if item.classId == 7 and item.subclassId == 9 and item.name then herbNames[item.name] = true end
+    if item.classId == 7 and item.subclassId == 9 and item.name then
+        herbNames[item.name] = true
+    end
 end
 
 local questObjects = {}
 for _, questId in ipairs(Quest.GetAllIds()) do
     local isRead, objectives = pcall(Quest.Get, questId, "objectives")
     for _, objective in ipairs(isRead and type(objectives) == "table" and objectives[2] or {}) do
-        if type(objective) == "table" and objective[1] then questObjects[objective[1]] = true end
+        if type(objective) == "table" and objective[1] then
+            questObjects[objective[1]] = true
+        end
     end
 end
 
@@ -46,9 +50,14 @@ local function list(ids)
     local lines, line = {}, {}
     for _, id in ipairs(ids) do
         line[#line + 1] = tostring(id)
-        if #line == 16 then lines[#lines + 1] = "        " .. table.concat(line, ", ") .. ","; line = {} end
+        if #line == 16 then
+            lines[#lines + 1] = "        " .. table.concat(line, ", ") .. ","
+            line = {}
+        end
     end
-    if #line > 0 then lines[#lines + 1] = "        " .. table.concat(line, ", ") .. "," end
+    if #line > 0 then
+        lines[#lines + 1] = "        " .. table.concat(line, ", ") .. ","
+    end
     return table.concat(lines, "\r\n")
 end
 local path = projectRoot .. "/addons/OneMoreQuest/GatheringNodes.lua"

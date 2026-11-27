@@ -16,8 +16,10 @@ key("M")
 wait(1)
 local function countAreas()
     local count = 0
-    for _, area in ipairs(addon.MapMarks.getDrawn().areas or {}) do
-        if area.questId == RELICS_OF_WAKENING then count = count + 1 end
+    for _, area in ipairs((addon.MapMarks.listDrawn())) do
+        if area.questId == RELICS_OF_WAKENING then
+            count = count + 1
+        end
     end
     return count
 end

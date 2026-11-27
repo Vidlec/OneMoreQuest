@@ -7,6 +7,16 @@ local _, ns = ...
 -- It is kept apart from this addon's own channel: should Questie change its format and anything here fail,
 -- the bridge switches itself off for the session, silently, and OneMoreQuest's own messages carry on.
 -- With Questie itself running on this client, the bridge stays off: Questie talks for itself.
+--
+-- A message Questie cannot read is not dropped quietly on its side: it prints an error in that player's chat
+-- ("Error reading QuestieComm message"), once a message. So nothing is sent on a guess:
+--   * nothing at all until a member of the group has been heard on Questie's channel (only then is there anyone
+--     to talk to, and their Questie's version is known);
+--   * to a Questie within the versions whose packets were read from their source (OLDEST_TESTED_VERSION to
+--     TESTED_VERSION), the packets they all have (TESTED_PACKETS);
+--   * to an older or a newer one, only the kinds of packet a Questie of that very version was heard to send itself (kept
+--     with the settings from one session to the next), since a kind it sends is a kind it reads.
+-- Should Questie drop or renumber a packet, the bridge falls silent towards it instead of raising its errors.
 local QuestieBridge = {}
 ns.QuestieBridge = QuestieBridge
 
@@ -19,9 +29,28 @@ local MAX_PART_LENGTH = 255
 local MAX_PACKET_LENGTH = 240 -- a quest log block stays in one message
 
 local PACKET_QUEST_UPDATE, PACKET_QUEST_REMOVE = 1, 2
+-- (10, the whole log quest by quest, and 14 are older Questies': read when they come, never sent. Questie 12
+-- has neither, and says so in the other player's chat for every one it is sent.)
 local PACKET_FULL_LOG, PACKET_REQUEST_LOG, PACKET_FULL_LOG_FLAT = 10, 11, 12
 local PACKET_QUEST_UPDATE_FLAT = 14
 
+-- The Questies whose packets were read from their own source (QuestieComms.lua, _QuestieComms.packets: 6.0, 6.2,
+-- 7.0, 9.4, 10.0, 11.0 and 12.15), and the packets every one of them has, in one format throughout: a Questie
+-- from the oldest to the newest of them is sent these; an older or a newer one only what it was heard to send.
+-- (Asked for its log by a sender of a version below 6, as this one says it is, a Questie up to 11 answers with
+-- packet 10 and a newer one with 12: both are read.)
+local OLDEST_TESTED_VERSION = { 6, 0 }
+local TESTED_VERSION = { 12, 15 }
+local TESTED_PACKETS = {
+    [PACKET_QUEST_UPDATE] = true,
+    [PACKET_QUEST_REMOVE] = true,
+    [PACKET_REQUEST_LOG] = true,
+    [PACKET_FULL_LOG_FLAT] = true,
+}
+local peers = {} -- [name] = the version of Questie a member of the group was heard to run
+local heardPackets = {} -- [version] = { [packet] = true }: what a Questie of that version sent, this session
+
+local MAX_KEPT_VERSIONS = 6 -- Questie versions whose packets are remembered with the settings
 local MAX_FAILURES = 3 -- messages that could not be read before the bridge gives up for the session
 -- What a message may hold, so a crafted one cannot keep the client busy: Questie's own logs stay far below these
 local MAX_MESSAGE_PARTS = 64 -- parts of one long message (about 16 KB)
@@ -291,28 +320,70 @@ local function readFloat(reader)
 end
 
 local READERS = {
-    [1] = function() return nil end,
-    [2] = function(reader) return reader.readInt() end,
-    [3] = function(reader) return -reader.readInt() end,
-    [4] = function(reader) return reader.readLong() end,
-    [5] = function(reader) return -reader.readLong() end,
+    [1] = function()
+        return nil
+    end,
+    [2] = function(reader)
+        return reader.readInt()
+    end,
+    [3] = function(reader)
+        return -reader.readInt()
+    end,
+    [4] = function(reader)
+        return reader.readLong()
+    end,
+    [5] = function(reader)
+        return -reader.readLong()
+    end,
     [6] = readFloat,
-    [7] = function(reader) return reader.readString(reader.readByte()) end,
-    [8] = function(reader) return reader.readString(reader.readShort()) end,
-    [9] = function(reader, hashes) return hashes.byHash[reader.readInt()] end,
-    [10] = function(reader, hashes) return readEntries(reader, hashes, reader.readByte(), true) end,
-    [11] = function(reader, hashes) return readEntries(reader, hashes, reader.readShort(), true) end,
-    [12] = function(reader) return reader.readByte() end,
-    [13] = function(reader) return -reader.readByte() end,
-    [14] = function(reader) return reader.readShort() end,
-    [15] = function(reader) return -reader.readShort() end,
-    [16] = function() return false end,
-    [17] = function() return true end,
-    [18] = function() return nil end,
-    [19] = function() return nil end,
-    [20] = function(reader, hashes) return readEntries(reader, hashes, reader.readByte(), false) end,
-    [21] = function(reader, hashes) return readEntries(reader, hashes, reader.readShort(), false) end,
-    [22] = function(reader, hashes) return readEntries(reader, hashes, reader.readInt(), false) end,
+    [7] = function(reader)
+        return reader.readString(reader.readByte())
+    end,
+    [8] = function(reader)
+        return reader.readString(reader.readShort())
+    end,
+    [9] = function(reader, hashes)
+        return hashes.byHash[reader.readInt()]
+    end,
+    [10] = function(reader, hashes)
+        return readEntries(reader, hashes, reader.readByte(), true)
+    end,
+    [11] = function(reader, hashes)
+        return readEntries(reader, hashes, reader.readShort(), true)
+    end,
+    [12] = function(reader)
+        return reader.readByte()
+    end,
+    [13] = function(reader)
+        return -reader.readByte()
+    end,
+    [14] = function(reader)
+        return reader.readShort()
+    end,
+    [15] = function(reader)
+        return -reader.readShort()
+    end,
+    [16] = function()
+        return false
+    end,
+    [17] = function()
+        return true
+    end,
+    [18] = function()
+        return nil
+    end,
+    [19] = function()
+        return nil
+    end,
+    [20] = function(reader, hashes)
+        return readEntries(reader, hashes, reader.readByte(), false)
+    end,
+    [21] = function(reader, hashes)
+        return readEntries(reader, hashes, reader.readShort(), false)
+    end,
+    [22] = function(reader, hashes)
+        return readEntries(reader, hashes, reader.readInt(), false)
+    end,
 }
 
 readValue = function(reader, hashes)
@@ -475,8 +546,56 @@ local function isSharing()
     return ns.settings == nil or ns.settings.shouldShareProgress ~= false
 end
 
+---@return number? major, number? minor Of a Questie version as its messages give it ("12.15.0")
+local function parseVersion(version)
+    local major, minor = tostring(version):match("^(%d+)%.(%d+)")
+    return tonumber(major), tonumber(minor)
+end
+
+---@return boolean isTested The version is no newer than the Questie whose packets were read from its source
+local function isTestedVersion(version)
+    local major, minor = parseVersion(version)
+    if not major then
+        return false
+    end
+    local isOldEnough = major < TESTED_VERSION[1] or (major == TESTED_VERSION[1] and minor <= TESTED_VERSION[2])
+    local isNewEnough = major > OLDEST_TESTED_VERSION[1]
+        or (major == OLDEST_TESTED_VERSION[1] and minor >= OLDEST_TESTED_VERSION[2])
+    return isOldEnough and isNewEnough
+end
+
+---@return boolean isRead A Questie of that version reads that kind of packet, as far as is known for sure
+local function isReadBy(version, packetId)
+    if isTestedVersion(version) and TESTED_PACKETS[packetId] then
+        return true
+    end
+    if heardPackets[version] and heardPackets[version][packetId] then
+        return true
+    end
+    local kept = ns.settings and ns.settings.questiePackets
+    return type(kept) == "table" and type(kept[version]) == "table" and kept[version][packetId] == true
+end
+
+---Whether a kind of packet may be sent: someone in the group runs Questie (they were heard), and every one of
+---them who would get it is known to read it. Whispered, only the one it goes to counts.
+---@param target string? The player it would be whispered to
+---@return boolean canSend
+function QuestieBridge.canSend(packetId, target)
+    local members = ns.Comms.getGroupMembers()
+    local hasPeer = false
+    for name, version in pairs(peers) do
+        if members[name] and (not target or ns.Comms.normalizeName(target) == name) then
+            hasPeer = true
+            if not isReadBy(version, packetId) then
+                return false
+            end
+        end
+    end
+    return hasPeer
+end
+
 local function send(packet, channel, target)
-    if not channel or not isActive() or not isSharing() then
+    if not channel or not isActive() or not isSharing() or not QuestieBridge.canSend(packet.msgId, target) then
         return
     end
     local isSuccess = pcall(function()
@@ -489,9 +608,43 @@ local function send(packet, channel, target)
     end
 end
 
+---A quest in Questie's flat list: its id, how many objectives, then four numbers an objective (the database's id
+---or 0, its type's first letter as a byte, how many are had, how many are needed). No nil among them: a hole
+---would shift every number after it.
+---@return number count How many numbers were added
+local function addFlatNumbers(list, questId)
+    local quest = QuestieBridge.composeQuest(questId)
+    local start = #list
+    list[#list + 1], list[#list + 2] = questId, #quest.objectives
+    for _, objective in ipairs(quest.objectives) do
+        list[#list + 1] = tonumber(objective.id) or 0
+        list[#list + 1] = string.byte(objective.typ ~= "" and objective.typ or "e")
+        list[#list + 1] = tonumber(objective.ful) or 0
+        list[#list + 1] = tonumber(objective.req) or 0
+    end
+    return #list - start
+end
+
+---@return table packet Quests in Questie's flat list (packet 12): how many, then each quest's numbers
+local function composeFlatPacket(list, count)
+    local packet = composePacket(PACKET_FULL_LOG_FLAT)
+    list[1] = count
+    packet[1] = list
+    return packet
+end
+
 ---One quest's counts, to the Questie players of the group.
 function QuestieBridge.sendQuest(questId, channel)
     if not isActive() then
+        return
+    end
+    if not QuestieBridge.canSend(PACKET_QUEST_UPDATE) then
+        -- A Questie not known to read the update reads the flat list it sends itself: a list of the one quest
+        pcall(function()
+            local list = { 0 }
+            addFlatNumbers(list, questId)
+            send(composeFlatPacket(list, 1), channel)
+        end)
         return
     end
     local isSuccess, quest = pcall(QuestieBridge.composeQuest, questId)
@@ -514,34 +667,30 @@ function QuestieBridge.requestLogs(channel)
     send(composePacket(PACKET_REQUEST_LOG), channel)
 end
 
----The whole log, in blocks that each fit one message, as Questie sends it.
+---The whole log, in blocks that each fit one message, as Questie sends it: its flat list.
 ---@param target string? A player to whisper it to, else the whole group
 function QuestieBridge.sendLog(channel, target)
-    if not isActive() or not isSharing() then
+    if not isActive() or not isSharing() or not QuestieBridge.canSend(PACKET_FULL_LOG_FLAT, target) then
         return
     end
     local isSuccess = pcall(function()
-        local block, count = {}, 0
-        local function sendBlock()
-            if count > 0 then
-                local packet = composePacket(PACKET_FULL_LOG)
-                packet.rawQuestList = block
-                send(packet, channel, target)
-            end
-            block, count = {}, 0
-        end
+        local list, count = { 0 }, 0
         for _, questId in ipairs(ns.QuestState.getLogQuestIds()) do
-            local quest = QuestieBridge.composeQuest(questId)
-            block[questId], count = quest, count + 1
-            local packet = composePacket(PACKET_FULL_LOG)
-            packet.rawQuestList = block
-            if count > 1 and #QuestieBridge.serialize(packet) > MAX_PACKET_LENGTH then
-                block[questId], count = nil, count - 1
-                sendBlock()
-                block[questId], count = quest, 1
+            local added = addFlatNumbers(list, questId)
+            count = count + 1
+            if count > 1 and #QuestieBridge.serialize(composeFlatPacket(list, count)) > MAX_PACKET_LENGTH then
+                -- One quest too many for a message: the block goes without it, and it starts the next
+                for _ = 1, added do
+                    list[#list] = nil
+                end
+                send(composeFlatPacket(list, count - 1), channel, target)
+                list, count = { 0 }, 1
+                addFlatNumbers(list, questId)
             end
         end
-        sendBlock()
+        if count > 0 then
+            send(composeFlatPacket(list, count), channel, target)
+        end
     end)
     if not isSuccess then
         isBroken = true
@@ -549,6 +698,54 @@ function QuestieBridge.sendLog(channel, target)
 end
 
 local GROUP_CHANNELS = { PARTY = true, RAID = true, INSTANCE_CHAT = true, WHISPER = true }
+
+---@return boolean isSound A packet a Questie sent holds what its kind is known to hold: only then does it count
+---as a kind that Questie reads (one renumbered or reshaped under the old number is not taken for the old one)
+local function isSoundPacket(packet)
+    local packetId = packet.msgId
+    if packetId == PACKET_QUEST_UPDATE then
+        return type(packet.quest) == "table"
+            and readQuestId(packet.quest.id) ~= nil
+            and type(packet.quest.objectives) == "table"
+    elseif packetId == PACKET_QUEST_REMOVE then
+        return readQuestId(packet.id) ~= nil
+    elseif packetId == PACKET_REQUEST_LOG then
+        return true
+    elseif packetId == PACKET_FULL_LOG_FLAT then
+        return type(packet[1]) == "table" and type(packet[1][1]) == "number"
+    end
+    return false
+end
+
+---A member of the group was heard on Questie's channel: they run Questie, of this version, and it sends this kind
+---of packet (so it reads it).
+---@return boolean isNews They were not known to run Questie yet, or a Questie newer than the tested one proved to
+---read a kind of packet it was not known to
+local function notePeer(name, packet)
+    local version = type(packet.ver) == "string" and #packet.ver <= 20 and packet.ver or "?"
+    local isNews = peers[name] ~= version
+    peers[name] = version
+    if isSoundPacket(packet) and not isReadBy(version, packet.msgId) then
+        heardPackets[version] = heardPackets[version] or {}
+        heardPackets[version][packet.msgId] = true
+        isNews = true
+        -- Kept from one session to the next, a few versions at most (the newest ones heard)
+        if ns.settings then
+            local kept = type(ns.settings.questiePackets) == "table" and ns.settings.questiePackets or {}
+            ns.settings.questiePackets = kept
+            kept[version] = type(kept[version]) == "table" and kept[version] or {}
+            kept[version][packet.msgId] = true
+            local count = 0
+            for _ in pairs(kept) do
+                count = count + 1
+            end
+            if count > MAX_KEPT_VERSIONS then
+                ns.settings.questiePackets = { [version] = kept[version] }
+            end
+        end
+    end
+    return isNews
+end
 
 local function readPacket(text, channel, sender)
     if not GROUP_CHANNELS[channel] then
@@ -567,6 +764,7 @@ local function readPacket(text, channel, sender)
         return -- another version of Questie's format: not understood, so left alone
     end
     local packetId = packet.msgId
+    local isNews = notePeer(name, packet)
     if packetId == PACKET_QUEST_UPDATE then
         addQuest(packet.quest, name)
     elseif packetId == PACKET_QUEST_REMOVE then
@@ -590,6 +788,15 @@ local function readPacket(text, channel, sender)
         end
     elseif packetId == PACKET_QUEST_UPDATE_FLAT and type(packet[1]) == "table" then
         addFlatQuest(packet[1], 1, name)
+    end
+    if isNews then
+        -- Someone runs Questie here (or theirs proved to read more): their log is asked for, and they get this one,
+        -- unless they just asked for it themselves (it was whispered to them above)
+        local channel = ns.Comms.getGroupChannel()
+        QuestieBridge.requestLogs(channel)
+        if packetId ~= PACKET_REQUEST_LOG then
+            QuestieBridge.sendLog(channel)
+        end
     end
 end
 
@@ -623,6 +830,7 @@ end
 ---Back to working, as after a reload: for tests.
 function QuestieBridge.reset()
     isBroken, failureCount, partsBySender = false, 0, {}
+    peers, heardPackets = {}, {}
 end
 
 QuestieBridge.PREFIX = PREFIX

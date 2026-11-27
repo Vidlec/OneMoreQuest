@@ -13,21 +13,29 @@ local PREFIX = "OneMoreQuest"
 
 local function composeEntry(questId, quest)
     local counts = {}
-    for index, objective in ipairs(quest.objectives) do counts[index] = string.format("%d/%d", objective.fulfilled, objective.required) end
+    for index, objective in ipairs(quest.objectives) do
+        counts[index] = string.format("%d/%d", objective.fulfilled, objective.required)
+    end
     return string.format("%d:%s:%d", questId, table.concat(counts, ","), quest.isComplete and 1 or 0)
 end
 
 local function sendLog(member, channel)
-    if not member.isOnline then return end
+    if not member.isOnline then
+        return
+    end
     local entries = {}
-    for questId, quest in pairs(member.quests) do entries[#entries + 1] = composeEntry(questId, quest) end
+    for questId, quest in pairs(member.quests) do
+        entries[#entries + 1] = composeEntry(questId, quest)
+    end
     table.sort(entries)
     plugins.sendFromMember(member, PREFIX, "1|L|1/1|" .. table.concat(entries, ";"), channel or "PARTY")
 end
 
 local function hasDone(member, questId)
     for _, doneQuestId in ipairs(member.doneQuestIds) do
-        if doneQuestId == questId then return true end
+        if doneQuestId == questId then
+            return true
+        end
     end
     return false
 end
@@ -43,10 +51,18 @@ plugins.registerPartyAddon("OneMoreQuest", {
     end,
     onQuestChanged = function(member, questId)
         local quest = member.quests[questId]
-        plugins.sendFromMember(member, PREFIX, quest and ("1|U|" .. composeEntry(questId, quest)) or ("1|R|" .. questId), "PARTY", 0.1)
+        plugins.sendFromMember(
+            member,
+            PREFIX,
+            quest and ("1|U|" .. composeEntry(questId, quest)) or ("1|R|" .. questId),
+            "PARTY",
+            0.1
+        )
     end,
     onMessage = function(member, message)
-        if message.prefix ~= PREFIX then return end
+        if message.prefix ~= PREFIX then
+            return
+        end
         local askedQuestId = tonumber(message.text:match("^1|Q|(%d+)$"))
         if askedQuestId and not member.quests[askedQuestId] then
             local answer = hasDone(member, askedQuestId) and "d" or "c"

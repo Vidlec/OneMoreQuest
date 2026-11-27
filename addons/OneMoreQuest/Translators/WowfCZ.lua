@@ -50,8 +50,13 @@ local function expand(text)
     text = text:gsub("%$[Gg]([^:;]*):([^;]*);", function(male, female)
         return trim(isFemale and female or male)
     end)
-    text = text:gsub("%$N", name):gsub("%$n", name:lower()):gsub("%$[Bb]", "\n")
-        :gsub("%$R", race):gsub("%$r", race:lower()):gsub("%$C", class):gsub("%$c", class:lower())
+    text = text:gsub("%$N", name)
+        :gsub("%$n", name:lower())
+        :gsub("%$[Bb]", "\n")
+        :gsub("%$R", race)
+        :gsub("%$r", race:lower())
+        :gsub("%$C", class)
+        :gsub("%$c", class:lower())
     return text
 end
 
@@ -129,8 +134,13 @@ ns.QuestText.register({
 
     getSettingsKey = function()
         local settings = getSettings()
-        return table.concat({ tostring(settings.enabled), tostring(settings.titleLang), tostring(settings.questText),
-            tostring(settings.questObjectives), tostring(settings.addressSex) }, ",")
+        return table.concat({
+            tostring(settings.enabled),
+            tostring(settings.titleLang),
+            tostring(settings.questText),
+            tostring(settings.questObjectives),
+            tostring(settings.addressSex),
+        }, ",")
     end,
 
     getTitle = function(questId)

@@ -15,7 +15,7 @@ end
 local function composeNameList(questIds)
     local names = {}
     for nameIndex = 1, math.min(#questIds, MAX_NAMES) do
-        names[nameIndex] = "\"" .. getQuestName(questIds[nameIndex]) .. "\""
+        names[nameIndex] = '"' .. getQuestName(questIds[nameIndex]) .. '"'
     end
     local text = table.concat(names, ", ")
     if #questIds > MAX_NAMES then
@@ -40,8 +40,8 @@ function Warnings.getQuestWarnings(questId, shouldSkipLog)
     if leadsToQuestId ~= 0 and isStoryHidden then
         warnings[#warnings + 1] = ns.L("A lead-in: lost once you take the quest it leads to")
     elseif leadsToQuestId ~= 0 then
-        warnings[#warnings + 1] = ns.L("Lead-in to \"%s\": lost once you take that quest", getQuestName(leadsToQuestId))
-        links[#warnings] = { format = ns.L("Lead-in to \"%s\": lost once you take that quest"), questId = leadsToQuestId }
+        warnings[#warnings + 1] = ns.L('Lead-in to "%s": lost once you take that quest', getQuestName(leadsToQuestId))
+        links[#warnings] = { format = ns.L('Lead-in to "%s": lost once you take that quest'), questId = leadsToQuestId }
     end
 
     local openLeadIns = {}
@@ -51,12 +51,16 @@ function Warnings.getQuestWarnings(questId, shouldSkipLog)
         end
     end
     if #openLeadIns > 0 and (isStoryHidden or isPickupHidden) then
-        warnings[#warnings + 1] = ns.Lp(#openLeadIns, "A lead-in to this is still open: it is lost once you take this",
-            "%d lead-ins to this are still open: they are lost once you take this")
+        warnings[#warnings + 1] = ns.Lp(
+            #openLeadIns,
+            "A lead-in to this is still open: it is lost once you take this",
+            "%d lead-ins to this are still open: they are lost once you take this"
+        )
     elseif #openLeadIns > 0 then
         warnings[#warnings + 1] = ns.L("Do %s first, or it is lost once you take this", composeNameList(openLeadIns))
         if #openLeadIns == 1 then
-            links[#warnings] = { format = ns.L("Do %s first, or it is lost once you take this"), questId = openLeadIns[1] }
+            links[#warnings] =
+                { format = ns.L("Do %s first, or it is lost once you take this"), questId = openLeadIns[1] }
         end
     end
 
@@ -66,13 +70,19 @@ function Warnings.getQuestWarnings(questId, shouldSkipLog)
         local name, otherQuestIds = ns.Database.getQuestField(questId, "name"), {}
         for _, exclusiveQuestId in ipairs(exclusiveQuestIds) do
             -- Not one the game does not offer (Questie's duplicates, HiddenQuests): nothing to lock out
-            if ns.Database.getQuestField(exclusiveQuestId, "name") ~= name and not ns.HiddenQuests[exclusiveQuestId] then
+            if
+                ns.Database.getQuestField(exclusiveQuestId, "name") ~= name and not ns.HiddenQuests[exclusiveQuestId]
+            then
                 otherQuestIds[#otherQuestIds + 1] = exclusiveQuestId
             end
         end
         -- Versions of this same quest are said on its row ("any of 3 places") and its page, not warned of
         if #otherQuestIds > 0 and isPickupHidden then
-            warnings[#warnings + 1] = ns.Lp(#otherQuestIds, "Choose one: it locks out %d other quest", "Choose one: it locks out %d other quests")
+            warnings[#warnings + 1] = ns.Lp(
+                #otherQuestIds,
+                "Choose one: it locks out %d other quest",
+                "Choose one: it locks out %d other quests"
+            )
         elseif #otherQuestIds > 0 then
             warnings[#warnings + 1] = ns.L("Choose one: locks out %s", composeNameList(otherQuestIds))
         end
@@ -131,19 +141,26 @@ function Warnings.getDropSuggestions()
             -- Where the quest leads now (its step's zone; a dungeon as the zone of its entrance), not where it was
             -- picked up: a quest taken here may well be done on another continent, and one taken there, here
             local stepZoneId = ns.Model.composeEntry(questId, modelPlayer).zoneId
-            local zoneId = stepZoneId and stepZoneId ~= 0 and ns.Database.getMapZoneId(stepZoneId) or ns.Availability.getStartZoneId(questId)
+            local zoneId = stepZoneId and stepZoneId ~= 0 and ns.Database.getMapZoneId(stepZoneId)
+                or ns.Availability.getStartZoneId(questId)
             local open = book and book.open and book.open[questId]
             local days = open and open.acceptedAt and math.floor((now - open.acceptedAt) / 86400) or 0
             local score, reason = 0, nil
             if level > 0 and player.level - level > ns.Availability.getTrivialGap(player.level) then
                 score, reason = 3, ns.L("Grey: no experience left in it")
-            elseif playerContinent and zoneId and getContinentMapId(zoneId) and getContinentMapId(zoneId) ~= playerContinent then
+            elseif
+                playerContinent
+                and zoneId
+                and getContinentMapId(zoneId)
+                and getContinentMapId(zoneId) ~= playerContinent
+            then
                 score, reason = 2, ns.L("Far: %s, on another continent", ns.Database.getZoneName(zoneId))
             elseif days >= STALE_DAYS then
                 score, reason = 1, ns.Lp(days, "Taken %d day ago", "Taken %d days ago")
             end
             if score > 0 then
-                candidates[#candidates + 1] = { questId = questId, level = level, reason = reason, score = score, days = days }
+                candidates[#candidates + 1] =
+                    { questId = questId, level = level, reason = reason, score = score, days = days }
             end
         end
     end

@@ -28,7 +28,8 @@ end
 
 ---@return number width A region's width on screen, in the screen's own units
 local function getScreenWidth(region)
-    return (region and region.GetWidth and region:GetWidth() or 0) * (region and region.GetEffectiveScale and region:GetEffectiveScale() or 1)
+    return (region and region.GetWidth and region:GetWidth() or 0)
+        * (region and region.GetEffectiveScale and region:GetEffectiveScale() or 1)
 end
 
 ---@return boolean hasRoom Whether a region fits on screen right of the window
@@ -92,7 +93,7 @@ local function placeAll(window, map, panel, tab)
 end
 
 local function fit()
-    local window, map = _G.TrailheadLog, WorldMapFrame
+    local window, map = _G.OneMoreQuestLog, WorldMapFrame
     local panel, tab = _G[FRAME_NAMES.panel], _G[FRAME_NAMES.tab]
     if state.isFitting or not (map and (panel or tab)) then
         return

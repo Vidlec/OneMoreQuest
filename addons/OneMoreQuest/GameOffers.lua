@@ -33,7 +33,11 @@ local function readOffers(uiMapId)
     for _, info in ipairs(questLines) do
         if info.questID and not info.inProgress and isOfferedOnMap(info.startMapID, uiMapId) then
             offers[#offers + 1] = {
-                questId = info.questID, title = info.questName, x = info.x, y = info.y, isTrivial = info.isHidden == true,
+                questId = info.questID,
+                title = info.questName,
+                x = info.x,
+                y = info.y,
+                isTrivial = info.isHidden == true,
             }
         end
     end
@@ -71,8 +75,15 @@ function GameOffers.get(zoneId)
         for questId, learned in pairs(getLearnedOffers()) do
             if not listed[questId] and learned.uiMapId and isOfferedOnMap(learned.uiMapId, uiMapId) then
                 offers[#offers + 1] = {
-                    questId = questId, title = learned.title, x = learned.x or 0.5, y = learned.y or 0.5, isTrivial = learned.isTrivial == true,
-                    npcId = learned.npcId, npcName = learned.npcName, isLearned = true, wasClosed = learned.wasClosed == true,
+                    questId = questId,
+                    title = learned.title,
+                    x = learned.x or 0.5,
+                    y = learned.y or 0.5,
+                    isTrivial = learned.isTrivial == true,
+                    npcId = learned.npcId,
+                    npcName = learned.npcName,
+                    isLearned = true,
+                    wasClosed = learned.wasClosed == true,
                 }
             end
         end
@@ -114,7 +125,13 @@ function GameOffers.learnOffers(quests, isComplete)
             -- (a quest the player hid or turned off reads as closed too, but is not: that is theirs to change)
             local _, isClosed = ns.Availability.getBlocker(quest.questId, player)
             learned[quest.questId] = {
-                title = quest.title, isTrivial = quest.isTrivial, npcId = npcId, npcName = npcName, uiMapId = uiMapId, x = x, y = y,
+                title = quest.title,
+                isTrivial = quest.isTrivial,
+                npcId = npcId,
+                npcName = npcName,
+                uiMapId = uiMapId,
+                x = x,
+                y = y,
                 wasClosed = (isClosed == true and not ns.Availability.isLeftOutBySettings(quest.questId)) or nil,
             }
         end
@@ -153,7 +170,8 @@ function GameOffers.learnOffers(quests, isComplete)
                     isTheirs = isTheirs or starterId == npcId
                 end
                 if isTheirs and not offered[quest.questId] and not quest.availableAtLevel and not quest.isLowLevel then
-                    refusals[quest.questId] = { npcId = npcId, npcName = npcName, level = UnitLevel and UnitLevel("player") or 0 }
+                    refusals[quest.questId] =
+                        { npcId = npcId, npcName = npcName, level = UnitLevel and UnitLevel("player") or 0 }
                     changedQuestIds[#changedQuestIds + 1] = quest.questId
                 end
             end
@@ -198,7 +216,8 @@ local function readDialogOffers(event)
                 local _
                 isTrivial, _, _, _, questId = GetAvailableQuestInfo(index)
             end
-            quests[#quests + 1] = { questId = questId, title = GetAvailableTitle and GetAvailableTitle(index), isTrivial = isTrivial }
+            quests[#quests + 1] =
+                { questId = questId, title = GetAvailableTitle and GetAvailableTitle(index), isTrivial = isTrivial }
         end
         return quests, true
     elseif event == "QUEST_DETAIL" and GetQuestID then
@@ -217,9 +236,13 @@ function GameOffers.noteMissed(questId, title, zoneId, reason, offer)
     local missed = ns.settings.missedQuests
     if not missed[questId] then
         missed[questId] = {
-            title = title, zoneId = zoneId, reason = reason,
-            npcId = offer and offer.npcId, npcName = offer and offer.npcName,
-            x = offer and offer.x, y = offer and offer.y,
+            title = title,
+            zoneId = zoneId,
+            reason = reason,
+            npcId = offer and offer.npcId,
+            npcName = offer and offer.npcName,
+            x = offer and offer.x,
+            y = offer and offer.y,
         }
     end
 end
@@ -245,10 +268,21 @@ function GameOffers.composeReport()
     local race, class = UnitRace and UnitRace("player"), UnitClass and UnitClass("player")
     local lines = {
         "OneMoreQuest: quests the game offered that the addon missed",
-        string.format("OneMoreQuest %s, QuestieDB %s, client %s (%s), %s", getAddOnVersion(ns.ADDON_FOLDER or "OneMoreQuest"), getAddOnVersion("QuestieDB"),
-            tostring(version or "?"), tostring(build or "?"), GetLocale and GetLocale() or "?"),
-        string.format("Character: level %s %s %s %s", tostring(UnitLevel and UnitLevel("player") or "?"),
-            tostring(UnitFactionGroup and UnitFactionGroup("player") or "?"), tostring(race or "?"), tostring(class or "?")),
+        string.format(
+            "OneMoreQuest %s, QuestieDB %s, client %s (%s), %s",
+            getAddOnVersion(ns.ADDON_FOLDER or "OneMoreQuest"),
+            getAddOnVersion("QuestieDB"),
+            tostring(version or "?"),
+            tostring(build or "?"),
+            GetLocale and GetLocale() or "?"
+        ),
+        string.format(
+            "Character: level %s %s %s %s",
+            tostring(UnitLevel and UnitLevel("player") or "?"),
+            tostring(UnitFactionGroup and UnitFactionGroup("player") or "?"),
+            tostring(race or "?"),
+            tostring(class or "?")
+        ),
         "",
         "quest | title | zone | why it was missed | giver | place",
     }
@@ -256,8 +290,15 @@ function GameOffers.composeReport()
         local missed = ns.settings.missedQuests[questId]
         local giver = missed.npcId and string.format("%s (%d)", missed.npcName or "?", missed.npcId) or "-"
         local place = missed.x and string.format("%.1f, %.1f", missed.x * 100, missed.y * 100) or "-"
-        lines[#lines + 1] = string.format("%d | %s | %s | %s | %s | %s", questId, missed.title or "?",
-            missed.zoneId and ns.Database.getZoneName(missed.zoneId) or "?", missed.reason or "?", giver, place)
+        lines[#lines + 1] = string.format(
+            "%d | %s | %s | %s | %s | %s",
+            questId,
+            missed.title or "?",
+            missed.zoneId and ns.Database.getZoneName(missed.zoneId) or "?",
+            missed.reason or "?",
+            giver,
+            place
+        )
     end
     -- Where the game's quests differ from the database's: a quest it lacks, a giver, turn-in or items it has otherwise
     local differenceLines = ns.DataCheck.composeReportLines()
@@ -374,17 +415,36 @@ function GameOffers.printComparison()
             listed = listed + 1
             if not gameIds[quest.questId] then
                 local kinds = {}
-                if quest.isLowLevel then kinds[#kinds + 1] = "low level" end
-                if ns.Availability.isRepeatable(quest.questId) then kinds[#kinds + 1] = "repeatable" end
-                if ns.Events.isEventQuest(quest.questId) then kinds[#kinds + 1] = "event" end
+                if quest.isLowLevel then
+                    kinds[#kinds + 1] = "low level"
+                end
+                if ns.Availability.isRepeatable(quest.questId) then
+                    kinds[#kinds + 1] = "repeatable"
+                end
+                if ns.Events.isEventQuest(quest.questId) then
+                    kinds[#kinds + 1] = "event"
+                end
                 kinds[#kinds + 1] = quest.startType or "npc"
-                notInGame[#notInGame + 1] = string.format("  %d [%d] %s - %s (%s)", quest.questId, quest.level or 0, quest.title or "?",
-                    quest.starterName or "?", table.concat(kinds, ", "))
+                notInGame[#notInGame + 1] = string.format(
+                    "  %d [%d] %s - %s (%s)",
+                    quest.questId,
+                    quest.level or 0,
+                    quest.title or "?",
+                    quest.starterName or "?",
+                    table.concat(kinds, ", ")
+                )
             end
         end
     end
-    ns.print(string.format("offers in %s: the game's map offers %d, OneMoreQuest lists %d, of which %d the game's map does not:",
-        ns.Database.getZoneName(zoneId), gameCount, listed, #notInGame))
+    ns.print(
+        string.format(
+            "offers in %s: the game's map offers %d, OneMoreQuest lists %d, of which %d the game's map does not:",
+            ns.Database.getZoneName(zoneId),
+            gameCount,
+            listed,
+            #notInGame
+        )
+    )
     if gameCount == 0 then
         ns.print("  (the game has not answered for this map yet: open the map once, then try again)")
     end

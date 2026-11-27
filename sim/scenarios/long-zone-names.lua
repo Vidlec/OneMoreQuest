@@ -8,8 +8,11 @@
 setProfile({ level = 30 })
 moveTo(1413, 0.52, 0.30) -- The Barrens
 local addon = require("addons").byName["onemorequest"].private
-for _, questId in ipairs({ 869, 865, 872, 891, 914, 962, 1486, 1102, 862 }) do accept(questId) end
-complete(869); complete(865)
+for _, questId in ipairs({ 869, 865, 872, 891, 914, 962, 1486, 1102, 862 }) do
+    accept(questId)
+end
+complete(869)
+complete(865)
 wait(1.5)
 local LONGEST_ZONE, LONGEST_DUNGEON = "Venture Co. Operations Center", "Ahn'kahet: The Old Kingdom"
 local compose = addon.Model.compose
@@ -32,12 +35,21 @@ saveScene("long-names")
 -- The list's own heading (the tracker shows the full name too, behind the window)
 local heading
 for _, region in ipairs({ addon.Log.getListCanvas().content:GetRegions() }) do
-    if region:IsShown() and region.GetText and region:GetText() == LONGEST_ZONE then heading = region end
+    if region:IsShown() and region.GetText and region:GetText() == LONGEST_ZONE then
+        heading = region
+    end
 end
 expect(heading ~= nil and heading:IsTruncated(), "the longest name is cut short in the list")
-if heading then hover(heading) end
+if heading then
+    hover(heading)
+end
 wait(0.3)
-expect(G.GameTooltip:IsShown() and G.GameTooltipTextLeft1 and G.GameTooltipTextLeft1:GetText() == LONGEST_ZONE, "hovering the cut name shows it whole")
-expect(G.GameTooltipTextLeft2 and G.GameTooltipTextLeft2:GetText() == "You are here", "and says it is where the player is")
+expect(
+    G.GameTooltip:IsShown() and G.GameTooltipTextLeft1 and G.GameTooltipTextLeft1:GetText() == LONGEST_ZONE,
+    "hovering the cut name shows it whole"
+)
+expect(
+    G.GameTooltipTextLeft2 and G.GameTooltipTextLeft2:GetText() == "You are here",
+    "and says it is where the player is"
+)
 saveScene("long-names-hover")
-

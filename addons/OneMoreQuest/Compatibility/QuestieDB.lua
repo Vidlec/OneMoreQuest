@@ -7,7 +7,10 @@ local _, ns = ...
 local function getStatus()
     local isSupported, problem = ns.Database.checkContract()
     if not isSupported then
-        return ns.L("Too old for OneMoreQuest (%s): update QuestieDB; quests for other races and classes may show.", problem or "?")
+        return ns.L(
+            "Too old for OneMoreQuest (%s): update QuestieDB; quests for other races and classes may show.",
+            problem or "?"
+        )
     end
     local notice = ns.Database.getReadModeNotice()
     return notice and ns.L("%s: it reads its raw data, which is slower. Install a QuestieDB release.", notice) or nil

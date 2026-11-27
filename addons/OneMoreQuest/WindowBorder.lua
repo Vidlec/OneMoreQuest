@@ -1,7 +1,7 @@
 local addonName, ns = ... -- the addon's folder, which its pictures are read from
 local CreateFrame = ns.CreateFrame -- (Core: frames made inside an open gamepad window)
 
--- The frame round Trailhead's quest panels, in the look picked in the settings: the game's metal window frame,
+-- The frame round OneMoreQuest's quest panels, in the look picked in the settings: the game's metal window frame,
 -- a copy of the map's own frame, a thin gold line, or a flat black edge with no title strip. It owns the title
 -- strip and the two buttons in it, settings and close.
 local WindowBorder = {}
@@ -9,7 +9,7 @@ ns.WindowBorder = WindowBorder
 
 local MEDIA = "Interface\\AddOns\\" .. addonName .. "\\Media\\"
 local GAME_STRIP_HEIGHT = 21 -- the title strip of the game's window frame
-local DRAWN_STRIP_HEIGHT = 22 -- a title strip drawn by Trailhead: as tall as Leatrix Maps' title bar
+local DRAWN_STRIP_HEIGHT = 22 -- a title strip drawn by OneMoreQuest: as tall as Leatrix Maps' title bar
 local INSET = 3 -- the panels' content starts this far inside the window's edge
 local MAP_BAR_COLOR = { 0.09, 0.09, 0.09 } -- a map addon's title bar, when its colour cannot be read
 local GOLD = { 0.79, 0.64, 0.15, 0.9 }
@@ -63,7 +63,11 @@ local function createIconButton(parent, size, texture, atlas)
     icon:SetAllPoints(button)
     local hover = button:CreateTexture(nil, "HIGHLIGHT")
     hover:SetAllPoints(button)
-    local hasAtlas = atlas and icon.SetAtlas and C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(atlas) ~= nil
+    local hasAtlas = atlas
+        and icon.SetAtlas
+        and C_Texture
+        and C_Texture.GetAtlasInfo
+        and C_Texture.GetAtlasInfo(atlas) ~= nil
     for _, layer in ipairs({ icon, hover }) do
         if hasAtlas then
             layer:SetAtlas(atlas)
@@ -105,31 +109,51 @@ function WindowBorder.create(window, layout)
     title:SetText(ns.ADDON_TITLE)
 
     settingsButton = createIconButton(chrome, 17, "Interface\\Buttons\\UI-OptionsButton", "questlog-icon-setting")
-    settingsButton:SetScript("OnClick", function() options.handleSettingsClick() end)
-    settingsButton:SetScript("OnEnter", function(self) showTooltip(self, options.getSettingsTooltip()) end)
-    settingsButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    settingsButton:SetScript("OnClick", function()
+        options.handleSettingsClick()
+    end)
+    settingsButton:SetScript("OnEnter", function(self)
+        showTooltip(self, options.getSettingsTooltip())
+    end)
+    settingsButton:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
 
     -- The chronicle's book, always just left of the cog, wherever the look puts the cog
     if options.handleChronicleClick then
         chronicleButton = createIconButton(chrome, 18, "Interface\\Icons\\INV_Misc_Book_09")
         chronicleButton.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
         chronicleButton:SetPoint("RIGHT", settingsButton, "LEFT", -6, 0)
-        chronicleButton:SetScript("OnClick", function() options.handleChronicleClick() end)
-        chronicleButton:SetScript("OnEnter", function(self) showTooltip(self, options.getChronicleTooltip and options.getChronicleTooltip() or ns.L("Chronicle")) end)
-        chronicleButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        chronicleButton:SetScript("OnClick", function()
+            options.handleChronicleClick()
+        end)
+        chronicleButton:SetScript("OnEnter", function(self)
+            showTooltip(self, options.getChronicleTooltip and options.getChronicleTooltip() or ns.L("Chronicle"))
+        end)
+        chronicleButton:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+        end)
     end
 
     -- The game's own close button for its own frame; a flat cross for the drawn ones
     local isCreated, button = pcall(CreateFrame, "Button", nil, chrome, "UIPanelCloseButton")
     if isCreated and type(button) == "table" then
         gameCloseButton = button
-        gameCloseButton:SetScript("OnClick", function() options.handleCloseClick() end)
+        gameCloseButton:SetScript("OnClick", function()
+            options.handleCloseClick()
+        end)
     end
     flatCloseButton = createIconButton(chrome, 16, MEDIA .. "Close")
     flatCloseButton.icon:SetVertexColor(0.85, 0.85, 0.85)
-    flatCloseButton:SetScript("OnClick", function() options.handleCloseClick() end)
-    flatCloseButton:SetScript("OnEnter", function(self) showTooltip(self, ns.L("Close")) end)
-    flatCloseButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    flatCloseButton:SetScript("OnClick", function()
+        options.handleCloseClick()
+    end)
+    flatCloseButton:SetScript("OnEnter", function(self)
+        showTooltip(self, ns.L("Close"))
+    end)
+    flatCloseButton:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
 end
 
 local isLeftEdgeShown = true
@@ -189,7 +213,7 @@ local function resolveStyle(style, mapLook)
     return gameBorder and "game" or "gold"
 end
 
----A title strip drawn by Trailhead: filled, the title in its middle, settings and close at its right end.
+---A title strip drawn by OneMoreQuest: filled, the title in its middle, settings and close at its right end.
 local function placeDrawnStrip(stripHeight, color, hasRule)
     stripFill:Show()
     stripFill:SetColorTexture(color[1], color[2], color[3], 1)
@@ -240,7 +264,9 @@ createDragHandle = function()
         GameTooltip:Hide()
         passDrag("OnDragStart")
     end)
-    dragHandle:SetScript("OnDragStop", function() passDrag("OnDragStop") end)
+    dragHandle:SetScript("OnDragStop", function()
+        passDrag("OnDragStop")
+    end)
     dragHandle:SetScript("OnEnter", function(self)
         local hint = options.getMoveHint and options.getMoveHint()
         if not hint then
@@ -251,7 +277,9 @@ createDragHandle = function()
         GameTooltip:AddLine(hint, 0.6, 0.6, 0.6, true)
         GameTooltip:Show()
     end)
-    dragHandle:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    dragHandle:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
     dragHandle:Hide()
 end
 

@@ -54,6 +54,11 @@ end
 
 ---The focus changes here and in the windows (FOCUS_CHANGED); the game's own is left as it is.
 local function follow(questId)
+    if questId == pickedQuestId then
+        -- (told already: setting the game's focus makes the game say so at once, which is followed, and the one who
+        -- set it follows too. Told twice, the quest window and the minimap were drawn twice for every focus)
+        return
+    end
     formerQuestId, changedAt = pickedQuestId, getNow()
     pickedQuestId = questId
     ns.settings.focusedQuestIds[getCharacterKey()] = questId
@@ -91,8 +96,13 @@ local function keepFormer(keptQuestId)
     if C_Timer and C_Timer.After and ns.frameNumber > 0 then
         C_Timer.After(GAME_FOCUS_DELAY, function()
             local isInCombat = InCombatLockdown and InCombatLockdown()
-            if not isInCombat and pickedQuestId == keptQuestId and getGameFocus() ~= keptQuestId
-                and C_SuperTrack and C_SuperTrack.SetSuperTrackedQuestID then
+            if
+                not isInCombat
+                and pickedQuestId == keptQuestId
+                and getGameFocus() ~= keptQuestId
+                and C_SuperTrack
+                and C_SuperTrack.SetSuperTrackedQuestID
+            then
                 C_SuperTrack.SetSuperTrackedQuestID(keptQuestId or 0)
             end
         end)
@@ -101,7 +111,9 @@ end
 
 ---@return boolean isGames The game put a quest just accepted into focus, and the player wants it left out
 local function isAcceptedFocus(questId)
-    return ns.settings.shouldFocusAccepted == false and questId ~= nil and questId == acceptedQuestId
+    return ns.settings.shouldFocusAccepted == false
+        and questId ~= nil
+        and questId == acceptedQuestId
         and getNow() - (acceptedAt or 0) <= ACCEPT_SECONDS
 end
 
@@ -150,14 +162,20 @@ ns.registerModule({
     create = Focus.create,
     events = {
         SUPER_TRACKING_CHANGED = Focus.handleGameFocusChanged,
-        QUEST_ACCEPTED = function(questId, secondArg) Focus.handleAccepted(secondArg or questId) end,
+        QUEST_ACCEPTED = function(questId, secondArg)
+            Focus.handleAccepted(secondArg or questId)
+        end,
         QUEST_WATCH_LIST_CHANGED = function(questId, isAdded)
             if isAdded == false then
                 handleQuestGone(questId, ns.QuestState.isInLog(questId))
             end
         end,
-        QUEST_REMOVED = function(questId) handleQuestGone(questId, false) end,
-        QUEST_TURNED_IN = function(questId) handleQuestGone(questId, false) end,
+        QUEST_REMOVED = function(questId)
+            handleQuestGone(questId, false)
+        end,
+        QUEST_TURNED_IN = function(questId)
+            handleQuestGone(questId, false)
+        end,
     },
 })
 Focus.handleQuestGone = handleQuestGone

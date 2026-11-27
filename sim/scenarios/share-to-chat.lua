@@ -12,17 +12,31 @@ wait(1.5)
 local addon = require("addons").byName["onemorequest"].private
 local W = require("widgets")
 local box = G.ChatFrame1EditBox
-local function message() return box:IsShown() and (box:GetText() or "") or "" end
-local function hasLink(questId) return message():find("|Hquest:" .. questId .. ":", 1, true) ~= nil end
-local function closeChat() if box:IsShown() then box:SetText(""); box:Hide(); box:ClearFocus() end end
+local function message()
+    return box:IsShown() and (box:GetText() or "") or ""
+end
+local function hasLink(questId)
+    return message():find("|Hquest:" .. questId .. ":", 1, true) ~= nil
+end
+local function closeChat()
+    if box:IsShown() then
+        box:SetText("")
+        box:Hide()
+        box:ClearFocus()
+    end
+end
 
 -- The tracker: shift-click opens the chat with the link; the quest stays tracked
-local tracker = G.TrailheadTracker
+local tracker = G.OneMoreQuestTracker
 local function trackerRow(questId, frame)
     for _, child in ipairs({ (frame or tracker):GetChildren() }) do
-        if child.entry and child.entry.questId == questId and child:IsVisible() then return child end
+        if child.entry and child.entry.questId == questId and child:IsVisible() then
+            return child
+        end
         local found = trackerRow(questId, child)
-        if found then return found end
+        if found then
+            return found
+        end
     end
 end
 local row = trackerRow(844)
@@ -51,7 +65,9 @@ local function logRow(questId)
     local canvas = addon.Log.getListCanvas and addon.Log.getListCanvas()
     -- The row itself (its small track button carries the quest too, without a menu)
     for _, button in ipairs(canvas and canvas.pools and canvas.pools.buttons or {}) do
-        if button:IsVisible() and button.data == questId and button.handleRightClick then return button end
+        if button:IsVisible() and button.data == questId and button.handleRightClick then
+            return button
+        end
     end
 end
 local entry = logRow(869)
@@ -69,7 +85,7 @@ if entry then
     closeChat()
     click(entry) -- opens its page
     wait(0.3)
-    local title = G.TrailheadLog and addon.Log.getPageTitleButton and addon.Log.getPageTitleButton()
+    local title = G.OneMoreQuestLog and addon.Log.getPageTitleButton and addon.Log.getPageTitleButton()
     if title then
         click(title, "LeftButton", { shift = true })
         expect(hasLink(869), "shift-click on the quest page's title links it")
@@ -88,7 +104,9 @@ local function isOnTop(button)
 end
 for _, layer in ipairs({ canvas:GetChildren() }) do
     for _, child in ipairs({ layer:GetChildren() }) do
-        if child.mark and child.mark.questId == 844 and child:IsVisible() and (not markButton or isOnTop(child)) then markButton = child end
+        if child.mark and child.mark.questId == 844 and child:IsVisible() and (not markButton or isOnTop(child)) then
+            markButton = child
+        end
     end
 end
 expect(markButton ~= nil, "the map marks Plainstrider Menace")
@@ -104,7 +122,10 @@ wait(0.5)
 local available
 local canvasList = addon.Log.getListCanvas()
 for _, button in ipairs(canvasList.pools.buttons or {}) do
-    if button:IsVisible() and type(button.data) == "number" and button.handleRightClick then available = button; break end
+    if button:IsVisible() and type(button.data) == "number" and button.handleRightClick then
+        available = button
+        break
+    end
 end
 expect(available ~= nil, "the Available tab lists a quest to pick up")
 if available then
@@ -119,7 +140,9 @@ end
 local said
 local listener = G.CreateFrame("Frame")
 listener:RegisterEvent("CHAT_MSG_SAY")
-listener:SetScript("OnEvent", function(_, _, text) said = text end)
+listener:SetScript("OnEvent", function(_, _, text)
+    said = text
+end)
 key("ENTER")
 wait(0.1)
 expect(said and said:find("|Hquest:", 1, true), "Enter says the message with its link")

@@ -27,29 +27,32 @@ test("a dungeon quest is listed under its dungeon and marked at the entrance", f
     expectEqual(#ns.MapMarks.compose(1420), 0, "and on no other zone's map")
 end)
 
-test("a quest that starts inside a dungeon is listed under the dungeon; the zone of its entrance points there and marks it", function()
-    local ns = createAddon()
-    addDungeon()
-    expectEqual(getQuest(getAvailableQuests(ns, 209), 506) ~= nil, true, "listed under the dungeon itself")
-    expectEqual(getQuest(getAvailableQuests(ns, SILVERPINE), 506), nil, "not in the zone outside's list")
-    local onMap = getQuest(getAvailableQuests(ns, SILVERPINE, { shouldIncludeEntrances = true }), 506)
-    expectEqual(onMap ~= nil and #onMap.places, 1, "but on its map, at the entrance")
-    expectEqual(onMap.places[1].dungeonName, "Shadowfang Keep", "which names the dungeon")
-    local isCounted = false
-    for _, questId in ipairs(ns.Availability.getZoneQuestIds(SILVERPINE)) do
-        isCounted = isCounted or questId == 506
+test(
+    "a quest that starts inside a dungeon is listed under the dungeon; the zone of its entrance points there and marks it",
+    function()
+        local ns = createAddon()
+        addDungeon()
+        expectEqual(getQuest(getAvailableQuests(ns, 209), 506) ~= nil, true, "listed under the dungeon itself")
+        expectEqual(getQuest(getAvailableQuests(ns, SILVERPINE), 506), nil, "not in the zone outside's list")
+        local onMap = getQuest(getAvailableQuests(ns, SILVERPINE, { shouldIncludeEntrances = true }), 506)
+        expectEqual(onMap ~= nil and #onMap.places, 1, "but on its map, at the entrance")
+        expectEqual(onMap.places[1].dungeonName, "Shadowfang Keep", "which names the dungeon")
+        local isCounted = false
+        for _, questId in ipairs(ns.Availability.getZoneQuestIds(SILVERPINE)) do
+            isCounted = isCounted or questId == 506
+        end
+        expectEqual(isCounted, false, "nor counted for the zone outside")
+        local entrances = ns.Availability.getEntranceDungeons(SILVERPINE)
+        expectEqual(entrances[1] and entrances[1].dungeonId, 209, "the zone's list points to the dungeon")
+        expectEqual(entrances[1] and entrances[1].count >= 1, true, "with the quests to pick up inside")
+        ns.Log.create()
+        ns.MapDock.create()
+        ns.MapDock.apply()
+        ns.Log.toggle()
+        ns.Log.showZone(SILVERPINE) -- the zone's list draws its row for the keep
+        ns.Log.refresh()
     end
-    expectEqual(isCounted, false, "nor counted for the zone outside")
-    local entrances = ns.Availability.getEntranceDungeons(SILVERPINE)
-    expectEqual(entrances[1] and entrances[1].dungeonId, 209, "the zone's list points to the dungeon")
-    expectEqual(entrances[1] and entrances[1].count >= 1, true, "with the quests to pick up inside")
-    ns.Log.create()
-    ns.MapDock.create()
-    ns.MapDock.apply()
-    ns.Log.toggle()
-    ns.Log.showZone(SILVERPINE) -- the zone's list draws its row for the keep
-    ns.Log.refresh()
-end)
+)
 
 test("a quest that can be done in several zones follows the player and names the other zones", function()
     local ns, state = createAddon()
@@ -63,7 +66,11 @@ test("a quest that can be done in several zones follows the player and names the
     expectEqual(away.zoneId, TIRISFAL, "elsewhere, it lists under the zone the game files it under")
     expectEqual(ns.Model.composeOtherZonesText(away.otherZoneIds), "Also in Silverpine Forest", "and says where else")
     expectEqual(ns.Model.composeOtherZonesText({}), nil, "a quest with one zone has no such line")
-    expectEqual(ns.Model.composeOtherZonesText({ TIRISFAL, SILVERPINE, 1637, 1497 }):find("and 2 more", 1, true) ~= nil, true, "many zones are counted, not listed")
+    expectEqual(
+        ns.Model.composeOtherZonesText({ TIRISFAL, SILVERPINE, 1637, 1497 }):find("and 2 more", 1, true) ~= nil,
+        true,
+        "many zones are counted, not listed"
+    )
 end)
 
 test("a dungeon with quests to pick up is a location of its own, marked as a dungeon", function()
@@ -75,11 +82,19 @@ test("a dungeon with quests to pick up is a location of its own, marked as a dun
     expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 518) ~= nil, true, "it stays in the giver's zone too")
     local dungeon, zone
     for _, listed in ipairs(ns.Availability.getZones()) do
-        if listed.zoneId == 209 then dungeon = listed end
-        if listed.zoneId == TIRISFAL then zone = listed end
+        if listed.zoneId == 209 then
+            dungeon = listed
+        end
+        if listed.zoneId == TIRISFAL then
+            zone = listed
+        end
     end
     expectEqual(dungeon ~= nil and dungeon.isDungeon, true, "the dungeon is among the locations, as a dungeon")
-    expectEqual(dungeon.count, 5, "counting the quest for it, the one that starts inside, and two chains that lead in, one by two lead-ins")
+    expectEqual(
+        dungeon.count,
+        5,
+        "counting the quest for it, the one that starts inside, and two chains that lead in, one by two lead-ins"
+    )
     expectEqual(zone.isDungeon, false, "an ordinary zone is not")
 end)
 
@@ -113,14 +128,22 @@ test("a spawn recorded by an area inside a dungeon is placed at the dungeon's en
     expectEqual(places[1].dungeonName, "Shadowfang Keep", "the entrance names the dungeon")
     expectEqual(places[1].mapZoneId, SILVERPINE, "and is drawn on the map of the zone outside")
     expectEqual(places[2].isInside and places[2].groupZoneId, 209, "the spot inside is kept for the dungeon's own map")
-    expectEqual(ns.Database.getDungeon(2090) ~= nil and ns.Database.getDungeon(2090).areaId, 209, "an area inside a dungeon belongs to it")
+    expectEqual(
+        ns.Database.getDungeon(2090) ~= nil and ns.Database.getDungeon(2090).areaId,
+        209,
+        "an area inside a dungeon belongs to it"
+    )
 end)
 
 test("inside a dungeon the player's location comes from the game's number for the instance", function()
     local ns = createAddon()
     addDungeon()
-    IsInInstance = function() return true end
-    GetInstanceInfo = function() return "Shadowfang Keep", "party", 1, "Normal", 5, 0, false, 33 end
+    IsInInstance = function()
+        return true
+    end
+    GetInstanceInfo = function()
+        return "Shadowfang Keep", "party", 1, "Normal", 5, 0, false, 33
+    end
     LibQuestieDB.Support.Get = (function(original)
         return function(name)
             local module = original(name)
@@ -154,7 +177,8 @@ test("a chain that forks before a dungeon is listed under the dungeon down every
         expectEqual(quest ~= nil, true, "lead-in " .. questId .. " is listed under the dungeon")
         expectEqual(quest.dungeonStepTitle, "Down Below", "naming the quest that goes in")
     end
-    state.turnedInQuestIds[524], state.turnedInQuestIds[525], state.turnedInQuestIds[526], state.turnedInQuestIds[527] = true, true, true, true
+    state.turnedInQuestIds[524], state.turnedInQuestIds[525], state.turnedInQuestIds[526], state.turnedInQuestIds[527] =
+        true, true, true, true
     ns.Availability.invalidate()
     local afterwards = getQuest(getAvailableQuests(ns, 209), 528)
     expectEqual(afterwards ~= nil, true, "the quest after the dungeon is listed too")
@@ -169,7 +193,11 @@ test("a dungeon's bar in the quest log draws its gate mark", function()
     ns.MapDock.create()
     ns.Log.toggle()
     ns.Log.refresh()
-    C_Texture = { GetAtlasInfo = function(atlas) return atlas == "Dungeon" and {} or nil end }
+    C_Texture = {
+        GetAtlasInfo = function(atlas)
+            return atlas == "Dungeon" and {} or nil
+        end,
+    }
     ns.Log.refresh()
     C_Texture = nil
 end)
@@ -205,9 +233,15 @@ end)
 test("inside a dungeon the player's location is the dungeon", function()
     local ns = createAddon()
     addDungeon()
-    C_Map.GetBestMapForUnit = function() return nil end
-    IsInInstance = function() return true end
-    GetRealZoneText = function() return "Shadowfang Keep" end
+    C_Map.GetBestMapForUnit = function()
+        return nil
+    end
+    IsInInstance = function()
+        return true
+    end
+    GetRealZoneText = function()
+        return "Shadowfang Keep"
+    end
     expectEqual(ns.Model.getPlayer().zoneId, 209, "found by the instance's name")
     IsInInstance = nil
 end)
@@ -239,54 +273,76 @@ test("a quest is a dungeon's only when its work can be done nowhere else", funct
     expectEqual(ns.Location.getObjectivesDungeonId(606), 209, "one that drops only inside is")
 end)
 
-test("a quest only filed under a dungeon is not counted for it; one done, picked up or handed in inside is, or its work unplaced", function()
-    local ns = createAddon()
-    addDungeon()
-    expectEqual(ns.Location.getInsideDungeonId(601), 209, "its work is inside the keep")
-    expectEqual(ns.Location.getInsideDungeonId(602), 209, "filed under the keep, with work the data does not place: taken to be inside")
-    expectEqual(ns.Location.getInsideDungeonId(605), nil, "filed under the keep, but only waiting at the envoy outside")
-    LibQuestieDB.Quest.Get = (function(original)
-        return function(id, field)
-            if id == 605 and field == "finishedBy" then
-                return { { 5003 } } -- handed in to the archivist, who stands inside
+test(
+    "a quest only filed under a dungeon is not counted for it; one done, picked up or handed in inside is, or its work unplaced",
+    function()
+        local ns = createAddon()
+        addDungeon()
+        expectEqual(ns.Location.getInsideDungeonId(601), 209, "its work is inside the keep")
+        expectEqual(
+            ns.Location.getInsideDungeonId(602),
+            209,
+            "filed under the keep, with work the data does not place: taken to be inside"
+        )
+        expectEqual(
+            ns.Location.getInsideDungeonId(605),
+            nil,
+            "filed under the keep, but only waiting at the envoy outside"
+        )
+        LibQuestieDB.Quest.Get = (function(original)
+            return function(id, field)
+                if id == 605 and field == "finishedBy" then
+                    return { { 5003 } } -- handed in to the archivist, who stands inside
+                end
+                return original(id, field)
             end
-            return original(id, field)
+        end)(LibQuestieDB.Quest.Get)
+        expectEqual(ns.Location.getInsideDungeonId(605), 209, "handed in inside, it is the dungeon's")
+        ns.Availability.prepare()
+        local questIds = {}
+        for _, questId in ipairs(ns.Availability.getZoneQuestIds(209)) do
+            questIds[questId] = true
         end
-    end)(LibQuestieDB.Quest.Get)
-    expectEqual(ns.Location.getInsideDungeonId(605), 209, "handed in inside, it is the dungeon's")
-    ns.Availability.prepare()
-    local questIds = {}
-    for _, questId in ipairs(ns.Availability.getZoneQuestIds(209)) do
-        questIds[questId] = true
+        expectEqual(questIds[601], true, "counted for the dungeon")
+        expectEqual(questIds[520], nil, "a quest leading in is not")
     end
-    expectEqual(questIds[601], true, "counted for the dungeon")
-    expectEqual(questIds[520], nil, "a quest leading in is not")
-end)
+)
 
-test("for a quest filed under a dungeon, places at its entrance count as inside; elsewhere in the zone they do not", function()
-    local ns = createAddon()
-    addDungeon() -- the keep's entrance is at Silverpine 45, 68
-    local spawnsByNpcId = { [5002] = { [130] = { { 46, 67 }, { 44, 70 } } } } -- wolves at the keep's mouth
-    LibQuestieDB.Npc.Get = (function(original)
-        return function(id, field)
-            if field == "spawns" and spawnsByNpcId[id] then
-                return spawnsByNpcId[id]
+test(
+    "for a quest filed under a dungeon, places at its entrance count as inside; elsewhere in the zone they do not",
+    function()
+        local ns = createAddon()
+        addDungeon() -- the keep's entrance is at Silverpine 45, 68
+        local spawnsByNpcId = { [5002] = { [130] = { { 46, 67 }, { 44, 70 } } } } -- wolves at the keep's mouth
+        LibQuestieDB.Npc.Get = (function(original)
+            return function(id, field)
+                if field == "spawns" and spawnsByNpcId[id] then
+                    return spawnsByNpcId[id]
+                end
+                return original(id, field)
             end
-            return original(id, field)
-        end
-    end)(LibQuestieDB.Npc.Get)
-    LibQuestieDB.Quest.Get = (function(original)
-        return function(id, field)
-            if id == 602 and field == "objectives" then
-                return { { { 5002 } } }
+        end)(LibQuestieDB.Npc.Get)
+        LibQuestieDB.Quest.Get = (function(original)
+            return function(id, field)
+                if id == 602 and field == "objectives" then
+                    return { { { 5002 } } }
+                end
+                return original(id, field)
             end
-            return original(id, field)
-        end
-    end)(LibQuestieDB.Quest.Get)
-    expectEqual(ns.Location.getObjectivesDungeonId(602), 209, "creatures at the entrance of the dungeon it is filed under")
-    spawnsByNpcId[5002] = { [130] = { { 20, 20 } } }
-    expectEqual(ns.Location.getObjectivesDungeonId(602), nil, "the same creatures across the zone are not the dungeon's")
-end)
+        end)(LibQuestieDB.Quest.Get)
+        expectEqual(
+            ns.Location.getObjectivesDungeonId(602),
+            209,
+            "creatures at the entrance of the dungeon it is filed under"
+        )
+        spawnsByNpcId[5002] = { [130] = { { 20, 20 } } }
+        expectEqual(
+            ns.Location.getObjectivesDungeonId(602),
+            nil,
+            "the same creatures across the zone are not the dungeon's"
+        )
+    end
+)
 
 test("a dungeon's wing that the database also lists as a dungeon is the dungeon it lies in", function()
     local ns = createAddon()
@@ -340,37 +396,44 @@ test("a quest with work in two dungeons counts for both, as the Orb of Soran'ruk
     expectEqual(dungeonIds[719], true, "and of the other")
 end)
 
-test("a dungeon's run lists every quest done inside by what to do about it, with the lead-ins that open them", function()
-    local ns = createAddon()
-    addDungeon()
-    ns.Availability.prepare()
-    local run = ns.Availability.getDungeonRun(209)
-    local function find(list, questId)
-        for _, quest in ipairs(list) do
-            if quest.questId == questId then
-                return quest
+test(
+    "a dungeon's run lists every quest done inside by what to do about it, with the lead-ins that open them",
+    function()
+        local ns = createAddon()
+        addDungeon()
+        ns.Availability.prepare()
+        local run = ns.Availability.getDungeonRun(209)
+        local function find(list, questId)
+            for _, quest in ipairs(list) do
+                if quest.questId == questId then
+                    return quest
+                end
             end
         end
+        local behind = find(run.behindLeadIn, 521)
+        expectEqual(behind ~= nil, true, "Into the Vault waits behind its lead-in")
+        expectEqual(behind and behind.leadInIds[1], 520, "named: Rumours of the Vault")
+        local leadIn = find(run.pickUp, 520)
+        expectEqual(leadIn and leadIn.isLeadIn, true, "the lead-in is among the quests to pick up, as a lead-in")
+        expectEqual(leadIn and leadIn.leadsToTitle, "Into the Vault", "saying what it opens")
+        expectEqual(
+            find(run.notYet, 601) and find(run.notYet, 601).blocker.text,
+            "Needs level 22",
+            "a quest done inside, out of reach for now, says why"
+        )
+        expectEqual(run.totalCount >= 2, true, "lead-ins are not counted as the dungeon's quests")
+        ns.Log.create()
+        ns.MapDock.create()
+        ns.MapDock.apply()
+        ns.Log.toggle()
+        ns.Log.showZone(209) -- the Available tab on the keep draws its run
+        ns.Log.showQuestAnywhere(521)
+        expectEqual(ns.Log.getSelectedAvailableQuestId(), 521, "a quest behind a lead-in opens its page")
+        ns.Log.toggleChronicle()
+        ns.ChroniclePage.openZone(209)
+        ns.Log.refresh()
     end
-    local behind = find(run.behindLeadIn, 521)
-    expectEqual(behind ~= nil, true, "Into the Vault waits behind its lead-in")
-    expectEqual(behind and behind.leadInIds[1], 520, "named: Rumours of the Vault")
-    local leadIn = find(run.pickUp, 520)
-    expectEqual(leadIn and leadIn.isLeadIn, true, "the lead-in is among the quests to pick up, as a lead-in")
-    expectEqual(leadIn and leadIn.leadsToTitle, "Into the Vault", "saying what it opens")
-    expectEqual(find(run.notYet, 601) and find(run.notYet, 601).blocker.text, "Needs level 22", "a quest done inside, out of reach for now, says why")
-    expectEqual(run.totalCount >= 2, true, "lead-ins are not counted as the dungeon's quests")
-    ns.Log.create()
-    ns.MapDock.create()
-    ns.MapDock.apply()
-    ns.Log.toggle()
-    ns.Log.showZone(209) -- the Available tab on the keep draws its run
-    ns.Log.showQuestAnywhere(521)
-    expectEqual(ns.Log.getSelectedAvailableQuestId(), 521, "a quest behind a lead-in opens its page")
-    ns.Log.toggleChronicle()
-    ns.ChroniclePage.openZone(209)
-    ns.Log.refresh()
-end)
+)
 
 test("a dungeon's run keeps its done quests, so even an all-done dungeon still lists them", function()
     local ns, state = createAddon()
@@ -436,44 +499,57 @@ test("a dungeon quest from an item the data places nowhere is found inside, and 
     ns.Log.showAvailable(506) -- its page, with the dungeon and its entrance
 end)
 
-test("dungeon work ignores places given only on a continent map, and an unplaced giver of a dungeon's quest is inside", function()
-    local ns = createAddon()
-    addDungeon()
-    LibQuestieDB.Npc.Get = (function(original)
-        return function(id, field)
-            if id == 5998 and field == "spawns" then
-                return { [10074] = { { 50, 50 } }, [209] = { { 10, 10 } } } -- one on the continent map, one in the keep
+test(
+    "dungeon work ignores places given only on a continent map, and an unplaced giver of a dungeon's quest is inside",
+    function()
+        local ns = createAddon()
+        addDungeon()
+        LibQuestieDB.Npc.Get = (function(original)
+            return function(id, field)
+                if id == 5998 and field == "spawns" then
+                    return { [10074] = { { 50, 50 } }, [209] = { { 10, 10 } } } -- one on the continent map, one in the keep
+                end
+                if id == 5997 and field == "spawns" then
+                    return nil -- a giver the data places nowhere
+                end
+                return original(id, field)
             end
-            if id == 5997 and field == "spawns" then
-                return nil -- a giver the data places nowhere
+        end)(LibQuestieDB.Npc.Get)
+        LibQuestieDB.Quest.Get = (function(original)
+            return function(id, field)
+                if id == 506 and field == "zoneOrSort" then
+                    return 236
+                end
+                if id == 506 and field == "objectives" then
+                    return { { { 5998 } } }
+                end
+                if id == 506 and field == "startedBy" then
+                    return { { 5997 } }
+                end
+                return original(id, field)
             end
-            return original(id, field)
-        end
-    end)(LibQuestieDB.Npc.Get)
-    LibQuestieDB.Quest.Get = (function(original)
-        return function(id, field)
-            if id == 506 and field == "zoneOrSort" then
-                return 236
-            end
-            if id == 506 and field == "objectives" then
-                return { { { 5998 } } }
-            end
-            if id == 506 and field == "startedBy" then
-                return { { 5997 } }
-            end
-            return original(id, field)
-        end
-    end)(LibQuestieDB.Quest.Get)
-    expectEqual(ns.Location.getObjectivesDungeonIds(506)[1], 209, "the work is the keep's: the continent place is no place")
-    expectEqual(ns.Location.getPickupDungeonId(506), 209, "picked up in the keep")
-end)
+        end)(LibQuestieDB.Quest.Get)
+        expectEqual(
+            ns.Location.getObjectivesDungeonIds(506)[1],
+            209,
+            "the work is the keep's: the continent place is no place"
+        )
+        expectEqual(ns.Location.getPickupDungeonId(506), 209, "picked up in the keep")
+    end
+)
 
 test("a dungeon the database does not know is learned from a run: its entrance and the quests done inside", function()
     local ns, state = createAddon()
     local instanceId = 3001
-    IsInInstance = function() return state.isInInstance == true end
-    GetInstanceInfo = function() return "Alcaz Prison", "party", 1, "Normal", 5, 0, false, instanceId end
-    GetTime = function() return 100 end
+    IsInInstance = function()
+        return state.isInInstance == true
+    end
+    GetInstanceInfo = function()
+        return "Alcaz Prison", "party", 1, "Normal", 5, 0, false, instanceId
+    end
+    GetTime = function()
+        return 100
+    end
     ns.Availability.prepare()
     setQuest(state, 501, false, { killObjective(0, 5) })
     state.isInInstance = false
@@ -488,7 +564,11 @@ test("a dungeon the database does not know is learned from a run: its entrance a
     local dungeon = ns.Database.getDungeon(areaId)
     expectEqual(dungeon and dungeon.name, "Alcaz Prison", "the instance is a dungeon now")
     expectEqual(dungeon and dungeon.isLearned, true, "marked as learned")
-    expectEqual(dungeon and dungeon.entrances[1] and dungeon.entrances[1].zoneId, entranceZoneId, "its entrance is where the player went in")
+    expectEqual(
+        dungeon and dungeon.entrances[1] and dungeon.entrances[1].zoneId,
+        entranceZoneId,
+        "its entrance is where the player went in"
+    )
     expectEqual(ns.Database.getInstanceDungeonId(), areaId, "the player is inside it")
     local questIds = {}
     for _, questId in ipairs(ns.Availability.getZoneQuestIds(areaId)) do
@@ -501,7 +581,11 @@ test("a dungeon the database does not know is learned from a run: its entrance a
     ns.Availability.reset()
     ns.Availability.prepare()
     expectEqual(#ns.Availability.getZoneQuestIds(areaId) >= 2, true, "kept when the index is built again")
-    expectEqual(ns.GameOffers.composeReport():find("Alcaz Prison", 1, true) ~= nil, true, "in the report for the database's makers")
+    expectEqual(
+        ns.GameOffers.composeReport():find("Alcaz Prison", 1, true) ~= nil,
+        true,
+        "in the report for the database's makers"
+    )
     IsInInstance, GetInstanceInfo, GetTime = nil, nil, nil
 end)
 
@@ -544,8 +628,12 @@ local function addTestProvider(ns, dungeonName)
                 local dungeon = ns.Database.getDungeonByName(dungeonName)
                 return dungeon and dungeon.areaId
             end
-            if questId == 501 and field == "questLevel" then return 99 end
-            if questId == 777777 and field == "name" then return "A Quest Only the Provider Has" end
+            if questId == 501 and field == "questLevel" then
+                return 99
+            end
+            if questId == 777777 and field == "name" then
+                return "A Quest Only the Provider Has"
+            end
             return nil
         end,
         getDungeons = function()
@@ -560,38 +648,63 @@ test("quest providers: each field trickles down to the first provider that knows
     expectEqual(ns.Database.getQuestFieldFrom("QuestieDB", 501, "zoneOrSort"), 0, "QuestieDB files the quest nowhere")
     local dungeon = ns.Database.getDungeonByName("Test Hollow")
     expectEqual(dungeon ~= nil and dungeon.isLearned, true, "the provider's dungeon is a dungeon")
-    expectEqual(ns.Database.getQuestField(501, "zoneOrSort"), dungeon and dungeon.areaId, "the provider says where it belongs")
+    expectEqual(
+        ns.Database.getQuestField(501, "zoneOrSort"),
+        dungeon and dungeon.areaId,
+        "the provider says where it belongs"
+    )
     expectEqual(ns.Database.getQuestField(501, "questLevel"), 10, "QuestieDB's own answer wins where it has one")
     expectEqual(ns.Database.getQuestField(501, "name"), "Fresh Start", "and its name stays QuestieDB's")
-    expectEqual(ns.Database.getQuestField(777777, "name"), nil, "a quest QuestieDB lacks stays unknown, for the missed-quest report")
+    expectEqual(
+        ns.Database.getQuestField(777777, "name"),
+        nil,
+        "a quest QuestieDB lacks stays unknown, for the missed-quest report"
+    )
     expectEqual(ns.Database.getQuestField(501, "requiredSourceItems"), nil, "nobody knows it: QuestieDB's empty value")
 end)
 
-test("quest providers: a quest QuestieDB files nowhere goes under the provider's dungeon, marked at its way in", function()
-    local ns = createAddon()
-    addTestProvider(ns, "Test Hollow")
-    local areaId = ns.Database.getDungeonByName("Test Hollow").areaId
-    expectEqual(ns.Location.getQuestDungeonId(501), areaId, "the quest is the dungeon's")
-    local entrance = ns.Database.getDungeon(areaId).entrances[1]
-    expectEqual(entrance and entrance.zoneId, 85, "its way in, from the provider")
-    expectEqual(ns.Database.getDungeonByName("Wailing Caverns") == nil or not ns.Database.getDungeonByName("Wailing Caverns").isLearned, true,
-        "QuestieDB's own dungeons stay its own")
-end)
+test(
+    "quest providers: a quest QuestieDB files nowhere goes under the provider's dungeon, marked at its way in",
+    function()
+        local ns = createAddon()
+        addTestProvider(ns, "Test Hollow")
+        local areaId = ns.Database.getDungeonByName("Test Hollow").areaId
+        expectEqual(ns.Location.getQuestDungeonId(501), areaId, "the quest is the dungeon's")
+        local entrance = ns.Database.getDungeon(areaId).entrances[1]
+        expectEqual(entrance and entrance.zoneId, 85, "its way in, from the provider")
+        expectEqual(
+            ns.Database.getDungeonByName("Wailing Caverns") == nil
+                or not ns.Database.getDungeonByName("Wailing Caverns").isLearned,
+            true,
+            "QuestieDB's own dungeons stay its own"
+        )
+    end
+)
 
 test("quest providers: a dungeon a provider knows and the player later learns by playing is one dungeon", function()
     local ns, state = createAddon()
     addTestProvider(ns, "Alcaz Prison")
     local instanceId = 3001
     local providedId = ns.Database.getDungeonByName("Alcaz Prison").areaId
-    IsInInstance = function() return state.isInInstance == true end
-    GetInstanceInfo = function() return "Alcaz Prison", "party", 1, "Normal", 5, 0, false, instanceId end
-    GetTime = function() return 100 end
+    IsInInstance = function()
+        return state.isInInstance == true
+    end
+    GetInstanceInfo = function()
+        return "Alcaz Prison", "party", 1, "Normal", 5, 0, false, instanceId
+    end
+    GetTime = function()
+        return 100
+    end
     ns.Availability.prepare()
     setQuest(state, 501, false, { killObjective(0, 5) })
     state.isInInstance = true
     ns.LearnedDungeons.handleEvent("PLAYER_ENTERING_WORLD")
     ns.LearnedDungeons.handleEvent("QUEST_ACCEPTED", 520)
-    expectEqual(ns.LearnedDungeons.getAreaId(instanceId), providedId, "the learned instance takes the provider's dungeon's ID")
+    expectEqual(
+        ns.LearnedDungeons.getAreaId(instanceId),
+        providedId,
+        "the learned instance takes the provider's dungeon's ID"
+    )
     expectEqual(ns.Database.getInstanceDungeonId(), providedId, "inside, the player is in that one dungeon")
     expectEqual(ns.Database.getDungeon(providedId).entrances[1].zoneId, 85, "its way in stays the provider's")
     local isListed = false
@@ -602,73 +715,134 @@ test("quest providers: a dungeon a provider knows and the player later learns by
     IsInInstance, GetInstanceInfo, GetTime = nil, nil, nil
 end)
 
-test("DungeonJournal: a quest giver QuestieDB has no place for stands where the journal says, and a quest ready to hand in to them lists under its own zone", function()
-    local ns = createAddon()
-    local Quest = LibQuestieDB.Quest
-    _G.C_AddOns = _G.C_AddOns or {}
-    local savedQuest, savedLoaded = Quest.Get, C_AddOns.IsAddOnLoaded
-    -- The lead-in, picked up elsewhere and handed in to the agent outside the dig; the agent's quest, from the journal
-    Quest.Get = function(id, field)
-        if id == 9601 then return ({ name = "Rumors", questLevel = 31, requiredLevel = 24, zoneOrSort = 85, startedBy = { { 9003 } }, finishedBy = { { 9999 } }, nextQuestInChain = 9602 })[field] end
-        if id == 9602 then return ({ name = "Open Up", questLevel = 31, requiredLevel = 24, zoneOrSort = 85, startedBy = { { 9999 } }, finishedBy = { { 9999 } }, preQuestSingle = { 9601 } })[field] end
-        return savedQuest(id, field)
+test(
+    "DungeonJournal: a quest giver QuestieDB has no place for stands where the journal says, and a quest ready to hand in to them lists under its own zone",
+    function()
+        local ns = createAddon()
+        local Quest = LibQuestieDB.Quest
+        _G.C_AddOns = _G.C_AddOns or {}
+        local savedQuest, savedLoaded = Quest.Get, C_AddOns.IsAddOnLoaded
+        -- The lead-in, picked up elsewhere and handed in to the agent outside the dig; the agent's quest, from the journal
+        Quest.Get = function(id, field)
+            if id == 9601 then
+                return ({
+                    name = "Rumors",
+                    questLevel = 31,
+                    requiredLevel = 24,
+                    zoneOrSort = 85,
+                    startedBy = { { 9003 } },
+                    finishedBy = { { 9999 } },
+                    nextQuestInChain = 9602,
+                })[field]
+            end
+            if id == 9602 then
+                return ({
+                    name = "Open Up",
+                    questLevel = 31,
+                    requiredLevel = 24,
+                    zoneOrSort = 85,
+                    startedBy = { { 9999 } },
+                    finishedBy = { { 9999 } },
+                    preQuestSingle = { 9601 },
+                })[field]
+            end
+            return savedQuest(id, field)
+        end
+        C_AddOns.IsAddOnLoaded = function(name)
+            return name == "ForeverDungeonJournal"
+        end
+        _G.ForeverDungeonJournal_NS = {
+            DB = {
+                ["Test Dig"] = {
+                    quests = {
+                        {
+                            id = 9602,
+                            name = "Open Up",
+                            level = 31,
+                            requires = 24,
+                            startMap = { mapID = 1420, x = 0.514, y = 0.592, targetName = "Hidden Agent" },
+                        },
+                    },
+                },
+            },
+        }
+        expectEqual(ns.Database.getNpcField(9999, "name"), "Hidden Agent", "the journal names them")
+        local spawns = ns.Database.getNpcField(9999, "spawns") or {}
+        local zoneId, points = next(spawns)
+        expectEqual(zoneId ~= nil and points[1][1] == 51.4 and points[1][2] == 59.2, true, "and says where they stand")
+        expectEqual(#ns.Location.getFinisherPlaces(9601) > 0, true, "so the lead-in has somewhere to be handed in")
+        expectEqual(
+            ns.Database.getNpcField(9003, "name"),
+            "Deathguard Morris",
+            "QuestieDB's own creatures stay its own"
+        )
+        Quest.Get, C_AddOns.IsAddOnLoaded, _G.ForeverDungeonJournal_NS = savedQuest, savedLoaded, nil
     end
-    C_AddOns.IsAddOnLoaded = function(name) return name == "ForeverDungeonJournal" end
-    _G.ForeverDungeonJournal_NS = { DB = { ["Test Dig"] = { quests = { {
-        id = 9602, name = "Open Up", level = 31, requires = 24,
-        startMap = { mapID = 1420, x = 0.514, y = 0.592, targetName = "Hidden Agent" },
-    } } } } }
-    expectEqual(ns.Database.getNpcField(9999, "name"), "Hidden Agent", "the journal names them")
-    local spawns = ns.Database.getNpcField(9999, "spawns") or {}
-    local zoneId, points = next(spawns)
-    expectEqual(zoneId ~= nil and points[1][1] == 51.4 and points[1][2] == 59.2, true, "and says where they stand")
-    expectEqual(#ns.Location.getFinisherPlaces(9601) > 0, true, "so the lead-in has somewhere to be handed in")
-    expectEqual(ns.Database.getNpcField(9003, "name"), "Deathguard Morris", "QuestieDB's own creatures stay its own")
-    Quest.Get, C_AddOns.IsAddOnLoaded, _G.ForeverDungeonJournal_NS = savedQuest, savedLoaded, nil
-end)
+)
 
-test("a quest ready to hand in to someone nobody knows the place of lists under its own zone, not Unknown location", function()
-    local ns, state = createAddon()
-    local Quest = LibQuestieDB.Quest
-    local savedQuest = Quest.Get
-    Quest.Get = function(id, field)
-        if id == 9601 then return ({ name = "Rumors", questLevel = 10, requiredLevel = 1, zoneOrSort = 85, startedBy = { { 9003 } }, finishedBy = { { 9999 } } })[field] end
-        return savedQuest(id, field)
+test(
+    "a quest ready to hand in to someone nobody knows the place of lists under its own zone, not Unknown location",
+    function()
+        local ns, state = createAddon()
+        local Quest = LibQuestieDB.Quest
+        local savedQuest = Quest.Get
+        Quest.Get = function(id, field)
+            if id == 9601 then
+                return ({
+                    name = "Rumors",
+                    questLevel = 10,
+                    requiredLevel = 1,
+                    zoneOrSort = 85,
+                    startedBy = { { 9003 } },
+                    finishedBy = { { 9999 } },
+                })[field]
+            end
+            return savedQuest(id, field)
+        end
+        setQuest(state, 9601, true)
+        local entry = ns.Model.composeEntry(9601, ns.Model.getPlayer())
+        expectEqual(entry.zoneId, 85, "under the quest's own zone")
+        Quest.Get = savedQuest
     end
-    setQuest(state, 9601, true)
-    local entry = ns.Model.composeEntry(9601, ns.Model.getPlayer())
-    expectEqual(entry.zoneId, 85, "under the quest's own zone")
-    Quest.Get = savedQuest
-end)
+)
 
-test("a dungeon with no level known opens its page; its buttons leave with the chronicle; its quests are the map's", function()
-    local ns = createAddon()
-    addDungeon()
-    ns.Tracker.create()
-    ns.Log.create()
-    ns.MapDock.create()
-    ns.MapDock.apply()
-    ns.Log.toggle()
-    ns.Availability.prepare()
-    ns.Availability.getZoneLevels = function() return nil, nil end -- no level known for it
-    local entranceButton = ns.LogState.frame.entranceButton
-    entranceButton.Hide = function(self) rawset(self, "isShownNow", false) end
-    entranceButton.SetShown = function(self, isShown) rawset(self, "isShownNow", isShown == true) end
-    ns.Log.showDungeon(209)
-    expectEqual(ns.Log.getShownDungeonId(), 209, "the keep's page opens")
-    expectEqual(rawget(entranceButton, "isShownNow"), true, "with Show entrance")
-    ns.Log.toggleChronicle()
-    expectEqual(rawget(entranceButton, "isShownNow"), false, "the chronicle takes the dungeon's buttons away")
-    ns.Log.toggleChronicle()
-    ns.Log.openSettings()
-    expectEqual(rawget(entranceButton, "isShownNow"), false, "and so do the settings")
-    -- A quest to pick up opened on the Dungeons tab is the one the map highlights, as on the Available tab
-    ns.Log.showDungeon(209, 506)
-    expectEqual(ns.Log.getSelectedDungeonQuestId(), 506, "the quest is open")
-    expectEqual(ns.Log.getHighlightedAvailableQuestId(), 506, "the map highlights its giver")
-    expectEqual(ns.Log.getSelectedAvailableQuestId(), 506, "and Show turn-in marks its turn-in")
-    local quest = ns.Log.getSelectedAvailableQuest()
-    expectEqual(quest and quest.questId, 506, "with its places")
-    ns.Log.showDungeon(209)
-    expectEqual(ns.Log.getHighlightedAvailableQuestId(), nil, "the dungeon's own page highlights no quest")
-end)
+test(
+    "a dungeon with no level known opens its page; its buttons leave with the chronicle; its quests are the map's",
+    function()
+        local ns = createAddon()
+        addDungeon()
+        ns.Tracker.create()
+        ns.Log.create()
+        ns.MapDock.create()
+        ns.MapDock.apply()
+        ns.Log.toggle()
+        ns.Availability.prepare()
+        ns.Availability.getZoneLevels = function()
+            return nil, nil
+        end -- no level known for it
+        local entranceButton = ns.LogState.frame.entranceButton
+        entranceButton.Hide = function(self)
+            rawset(self, "isShownNow", false)
+        end
+        entranceButton.SetShown = function(self, isShown)
+            rawset(self, "isShownNow", isShown == true)
+        end
+        ns.Log.showDungeon(209)
+        expectEqual(ns.Log.getShownDungeonId(), 209, "the keep's page opens")
+        expectEqual(rawget(entranceButton, "isShownNow"), true, "with Show entrance")
+        ns.Log.toggleChronicle()
+        expectEqual(rawget(entranceButton, "isShownNow"), false, "the chronicle takes the dungeon's buttons away")
+        ns.Log.toggleChronicle()
+        ns.Log.openSettings()
+        expectEqual(rawget(entranceButton, "isShownNow"), false, "and so do the settings")
+        -- A quest to pick up opened on the Dungeons tab is the one the map highlights, as on the Available tab
+        ns.Log.showDungeon(209, 506)
+        expectEqual(ns.Log.getSelectedDungeonQuestId(), 506, "the quest is open")
+        expectEqual(ns.Log.getHighlightedAvailableQuestId(), 506, "the map highlights its giver")
+        expectEqual(ns.Log.getSelectedAvailableQuestId(), 506, "and Show turn-in marks its turn-in")
+        local quest = ns.Log.getSelectedAvailableQuest()
+        expectEqual(quest and quest.questId, 506, "with its places")
+        ns.Log.showDungeon(209)
+        expectEqual(ns.Log.getHighlightedAvailableQuestId(), nil, "the dungeon's own page highlights no quest")
+    end
+)

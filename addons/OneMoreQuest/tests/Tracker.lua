@@ -147,48 +147,99 @@ test("without QuestieDB quests still list, under an unknown location", function(
     expectEqual(model.groups[1].zoneName, "Unknown location", "zone name")
 end)
 
-test("tracking past the game's limit is refused with the game's message, and unfocusing keeps the quest open", function()
+test("with the setting on, a quest moving on is not tracked by it: only taking it or tracking it does", function()
     local ns, state = createAddon()
-    local shown
-    UIErrorsFrame = { AddMessage = function(_, text) shown = text end }
-    for questId = 1001, 1025 do
-        state.watchedQuestIds[#state.watchedQuestIds + 1] = questId
+    local isWatched = function(questId)
+        for _, watchedQuestId in ipairs(state.watchedQuestIds) do
+            if watchedQuestId == questId then
+                return true
+            end
+        end
+        return false
     end
-    state.questLog[201] = { isComplete = false, objectives = { killObjective(5, 12) } }
-    expectEqual(ns.QuestState.addWatch(201), false, "the 26th quest is not tracked")
-    expectEqual(shown ~= nil, true, "and the player is told why")
-    state.watchedQuestIds = {}
-    shown = nil
-    expectEqual(ns.QuestState.addWatch(201), true, "with room, it is tracked")
-    expectEqual(shown, nil, "without a message")
-    ns.Tracker.create()
-    ns.Log.create()
-    ns.MapDock.create()
-    ns.MapDock.apply()
-    ns.Log.toggle()
-    ns.Log.selectQuest(201)
-    ns.Focus.set(201)
-    ns.Focus.set(nil)
-    expectEqual(ns.Log.getSelectedQuestId(), 201, "taking the focus off leaves the quest open")
-    expectEqual(ns.MapMarks.getFocusedQuestId(), nil, "but the map no longer shows it as the one in focus")
-    ns.Log.selectQuest(201)
-    expectEqual(ns.MapMarks.getFocusedQuestId(), 201, "till it is picked again")
-    state.watchedQuestIds = {}
-    ns.Focus.handleQuestGone(201)
-    expectEqual(ns.Log.getSelectedQuestId(), 201, "and so does untracking it")
-    state.questLog[201] = nil
-    ns.Focus.handleQuestGone(201)
-    expectEqual(ns.Log.getSelectedQuestId(), nil, "a quest that left the log is let go")
-    UIErrorsFrame = nil
+    for _, questId in ipairs({ 501, 502, 503 }) do
+        state.questLog[questId] = { isComplete = false, objectives = { killObjective(0, 5) } }
+    end
+    ns.QuestState.noteWatchEvent("QUEST_WATCH_LIST_CHANGED") -- (what is tracked, first seen: nothing)
+    -- Off (as it comes): the game's way, a quest that moves on is tracked
+    expectEqual(ns.settings.shouldKeepUntracked, false, "off unless the player turns it on")
+    C_QuestLog.AddQuestWatch(501)
+    ns.QuestState.noteWatchEvent("QUEST_WATCH_UPDATE", 501)
+    expectEqual(isWatched(501), true, "off: the game's tracking of a quest that moved on stays")
+    C_QuestLog.RemoveQuestWatch(501)
+    ns.QuestState.noteWatchEvent("QUEST_WATCH_LIST_CHANGED")
+    -- On: an item picked up for an untracked quest, the game tracks it (autoQuestWatch), then says it moved on
+    ns.settings.shouldKeepUntracked = true
+    C_QuestLog.AddQuestWatch(501)
+    ns.QuestState.noteWatchEvent("QUEST_WATCH_UPDATE", 501)
+    expectEqual(isWatched(501), false, "on: tracked by the game for moving on, untracked again")
+    -- The player tracks a quest that just moved on: kept
+    ns.QuestState.noteWatchEvent("QUEST_WATCH_UPDATE", 502)
+    expectEqual(ns.QuestState.addWatch(502), true, "the player tracks it")
+    ns.QuestState.noteWatchEvent("QUEST_WATCH_LIST_CHANGED")
+    expectEqual(isWatched(502), true, "the player's own tracking stays")
+    -- A quest just taken, tracked by the game as it is taken, moving on at once (its items already carried): kept
+    ns.QuestState.noteWatchEvent("QUEST_ACCEPTED", 503)
+    C_QuestLog.AddQuestWatch(503)
+    ns.QuestState.noteWatchEvent("QUEST_WATCH_UPDATE", 503)
+    expectEqual(isWatched(503), true, "a quest just taken keeps the tracking it was taken with")
 end)
+
+test(
+    "tracking past the game's limit is refused with the game's message, and unfocusing keeps the quest open",
+    function()
+        local ns, state = createAddon()
+        local shown
+        UIErrorsFrame = {
+            AddMessage = function(_, text)
+                shown = text
+            end,
+        }
+        for questId = 1001, 1025 do
+            state.watchedQuestIds[#state.watchedQuestIds + 1] = questId
+        end
+        state.questLog[201] = { isComplete = false, objectives = { killObjective(5, 12) } }
+        expectEqual(ns.QuestState.addWatch(201), false, "the 26th quest is not tracked")
+        expectEqual(shown ~= nil, true, "and the player is told why")
+        state.watchedQuestIds = {}
+        shown = nil
+        expectEqual(ns.QuestState.addWatch(201), true, "with room, it is tracked")
+        expectEqual(shown, nil, "without a message")
+        ns.Tracker.create()
+        ns.Log.create()
+        ns.MapDock.create()
+        ns.MapDock.apply()
+        ns.Log.toggle()
+        ns.Log.selectQuest(201)
+        ns.Focus.set(201)
+        ns.Focus.set(nil)
+        expectEqual(ns.Log.getSelectedQuestId(), 201, "taking the focus off leaves the quest open")
+        expectEqual(ns.MapMarks.getFocusedQuestId(), nil, "but the map no longer shows it as the one in focus")
+        ns.Log.selectQuest(201)
+        expectEqual(ns.MapMarks.getFocusedQuestId(), 201, "till it is picked again")
+        state.watchedQuestIds = {}
+        ns.Focus.handleQuestGone(201)
+        expectEqual(ns.Log.getSelectedQuestId(), 201, "and so does untracking it")
+        state.questLog[201] = nil
+        ns.Focus.handleQuestGone(201)
+        expectEqual(ns.Log.getSelectedQuestId(), nil, "a quest that left the log is let go")
+        UIErrorsFrame = nil
+    end
+)
 
 test("timed, failed and escort quests are recognised, and the tracker draws them", function()
     local ns, state = createAddon()
     setQuest(state, 201, false, { killObjective(5, 12) })
     expectEqual(ns.QuestState.getTimeLeft(201), nil, "no time limit")
-    C_QuestLog.GetTimeAllowed = function(questId) if questId == 201 then return 900, 300 end end
+    C_QuestLog.GetTimeAllowed = function(questId)
+        if questId == 201 then
+            return 900, 300
+        end
+    end
     expectEqual(ns.QuestState.getTimeLeft(201), 600, "ten minutes left")
-    C_QuestLog.IsFailed = function(questId) return questId == 201 end
+    C_QuestLog.IsFailed = function(questId)
+        return questId == 201
+    end
     expectEqual(ns.QuestState.isFailed(201), true, "failed")
     expectEqual(ns.QuestState.isEscort(201), false, "not an escort")
     ns.Tracker.create()
@@ -207,19 +258,35 @@ test("hovering a quest in the tracker says what drops each item still to get", f
     local ns, state = createAddon()
     setQuest(state, 301, false, { killObjective(0, 12), itemObjective(0, 4) })
     local entry = ns.Model.composeEntry(301, ns.Model.getPlayer())
-    ns.Location.getObjectiveTarget = function(questId, kind) if kind == "item" then return { itemId = 5175 } end end
+    ns.Location.getObjectiveTarget = function(questId, kind)
+        if kind == "item" then
+            return { itemId = 5175 }
+        end
+    end
     ns.Drops.getZones = function()
         return { { sources = { { name = "Kraul Bat", chance = 0.09 }, { name = "Supply Crate" } } } }
     end
     local lines = {}
     local savedTooltip = GameTooltip
     GameTooltip = setmetatable({
-        AddLine = function(_, text) lines[#lines + 1] = text end,
-        AddDoubleLine = function(_, left, right) lines[#lines + 1] = left .. "|" .. tostring(right) end,
-    }, { __index = function() return function() end end })
+        AddLine = function(_, text)
+            lines[#lines + 1] = text
+        end,
+        AddDoubleLine = function(_, left, right)
+            lines[#lines + 1] = left .. "|" .. tostring(right)
+        end,
+    }, {
+        __index = function()
+            return function() end
+        end,
+    })
     ns.Tracker.showTooltip({ entry = entry })
     local text = table.concat(lines, "\n")
-    expectEqual(text:find("Kraul Bat|" .. ns.Drops.formatChance(0.09), 1, true) ~= nil, true, "the creature that drops it, with its chance")
+    expectEqual(
+        text:find("Kraul Bat|" .. ns.Drops.formatChance(0.09), 1, true) ~= nil,
+        true,
+        "the creature that drops it, with its chance"
+    )
     expectEqual(text:find("Supply Crate", 1, true) ~= nil, true, "and an object that holds it")
     lines = {}
     entry.objectives[2].isFinished = true
@@ -297,8 +364,12 @@ test("a group quest gets the game's plus and a players mark with the suggested s
     local ns = createAddon()
     expectEqual(ns.QuestState.getGroupInfo(201), nil, "an ordinary quest has no group mark")
     expectEqual(ns.Widgets.formatQuestTitle(13, "Bandit Trouble", nil), "[13] Bandit Trouble", "and reads as before")
-    C_QuestLog.GetQuestTagInfo = function(questId) return { tagID = questId == 201 and 1 or 81 } end
-    C_QuestLog.GetSuggestedGroupSize = function(questId) return questId == 201 and 3 or 0 end
+    C_QuestLog.GetQuestTagInfo = function(questId)
+        return { tagID = questId == 201 and 1 or 81 }
+    end
+    C_QuestLog.GetSuggestedGroupSize = function(questId)
+        return questId == 201 and 3 or 0
+    end
     local group = ns.QuestState.getGroupInfo(201)
     expectEqual(group.kindText, "Group quest", "the game's label")
     expectEqual(group.size, 3, "and its suggested size")
@@ -327,55 +398,121 @@ test("an item players make says how to get it: the profession, and the player's 
     ns.CraftedItems[9001] = { 171, 0 } -- an alchemist's elixir, its recipe's skill not known
     ns.CraftedItems[9002] = { 164, 125 } -- a smith's piece, needing 125
     local ranks = {}
-    ns.Availability.getSkillRank = function(skillId) return ranks[skillId] or 0 end
-    expectEqual(ns.Crafting.describe(9001), "Made with Alchemy · get it from a crafter or the Auction House", "no alchemy: where to get it")
+    ns.Availability.getSkillRank = function(skillId)
+        return ranks[skillId] or 0
+    end
+    expectEqual(
+        ns.Crafting.describe(9001),
+        "Made with Alchemy · get it from a crafter or the Auction House",
+        "no alchemy: where to get it"
+    )
     ranks[171] = 165
-    expectEqual(ns.Crafting.describe(9001), "Made with Alchemy · you can make it if you know the recipe (skill 165)", "an alchemist: they can make it")
+    expectEqual(
+        ns.Crafting.describe(9001),
+        "Made with Alchemy · you can make it if you know the recipe (skill 165)",
+        "an alchemist: they can make it"
+    )
     ranks[164] = 90
-    expectEqual(ns.Crafting.describe(9002), "Made with Blacksmithing 125 · you have 90", "not skilled enough yet: how far")
+    expectEqual(
+        ns.Crafting.describe(9002),
+        "Made with Blacksmithing 125 · you have 90",
+        "not skilled enough yet: how far"
+    )
     expectEqual(ns.Crafting.describe(7001), nil, "an item no one makes")
     -- With Auctionator's price: what it costs, for one who cannot make it
     local savedPrice = ns.Prices.getAuctionPrice
-    ns.Prices.getAuctionPrice = function(itemId) return itemId == 9002 and 12050 or nil end
+    ns.Prices.getAuctionPrice = function(itemId)
+        return itemId == 9002 and 12050 or nil
+    end
     ranks[164] = nil
-    expectEqual(ns.Crafting.describe(9002), "Made with Blacksmithing 125 · get it from a crafter, or about " .. ns.Widgets.formatMoney(12050) .. " at the Auction House", "the auction price")
+    expectEqual(
+        ns.Crafting.describe(9002),
+        "Made with Blacksmithing 125 · get it from a crafter, or about "
+            .. ns.Widgets.formatMoney(12050)
+            .. " at the Auction House",
+        "the auction price"
+    )
     ns.Prices.getAuctionPrice = savedPrice
     -- The profession window lists the recipe: known from then on
     ranks[171] = 165
-    local savedLine, savedCount, savedInfo, savedLink = GetTradeSkillLine, GetNumTradeSkills, GetTradeSkillInfo, GetTradeSkillItemLink
-    GetTradeSkillLine = function() return "Alchemy", 165, 300 end
-    GetNumTradeSkills = function() return 2 end
-    GetTradeSkillInfo = function(index) return index == 1 and "Elixirs" or "An Elixir", index == 1 and "header" or "optimal" end
-    GetTradeSkillItemLink = function(index) return index == 2 and "|cffffffff|Hitem:9001::::::::|h[An Elixir]|h|r" or nil end
+    local savedLine, savedCount, savedInfo, savedLink =
+        GetTradeSkillLine, GetNumTradeSkills, GetTradeSkillInfo, GetTradeSkillItemLink
+    GetTradeSkillLine = function()
+        return "Alchemy", 165, 300
+    end
+    GetNumTradeSkills = function()
+        return 2
+    end
+    GetTradeSkillInfo = function(index)
+        return index == 1 and "Elixirs" or "An Elixir", index == 1 and "header" or "optimal"
+    end
+    GetTradeSkillItemLink = function(index)
+        return index == 2 and "|cffffffff|Hitem:9001::::::::|h[An Elixir]|h|r" or nil
+    end
     expectEqual(ns.Crafting.readProfessionWindow(), true, "a recipe learnt from the window")
     expectEqual(ns.Crafting.readProfessionWindow(), false, "and not again")
     expectEqual(ns.Crafting.describe(9001), "Made with Alchemy · you know the recipe", "known: said so")
-    GetTradeSkillLine, GetNumTradeSkills, GetTradeSkillInfo, GetTradeSkillItemLink = savedLine, savedCount, savedInfo, savedLink
+    GetTradeSkillLine, GetNumTradeSkills, GetTradeSkillInfo, GetTradeSkillItemLink =
+        savedLine, savedCount, savedInfo, savedLink
     ns.settings.knownRecipes = nil
     -- WoW: Forever's window, through C_TradeSkillUI: only the learnt recipe counts
     local savedUi = C_TradeSkillUI
     C_TradeSkillUI = {
-        GetAllRecipeIDs = function() return { 101, 102 } end,
-        GetRecipeInfo = function(recipeId) return { learned = recipeId == 101 } end,
-        GetRecipeSchematic = function(recipeId) return { outputItemID = recipeId == 101 and 9001 or 9002 } end,
+        GetAllRecipeIDs = function()
+            return { 101, 102 }
+        end,
+        GetRecipeInfo = function(recipeId)
+            return { learned = recipeId == 101 }
+        end,
+        GetRecipeSchematic = function(recipeId)
+            return { outputItemID = recipeId == 101 and 9001 or 9002 }
+        end,
     }
     expectEqual(ns.Crafting.readProfessionWindow(), true, "read through C_TradeSkillUI")
     expectEqual(ns.Crafting.isRecipeKnown(9001), true, "the learnt recipe's item")
     expectEqual(ns.Crafting.isRecipeKnown(9002), false, "not one listed but not learnt")
     local savedPrice2 = ns.Prices.getAuctionPrice
-    ns.Prices.getAuctionPrice = function() return 12050 end
-    expectEqual(ns.Crafting.describe(9001), "Made with Alchemy · you know the recipe · about " .. ns.Widgets.formatMoney(12050) .. " at the Auction House", "known, and its price to buy rather than make")
+    ns.Prices.getAuctionPrice = function()
+        return 12050
+    end
+    expectEqual(
+        ns.Crafting.describe(9001),
+        "Made with Alchemy · you know the recipe · about " .. ns.Widgets.formatMoney(12050) .. " at the Auction House",
+        "known, and its price to buy rather than make"
+    )
     ns.Prices.getAuctionPrice = savedPrice2
     -- What the quest still asks for, less what waits in the bank: priced for the rest, the bank's said
-    ns.Prices.getAuctionPrice = function() return 7399 end
+    ns.Prices.getAuctionPrice = function()
+        return 7399
+    end
     local savedItem = C_Item
     local bags, bank = 0, 0
-    C_Item = setmetatable({ GetItemCount = function(_, includeBank) return bags + (includeBank and bank or 0) end }, { __index = savedItem })
-    expectEqual(ns.Crafting.describe(9001, 4), "Made with Alchemy · you know the recipe · about " .. ns.Widgets.formatMoney(7399 * 4) .. " for 4 at the Auction House", "four still needed: priced for four")
+    C_Item = setmetatable({
+        GetItemCount = function(_, includeBank)
+            return bags + (includeBank and bank or 0)
+        end,
+    }, { __index = savedItem })
+    expectEqual(
+        ns.Crafting.describe(9001, 4),
+        "Made with Alchemy · you know the recipe · about "
+            .. ns.Widgets.formatMoney(7399 * 4)
+            .. " for 4 at the Auction House",
+        "four still needed: priced for four"
+    )
     bank = 2
-    expectEqual(ns.Crafting.describe(9001, 4), "Made with Alchemy · you know the recipe · about " .. ns.Widgets.formatMoney(7399 * 2) .. " for 2 at the Auction House · 2 in your bank", "two in the bank: the other two priced")
+    expectEqual(
+        ns.Crafting.describe(9001, 4),
+        "Made with Alchemy · you know the recipe · about "
+            .. ns.Widgets.formatMoney(7399 * 2)
+            .. " for 2 at the Auction House · 2 in your bank",
+        "two in the bank: the other two priced"
+    )
     bank = 5
-    expectEqual(ns.Crafting.describe(9001, 4), "Made with Alchemy · you know the recipe · 5 in your bank", "the bank has enough: no price")
+    expectEqual(
+        ns.Crafting.describe(9001, 4),
+        "Made with Alchemy · you know the recipe · 5 in your bank",
+        "the bank has enough: no price"
+    )
     C_Item = savedItem
     ns.Prices.getAuctionPrice = savedPrice2
     C_TradeSkillUI = savedUi
@@ -383,7 +520,9 @@ test("an item players make says how to get it: the profession, and the player's 
     -- On the quest page's objective: found by its name when the database's quest does not list it, and said instead of
     -- "not on the map"
     local savedIdsByName = LibQuestieDB.Item.IdsByName
-    LibQuestieDB.Item.IdsByName = function(name) return name == "Lesser Troll's Blood Elixir" and { 9001 } or nil end
+    LibQuestieDB.Item.IdsByName = function(name)
+        return name == "Lesser Troll's Blood Elixir" and { 9001 } or nil
+    end
     local _, text, isCrafted = ns.Location.getObjectiveInfo(201, "item", 9, "Lesser Troll's Blood Elixir")
     expectEqual(text, "Made with Alchemy · you can make it if you know the recipe (skill 165)", "found by its name")
     expectEqual(isCrafted, true, "and marked as made, so the page says this instead of where")
@@ -398,17 +537,32 @@ test("a crafted item's price on the quest page is for how many the quest still a
     local savedQuest, savedPrice = Quest.Get, ns.Prices.getAuctionPrice
     Quest.Get = function(id, field)
         if id == 9400 then
-            return ({ name = "On Bronze Pauldrons", questLevel = 32, zoneOrSort = -121, finishedBy = { { 9002 } }, objectives = { nil, nil, { { 9401 } } } })[field]
+            return ({
+                name = "On Bronze Pauldrons",
+                questLevel = 32,
+                zoneOrSort = -121,
+                finishedBy = { { 9002 } },
+                objectives = { nil, nil, { { 9401 } } },
+            })[field]
         end
         return savedQuest(id, field)
     end
     ns.CraftedItems[9401] = { 164, 0 }
-    ns.Prices.getAuctionPrice = function(itemId) return itemId == 9401 and 7399 or nil end
+    ns.Prices.getAuctionPrice = function(itemId)
+        return itemId == 9401 and 7399 or nil
+    end
     state.questLog[9400] = { isComplete = false, objectives = { itemObjective(1, 4) } }
     local entry = ns.Model.composeEntry(9400, ns.Model.getPlayer())
     local details = ns.LogQuestPage.composeObjectiveDetails(entry)
-    expectEqual(details[1].sourceText:find("about " .. ns.Widgets.formatMoney(7399 * 3) .. " for 3 at the Auction House", 1, true) ~= nil, true,
-        "1 of 4 made: the other three priced")
+    expectEqual(
+        details[1].sourceText:find(
+            "about " .. ns.Widgets.formatMoney(7399 * 3) .. " for 3 at the Auction House",
+            1,
+            true
+        ) ~= nil,
+        true,
+        "1 of 4 made: the other three priced"
+    )
     Quest.Get, ns.Prices.getAuctionPrice = savedQuest, savedPrice
 end)
 
@@ -419,7 +573,13 @@ test("a profession quest whose items have nowhere to go is listed by its turn-in
     local savedQuest = Quest.Get
     Quest.Get = function(id, field)
         if id == 9400 then
-            return ({ name = "On Bronze Pauldrons", questLevel = 32, zoneOrSort = -121, finishedBy = { { 9002 } }, objectives = { nil, nil, { { 9401 } } } })[field]
+            return ({
+                name = "On Bronze Pauldrons",
+                questLevel = 32,
+                zoneOrSort = -121,
+                finishedBy = { { 9002 } },
+                objectives = { nil, nil, { { 9401 } } },
+            })[field]
         end
         return savedQuest(id, field)
     end
@@ -440,9 +600,17 @@ test("a profession quest whose items have nowhere to go is listed by its turn-in
     ns.Focus.set(9400)
     expectEqual(pendingMarks(), 1, "focused: the game's ? in grey where it will be handed in")
     ns.Focus.set(nil)
-    local savedOpen, savedSelected, savedUnfocused = ns.Log.isOpen, ns.Log.getSelectedQuestId, ns.Log.isUnfocusedSelection
-    ns.Log.isOpen, ns.Log.getSelectedQuestId = function() return true end, function() return 9400 end
-    ns.Log.isUnfocusedSelection = function() return false end -- (picked in the log, not just unfocused)
+    local savedOpen, savedSelected, savedUnfocused =
+        ns.Log.isOpen, ns.Log.getSelectedQuestId, ns.Log.isUnfocusedSelection
+    ns.Log.isOpen, ns.Log.getSelectedQuestId =
+        function()
+            return true
+        end, function()
+            return 9400
+        end
+    ns.Log.isUnfocusedSelection = function()
+        return false
+    end -- (picked in the log, not just unfocused)
     expectEqual(pendingMarks(), 1, "highlighted in the open quest log, not followed: grey ? too")
     ns.Log.isOpen, ns.Log.getSelectedQuestId, ns.Log.isUnfocusedSelection = savedOpen, savedSelected, savedUnfocused
     ns.Focus.set(9400)
@@ -458,22 +626,37 @@ test("a quest's people are not sent to in the other faction's towns, when they s
     -- standing there and out by a lake at 80,80; a quest handed in to her
     local Npc, Quest = LibQuestieDB.Npc, LibQuestieDB.Quest
     local savedNpc, savedIds, savedQuest = Npc.Get, Npc.GetAllIds, Quest.Get
-    local extraNpcs = { [9100] = { name = "Image of an Archmage", friendlyToFaction = "AH", spawns = { [85] = { { 20, 20 }, { 80, 80 } } } } }
+    local extraNpcs = {
+        [9100] = {
+            name = "Image of an Archmage",
+            friendlyToFaction = "AH",
+            spawns = { [85] = { { 20, 20 }, { 80, 80 } } },
+        },
+    }
     for index = 1, 10 do
-        extraNpcs[9200 + index] = { name = "Town guard", friendlyToFaction = "A", spawns = { [85] = { { 18 + index % 4, 19 + index % 3 } } } }
+        extraNpcs[9200 + index] =
+            { name = "Town guard", friendlyToFaction = "A", spawns = { [85] = { { 18 + index % 4, 19 + index % 3 } } } }
     end
     Npc.Get = function(id, field)
-        if extraNpcs[id] then return extraNpcs[id][field] end
+        if extraNpcs[id] then
+            return extraNpcs[id][field]
+        end
         return savedNpc(id, field)
     end
     Npc.GetAllIds = function()
         local ids = savedIds()
-        for id in pairs(extraNpcs) do ids[#ids + 1] = id end
+        for id in pairs(extraNpcs) do
+            ids[#ids + 1] = id
+        end
         return ids
     end
     Quest.Get = function(id, field)
-        if id == 9300 then return ({ name = "Shrewd Talk", finishedBy = { { 9100 } } })[field] end
-        if id == 9301 then return ({ name = "Free From the Fort", finishedBy = { { 9101 } } })[field] end
+        if id == 9300 then
+            return ({ name = "Shrewd Talk", finishedBy = { { 9100 } } })[field]
+        end
+        if id == 9301 then
+            return ({ name = "Free From the Fort", finishedBy = { { 9101 } } })[field]
+        end
         return savedQuest(id, field)
     end
     state.playerFaction = "Horde"
@@ -498,8 +681,12 @@ test("the tracker's focus is the game's own: kept from the game at login, and fo
     local superTracked = 301
     local saved = C_SuperTrack
     C_SuperTrack = {
-        GetSuperTrackedQuestID = function() return superTracked end,
-        SetSuperTrackedQuestID = function(questId) superTracked = questId end,
+        GetSuperTrackedQuestID = function()
+            return superTracked
+        end,
+        SetSuperTrackedQuestID = function(questId)
+            superTracked = questId
+        end,
     }
     ns.settings.focusedQuestIds = { ["nil-?"] = 201, ["?-?"] = 201 } -- this addon's own memory, for either fake name
     ns.Focus.create()
@@ -523,8 +710,13 @@ test("the game's focus is set only for the player's own choices, never from the 
     local superTracked, calls = 201, 0
     local saved = C_SuperTrack
     C_SuperTrack = {
-        GetSuperTrackedQuestID = function() return superTracked end,
-        SetSuperTrackedQuestID = function(questId) superTracked = questId; calls = calls + 1 end,
+        GetSuperTrackedQuestID = function()
+            return superTracked
+        end,
+        SetSuperTrackedQuestID = function(questId)
+            superTracked = questId
+            calls = calls + 1
+        end,
     }
     ns.Focus.create()
     ns.Focus.handleGameFocusChanged()
@@ -537,47 +729,56 @@ test("the game's focus is set only for the player's own choices, never from the 
     C_SuperTrack = saved
 end)
 
-test("with \"Focus quests you accept\" off, the game focusing a quest just accepted leaves the focus where it was", function()
-    local ns, state = createAddon()
-    setQuest(state, 201, false, { killObjective(0, 8) })
-    setQuest(state, 301, false, { killObjective(0, 8) })
-    local superTracked = 201
-    local saved = C_SuperTrack
-    C_SuperTrack = {
-        GetSuperTrackedQuestID = function() return superTracked end,
-        SetSuperTrackedQuestID = function(questId) superTracked = questId end,
-    }
-    ns.Focus.create()
-    -- On: the game's focus on the new quest is followed
-    ns.handleEvent(nil, "QUEST_ACCEPTED", 301)
-    superTracked = 301
-    ns.Focus.handleGameFocusChanged()
-    expectEqual(ns.Focus.getPicked(), 301, "on: the quest accepted goes into focus")
-    -- Off, the game focusing it after the quest is accepted
-    ns.Focus.set(201)
-    ns.settings.shouldFocusAccepted = false
-    ns.handleEvent(nil, "QUEST_ACCEPTED", 301)
-    superTracked = 301
-    ns.Focus.handleGameFocusChanged()
-    expectEqual(ns.Focus.getPicked(), 201, "off: the quest in focus stays")
-    -- Off, the game focusing it before the event comes (the older clients' order: log index, then the quest)
-    ns.Focus.set(201)
-    superTracked = 301
-    ns.Focus.handleGameFocusChanged()
-    ns.handleEvent(nil, "QUEST_ACCEPTED", 3, 301)
-    expectEqual(ns.Focus.getPicked(), 201, "off, either order: the quest in focus stays")
-    -- The player's own choice is never undone
-    ns.Focus.set(301)
-    expectEqual(ns.Focus.getPicked(), 301, "the player can still focus it")
-    C_SuperTrack = saved
-end)
+test(
+    'with "Focus quests you accept" off, the game focusing a quest just accepted leaves the focus where it was',
+    function()
+        local ns, state = createAddon()
+        setQuest(state, 201, false, { killObjective(0, 8) })
+        setQuest(state, 301, false, { killObjective(0, 8) })
+        local superTracked = 201
+        local saved = C_SuperTrack
+        C_SuperTrack = {
+            GetSuperTrackedQuestID = function()
+                return superTracked
+            end,
+            SetSuperTrackedQuestID = function(questId)
+                superTracked = questId
+            end,
+        }
+        ns.Focus.create()
+        -- On: the game's focus on the new quest is followed
+        ns.handleEvent(nil, "QUEST_ACCEPTED", 301)
+        superTracked = 301
+        ns.Focus.handleGameFocusChanged()
+        expectEqual(ns.Focus.getPicked(), 301, "on: the quest accepted goes into focus")
+        -- Off, the game focusing it after the quest is accepted
+        ns.Focus.set(201)
+        ns.settings.shouldFocusAccepted = false
+        ns.handleEvent(nil, "QUEST_ACCEPTED", 301)
+        superTracked = 301
+        ns.Focus.handleGameFocusChanged()
+        expectEqual(ns.Focus.getPicked(), 201, "off: the quest in focus stays")
+        -- Off, the game focusing it before the event comes (the older clients' order: log index, then the quest)
+        ns.Focus.set(201)
+        superTracked = 301
+        ns.Focus.handleGameFocusChanged()
+        ns.handleEvent(nil, "QUEST_ACCEPTED", 3, 301)
+        expectEqual(ns.Focus.getPicked(), 201, "off, either order: the quest in focus stays")
+        -- The player's own choice is never undone
+        ns.Focus.set(301)
+        expectEqual(ns.Focus.getPicked(), 301, "the player can still focus it")
+        C_SuperTrack = saved
+    end
+)
 
 test("a category's group opens when a quest's next step is where the player is, and stays folded elsewhere", function()
     local ns, state = createAddon()
     setQuest(state, 606, false, { itemObjective(0, 4) }) -- a cooking quest
     local function getCookingGroup()
         for _, group in ipairs(ns.Model.compose().groups) do
-            if group.zoneId == -304 then return group end
+            if group.zoneId == -304 then
+                return group
+            end
         end
     end
     local stepZoneId = getCookingGroup().entries[1].zoneId
@@ -589,53 +790,74 @@ test("a category's group opens when a quest's next step is where the player is, 
     expectEqual(getCookingGroup().isCollapsed, false, "open where the player hunts for it")
 end)
 
-test("the group hears in chat when an objective is done and when a quest is ready, once the player switches it on", function()
-    local ns, state = createAddon()
-    installGroup(state)
-    local said = {}
-    C_ChatInfo.SendChatMessage = function(text, channel) said[#said + 1] = channel .. " " .. text end
-    state.questLog[301] = { isComplete = false, objectives = { killObjective(0, 12), itemObjective(3, 4) } }
-    ns.Announce.reset()
-    ns.Announce.check() -- the log as found: nothing to tell
-    state.questLog[301].objectives[1] = killObjective(12, 12)
-    ns.Announce.check()
-    expectEqual(#said, 0, "off until switched on")
-    ns.settings.shouldAnnounceObjectives, ns.settings.shouldAnnounceReady = true, true
-    ns.Announce.check()
-    expectEqual(#said, 0, "switching it on tells no old news")
-    state.questLog[301] = { isComplete = false, objectives = { killObjective(12, 12), itemObjective(3, 5) } }
-    ns.Announce.check()
-    state.questLog[301].objectives[2] = itemObjective(5, 5)
-    state.questLog[301].isComplete = true
-    ns.Announce.check()
-    expectEqual(#said, 1, "the last objective makes it ready: one line, not two")
-    expectEqual(said[1]:find("^PARTY {rt1} OneMoreQuest: ") ~= nil, true, "in party chat, with the star and the name")
-    expectEqual(said[1]:find("is ready to hand in", 1, true) ~= nil, true, "ready to hand in")
-    state.questLog[501] = { isComplete = false, objectives = { killObjective(1, 2), itemObjective(0, 1) } }
-    ns.Announce.check() -- just taken
-    state.questLog[501].objectives[2] = itemObjective(1, 1)
-    ns.Announce.check()
-    expectEqual(#said, 2, "an objective done on a quest not yet ready")
-    expectEqual(said[2]:find("Wolf Fang 1/1 for ", 1, true) ~= nil, true, "names the objective and its count, then the quest")
-    removeGroup()
-    state.questLog[501].objectives[1] = killObjective(2, 2)
-    state.questLog[501].isComplete = true
-    ns.Announce.check()
-    expectEqual(#said, 2, "outside a group nothing is said")
+test(
+    "the group hears in chat when an objective is done and when a quest is ready, once the player switches it on",
+    function()
+        local ns, state = createAddon()
+        installGroup(state)
+        local said = {}
+        C_ChatInfo.SendChatMessage = function(text, channel)
+            said[#said + 1] = channel .. " " .. text
+        end
+        state.questLog[301] = { isComplete = false, objectives = { killObjective(0, 12), itemObjective(3, 4) } }
+        ns.Announce.reset()
+        ns.Announce.check() -- the log as found: nothing to tell
+        state.questLog[301].objectives[1] = killObjective(12, 12)
+        ns.Announce.check()
+        expectEqual(#said, 0, "off until switched on")
+        ns.settings.shouldAnnounceObjectives, ns.settings.shouldAnnounceReady = true, true
+        ns.Announce.check()
+        expectEqual(#said, 0, "switching it on tells no old news")
+        state.questLog[301] = { isComplete = false, objectives = { killObjective(12, 12), itemObjective(3, 5) } }
+        ns.Announce.check()
+        state.questLog[301].objectives[2] = itemObjective(5, 5)
+        state.questLog[301].isComplete = true
+        ns.Announce.check()
+        expectEqual(#said, 1, "the last objective makes it ready: one line, not two")
+        expectEqual(
+            said[1]:find("^PARTY {rt1} OneMoreQuest: ") ~= nil,
+            true,
+            "in party chat, with the star and the name"
+        )
+        expectEqual(said[1]:find("is ready to hand in", 1, true) ~= nil, true, "ready to hand in")
+        state.questLog[501] = { isComplete = false, objectives = { killObjective(1, 2), itemObjective(0, 1) } }
+        ns.Announce.check() -- just taken
+        state.questLog[501].objectives[2] = itemObjective(1, 1)
+        ns.Announce.check()
+        expectEqual(#said, 2, "an objective done on a quest not yet ready")
+        expectEqual(
+            said[2]:find("Wolf Fang 1/1 for ", 1, true) ~= nil,
+            true,
+            "names the objective and its count, then the quest"
+        )
+        removeGroup()
+        state.questLog[501].objectives[1] = killObjective(2, 2)
+        state.questLog[501].isComplete = true
+        ns.Announce.check()
+        expectEqual(#said, 2, "outside a group nothing is said")
 
-    local shown = {}
-    DEFAULT_CHAT_FRAME = { AddMessage = function(_, text) shown[#shown + 1] = text end }
-    ns.settings.shouldAnnounceSolo = true
-    state.questLog[502] = { isComplete = false, objectives = { itemObjective(0, 1) } }
-    ns.Announce.check()
-    state.questLog[502].objectives[1] = itemObjective(1, 1)
-    state.questLog[502].isComplete = true
-    ns.Announce.check()
-    expectEqual(#said, 2, "playing alone, still nothing is sent")
-    expectEqual(#shown, 1, "but the player sees it in their own chat")
-    expectEqual(shown[1]:find("OneMoreQuest:", 1, true) ~= nil and shown[1]:find("{rt1}", 1, true) == nil, true, "named, without the raid star")
-    DEFAULT_CHAT_FRAME = nil
-end)
+        local shown = {}
+        DEFAULT_CHAT_FRAME = {
+            AddMessage = function(_, text)
+                shown[#shown + 1] = text
+            end,
+        }
+        ns.settings.shouldAnnounceSolo = true
+        state.questLog[502] = { isComplete = false, objectives = { itemObjective(0, 1) } }
+        ns.Announce.check()
+        state.questLog[502].objectives[1] = itemObjective(1, 1)
+        state.questLog[502].isComplete = true
+        ns.Announce.check()
+        expectEqual(#said, 2, "playing alone, still nothing is sent")
+        expectEqual(#shown, 1, "but the player sees it in their own chat")
+        expectEqual(
+            shown[1]:find("OneMoreQuest:", 1, true) ~= nil and shown[1]:find("{rt1}", 1, true) == nil,
+            true,
+            "named, without the raid star"
+        )
+        DEFAULT_CHAT_FRAME = nil
+    end
+)
 
 test("as the log fills, grey quests and ones taken days ago are suggested for dropping; never a ready one", function()
     local ns, state = createAddon()
@@ -643,9 +865,13 @@ test("as the log fills, grey quests and ones taken days ago are suggested for dr
     setQuest(state, 302, false, { killObjective(0, 5) })
     setQuest(state, 303, true, { killObjective(5, 5) })
     local savedSize = ns.QuestState.getLogSize
-    ns.QuestState.getLogSize = function() return 10, 25 end
+    ns.QuestState.getLogSize = function()
+        return 10, 25
+    end
     expectEqual(#ns.Warnings.getDropSuggestions(), 0, "nothing while the log has room")
-    ns.QuestState.getLogSize = function() return 22, 25 end
+    ns.QuestState.getLogSize = function()
+        return 22, 25
+    end
     state.playerLevel = 60
     local suggestions = ns.Warnings.getDropSuggestions()
     local byQuestId = {}
@@ -666,7 +892,11 @@ test("the tracker can order a zone's quests by how much of each is done", functi
     local ns = createAddon()
     expectEqual(ns.Model.getDoneShare({ objectives = { { fulfilled = 3, required = 12 } } }), 0.25, "a quarter done")
     expectEqual(ns.Model.getDoneShare({ isTurnIn = true, objectives = {} }), 1, "ready is all of it")
-    expectEqual(ns.Model.getDoneShare({ objectives = { { fulfilled = 1, required = 1 }, { fulfilled = 0, required = 4 } } }), 0.5, "objectives count alike")
+    expectEqual(
+        ns.Model.getDoneShare({ objectives = { { fulfilled = 1, required = 1 }, { fulfilled = 0, required = 4 } } }),
+        0.5,
+        "objectives count alike"
+    )
 end)
 
 test("the tracker folds or hides in combat and in dungeons only as the player chose", function()
@@ -679,42 +909,56 @@ test("the tracker folds or hides in combat and in dungeons only as the player ch
     expectEqual(ns.Tracker.getSituation(), "fold", "folded in combat")
     ns.settings.trackerInDungeons = "hide"
     local savedInstance = IsInInstance
-    IsInInstance = function() return true, "party" end
+    IsInInstance = function()
+        return true, "party"
+    end
     expectEqual(ns.Tracker.getSituation(), "hide", "hiding wins over folding")
     IsInInstance = savedInstance
     ns.Tracker.handleCombatEvent(nil, "PLAYER_REGEN_ENABLED")
     expectEqual(ns.Tracker.getSituation(), nil, "back once the fight is over")
 end)
 
-test("quest dialogs: a ready quest is handed in first, a grey one never accepted, Shift leaves it to the player", function()
-    local ns = createAddon()
-    local active = { { isComplete = false }, { isComplete = true } }
-    local available = { { isTrivial = true }, { isTrivial = false } }
-    expectEqual(ns.AutoQuest.choose(active, available), nil, "switched off: nothing")
-    ns.settings.shouldAutoAccept, ns.settings.shouldAutoTurnIn = true, true
-    local kind, index = ns.AutoQuest.choose(active, available)
-    expectEqual(kind == "active" and index == 2, true, "the ready quest first")
-    kind, index = ns.AutoQuest.choose({ { isComplete = false } }, available)
-    expectEqual(kind == "available" and index == 2, true, "then the first quest that is not grey")
-    local savedShift = IsShiftKeyDown
-    IsShiftKeyDown = function() return true end
-    expectEqual(ns.AutoQuest.choose(active, available), nil, "Shift held: the player answers")
-    IsShiftKeyDown = savedShift
-end)
+test(
+    "quest dialogs: a ready quest is handed in first, a grey one never accepted, Shift leaves it to the player",
+    function()
+        local ns = createAddon()
+        local active = { { isComplete = false }, { isComplete = true } }
+        local available = { { isTrivial = true }, { isTrivial = false } }
+        expectEqual(ns.AutoQuest.choose(active, available), nil, "switched off: nothing")
+        ns.settings.shouldAutoAccept, ns.settings.shouldAutoTurnIn = true, true
+        local kind, index = ns.AutoQuest.choose(active, available)
+        expectEqual(kind == "active" and index == 2, true, "the ready quest first")
+        kind, index = ns.AutoQuest.choose({ { isComplete = false } }, available)
+        expectEqual(kind == "available" and index == 2, true, "then the first quest that is not grey")
+        local savedShift = IsShiftKeyDown
+        IsShiftKeyDown = function()
+            return true
+        end
+        expectEqual(ns.AutoQuest.choose(active, available), nil, "Shift held: the player answers")
+        IsShiftKeyDown = savedShift
+    end
+)
 
 test("a nameplate shows a kill over a drop, and nothing for a creature no quest needs", function()
     local ns = createAddon()
     local saved = ns.UnitTooltip.compose
     ns.UnitTooltip.compose = function(npcId)
         if npcId == 1 then
-            return { { questId = 10, lines = { { kind = "loot", isDone = false } } }, { questId = 20, lines = { { kind = "kill", isDone = false } } } }
+            return {
+                { questId = 10, lines = { { kind = "loot", isDone = false } } },
+                { questId = 20, lines = { { kind = "kill", isDone = false } } },
+            }
         elseif npcId == 2 then
             return { { lines = { { kind = "loot", isDone = false }, { kind = "kill", isDone = true } } } }
         end
         return {}
     end
     expectEqual(ns.Nameplates.getKind(1), "kill", "a kill wins")
-    expectEqual(select(2, ns.Nameplates.getKind(1)), 20, "its icon glows in the colour of the quest that wants the kill")
+    expectEqual(
+        select(2, ns.Nameplates.getKind(1)),
+        20,
+        "its icon glows in the colour of the quest that wants the kill"
+    )
     expectEqual(ns.Nameplates.getKind(2), "loot", "a kill already done does not count")
     expectEqual(ns.Nameplates.getKind(3), nil, "nothing wanted")
     ns.UnitTooltip.compose = saved
@@ -724,8 +968,12 @@ test("a quest shown straight away in its dialog is accepted, unless it is grey",
     ns.settings.shouldAutoAccept = true
     local accepted, shownQuestId = 0, 9001
     local savedAccept, savedGetQuestId, savedGet = AcceptQuest, GetQuestID, ns.Database.getQuestField
-    AcceptQuest = function() accepted = accepted + 1 end
-    GetQuestID = function() return shownQuestId end
+    AcceptQuest = function()
+        accepted = accepted + 1
+    end
+    GetQuestID = function()
+        return shownQuestId
+    end
     ns.Database.getQuestField = function(questId, field)
         if field == "questLevel" and (questId == 9001 or questId == 9002) then
             return questId == 9001 and 10 or 58
@@ -747,17 +995,29 @@ test("the tracker stays where it was put across logins at any size", function()
         local savedCreate = CreateFrame
         CreateFrame = function(kind, name, ...)
             local widget = savedCreate(kind, name, ...)
-            if name == "TrailheadTracker" then
+            if name == "OneMoreQuestTracker" then
                 local scale = 1
-                rawset(widget, "SetScale", function(_, value) scale = value end)
-                rawset(widget, "GetScale", function() return scale end)
+                rawset(widget, "SetScale", function(_, value)
+                    scale = value
+                end)
+                rawset(widget, "GetScale", function()
+                    return scale
+                end)
                 -- Pinned by its top right corner to the screen's bottom left: its edges are the offsets, in its own units
-                rawset(widget, "GetRight", function(self) local point = rawget(self, "points")[1] return point[4] end)
-                rawset(widget, "GetTop", function(self) local point = rawget(self, "points")[1] return point[5] end)
+                rawset(widget, "GetRight", function(self)
+                    local point = rawget(self, "points")[1]
+                    return point[4]
+                end)
+                rawset(widget, "GetTop", function(self)
+                    local point = rawget(self, "points")[1]
+                    return point[5]
+                end)
             end
             return widget
         end
-        return function() CreateFrame = savedCreate end
+        return function()
+            CreateFrame = savedCreate
+        end
     end
     local ns = createAddon()
     ns.settings.trackerScale = 1.5
@@ -770,7 +1030,11 @@ test("the tracker stays where it was put across logins at any size", function()
     -- The size changed by the player keeps the corner on the screen, in the new size's units
     ns.settings.trackerScale = 1
     ns.Tracker.applySize()
-    expectEqual(ns.settings.position[3] .. "," .. ns.settings.position[4], "1200,900", "a new size keeps it on the screen")
+    expectEqual(
+        ns.settings.position[3] .. "," .. ns.settings.position[4],
+        "1200,900",
+        "a new size keeps it on the screen"
+    )
 end)
 
 test("folded for a fight, the fold button unfolds it for that fight, and the next one folds it again", function()
@@ -801,7 +1065,9 @@ test("a quest made ready while the tracker is folded still rings", function()
     setQuest(state, 301, false, { killObjective(5, 12) })
     local savedPlay, savedKit = PlaySound, SOUNDKIT
     local played = 0
-    PlaySound = function() played = played + 1 end
+    PlaySound = function()
+        played = played + 1
+    end
     SOUNDKIT = { IG_QUEST_LIST_COMPLETE = 1 }
     ns.settings.shouldPlayReadySound = true
     ns.settings.isTrackerFolded = true

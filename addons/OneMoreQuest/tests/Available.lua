@@ -4,31 +4,40 @@ test("a quest from an item that drops all over the world shows only once the ite
     local ns = createAddon()
     expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 517), nil, "not where the item might drop or be handed in")
     expectEqual(getQuest(getAvailableQuests(ns, SILVERPINE), 517), nil, "nor in any other zone its creatures live in")
-    GetItemCount = function(itemId) return itemId == 7003 and 1 or 0 end
+    GetItemCount = function(itemId)
+        return itemId == 7003 and 1 or 0
+    end
     local quest = getQuest(getAvailableQuests(ns, TIRISFAL), 517)
     expectEqual(quest ~= nil and quest.isHandedInHere, true, "with the item, it shows where it is handed in")
     expectEqual(getQuest(getAvailableQuests(ns, SILVERPINE), 517), nil, "and still not where the item drops")
     GetItemCount = nil
 end)
 
-test("a quest the player hides is offered no more until brought back; the Ahn'Qiraj War Effort's only when asked for", function()
-    local ns = createAddon()
-    ns.print = function() end
-    expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 501) ~= nil, true, "a plain quest")
-    ns.QuestHiding.hide(501)
-    expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 501), nil, "hidden")
-    local hidden = ns.QuestHiding.getHidden()
-    expectEqual(#hidden == 1 and hidden[1].questId == 501, true, "in the list of hidden quests")
-    ns.QuestHiding.unhide(501)
-    expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 501) ~= nil and #ns.QuestHiding.getHidden() == 0, true, "brought back")
-    -- The War Effort's quests: a plain quest taken for one of theirs, hidden as Questie hides them, shown when asked
-    ns.AQWarEffortQuests[501] = true
-    expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 501), nil, "a War Effort quest: hidden")
-    ns.settings.shouldShowAQWarEffort = true
-    expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 501) ~= nil, true, "shown when asked for")
-    ns.AQWarEffortQuests[501] = nil
-    expectEqual(ns.AQWarEffortQuests[8815], true, "the cities' Commendation Signets are among them")
-end)
+test(
+    "a quest the player hides is offered no more until brought back; the Ahn'Qiraj War Effort's only when asked for",
+    function()
+        local ns = createAddon()
+        ns.print = function() end
+        expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 501) ~= nil, true, "a plain quest")
+        ns.QuestHiding.hide(501)
+        expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 501), nil, "hidden")
+        local hidden = ns.QuestHiding.getHidden()
+        expectEqual(#hidden == 1 and hidden[1].questId == 501, true, "in the list of hidden quests")
+        ns.QuestHiding.unhide(501)
+        expectEqual(
+            getQuest(getAvailableQuests(ns, TIRISFAL), 501) ~= nil and #ns.QuestHiding.getHidden() == 0,
+            true,
+            "brought back"
+        )
+        -- The War Effort's quests: a plain quest taken for one of theirs, hidden as Questie hides them, shown when asked
+        ns.AQWarEffortQuests[501] = true
+        expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 501), nil, "a War Effort quest: hidden")
+        ns.settings.shouldShowAQWarEffort = true
+        expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 501) ~= nil, true, "shown when asked for")
+        ns.AQWarEffortQuests[501] = nil
+        expectEqual(ns.AQWarEffortQuests[8815], true, "the cities' Commendation Signets are among them")
+    end
+)
 
 test("repeatable and PvP quests are offered only when the settings ask for them", function()
     local ns = createAddon()
@@ -114,7 +123,11 @@ test("a quest that cannot be picked up yet says why, and one never to be had is 
         unlockTexts[quest.questId] = quest.unlockText
         order[#order + 1] = quest.questId
     end
-    expectEqual(unlockTexts[502], "Needs Fresh Start first: you can take it now", "what to do first, and that it can be done now")
+    expectEqual(
+        unlockTexts[502],
+        "Needs Fresh Start first: you can take it now",
+        "what to do first, and that it can be done now"
+    )
     expectEqual(unlockTexts[504]:find("you are", 1, true) ~= nil, true, "a level, with the player's own")
     local position = {}
     for index, questId in ipairs(order) do
@@ -153,7 +166,11 @@ test("a quest with no level requirement in the database is held to its own level
     end)(LibQuestieDB.Quest.Get)
     expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 504), nil, "not offered to a level 10 character")
     state.playerLevel = 32
-    expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL, { shouldShowLowLevel = true }), 504) ~= nil, true, "offered at its own level")
+    expectEqual(
+        getQuest(getAvailableQuests(ns, TIRISFAL, { shouldShowLowLevel = true }), 504) ~= nil,
+        true,
+        "offered at its own level"
+    )
 end)
 
 test("quests on the not-in-the-game list are never offered", function()
@@ -206,7 +223,9 @@ test("a quest from an item far above the player is not offered until the item is
         end
     end)(LibQuestieDB.Quest.Get)
     expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 506), nil, "not offered to a level 10 character")
-    GetItemCount = function(itemId) return itemId == 7002 and 1 or 0 end
+    GetItemCount = function(itemId)
+        return itemId == 7002 and 1 or 0
+    end
     ns.Availability.invalidate()
     expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 506) ~= nil, true, "offered once the item is in the bags")
     GetItemCount = nil
@@ -267,67 +286,93 @@ test("a low quest whose chain climbs into the player's range is listed, saying w
     expectEqual(hiddenCount > 0, true, "and counted as hidden")
 end)
 
-test("low-level lead-ins: by default only those leading to a dungeon's quest in range stay; the settings keep any or none", function()
-    local ns, state = createAddon()
-    addDungeon()
-    local levels = { [527] = 25, [528] = 30 } -- "Down Below" (its work in Shadowfang Keep) and the step after it, in range
-    LibQuestieDB.Quest.Get = (function(original)
-        return function(id, field)
-            if field == "questLevel" and levels[id] then
-                return levels[id]
+test(
+    "low-level lead-ins: by default only those leading to a dungeon's quest in range stay; the settings keep any or none",
+    function()
+        local ns, state = createAddon()
+        addDungeon()
+        local levels = { [527] = 25, [528] = 30 } -- "Down Below" (its work in Shadowfang Keep) and the step after it, in range
+        LibQuestieDB.Quest.Get = (function(original)
+            return function(id, field)
+                if field == "questLevel" and levels[id] then
+                    return levels[id]
+                end
+                return original(id, field)
             end
-            return original(id, field)
-        end
-    end)(LibQuestieDB.Quest.Get)
-    state.playerLevel = 25
-    ns.Availability.prepare()
-    local player = ns.Availability.getPlayer()
-    expectEqual(ns.Availability.getLeadInMode(), "dungeon", "the dungeon's lead-ins kept, as it comes")
-    local lead = ns.Availability.getChainLead(524, player)
-    expectEqual(lead and lead.questId, 527, "the start leads to the dungeon's quest")
-    expectEqual(ns.Availability.isLowLevel(524, player), false, "so it is not left out")
-    local quest = getQuest(getAvailableQuests(ns, TIRISFAL), 524)
-    expectEqual(quest and quest.leadsTo and quest.leadsTo.questId, 527, "listed, saying the dungeon's quest it leads to")
+        end)(LibQuestieDB.Quest.Get)
+        state.playerLevel = 25
+        ns.Availability.prepare()
+        local player = ns.Availability.getPlayer()
+        expectEqual(ns.Availability.getLeadInMode(), "dungeon", "the dungeon's lead-ins kept, as it comes")
+        local lead = ns.Availability.getChainLead(524, player)
+        expectEqual(lead and lead.questId, 527, "the start leads to the dungeon's quest")
+        expectEqual(ns.Availability.isLowLevel(524, player), false, "so it is not left out")
+        local quest = getQuest(getAvailableQuests(ns, TIRISFAL), 524)
+        expectEqual(
+            quest and quest.leadsTo and quest.leadsTo.questId,
+            527,
+            "listed, saying the dungeon's quest it leads to"
+        )
 
-    levels[527] = 11 -- the dungeon's quest low too: only an ordinary step in range is left ahead
-    ns.Availability.invalidate()
-    expectEqual(ns.Availability.isLowLevel(524, player), true, "a chain climbing to no dungeon quest in range is low")
-    expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 524), nil, "and left out")
-    ns.settings.shouldShowAnyLeadIns = true
-    ns.Availability.invalidate()
-    expectEqual(ns.Availability.isLowLevel(524, player), false, "any quest in range: a lead to it keeps it")
-    quest = getQuest(getAvailableQuests(ns, TIRISFAL), 524)
-    expectEqual(quest and quest.leadsTo and quest.leadsTo.questId, 528, "saying where it leads")
+        levels[527] = 11 -- the dungeon's quest low too: only an ordinary step in range is left ahead
+        ns.Availability.invalidate()
+        expectEqual(
+            ns.Availability.isLowLevel(524, player),
+            true,
+            "a chain climbing to no dungeon quest in range is low"
+        )
+        expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 524), nil, "and left out")
+        ns.settings.shouldShowAnyLeadIns = true
+        ns.Availability.invalidate()
+        expectEqual(ns.Availability.isLowLevel(524, player), false, "any quest in range: a lead to it keeps it")
+        quest = getQuest(getAvailableQuests(ns, TIRISFAL), 524)
+        expectEqual(quest and quest.leadsTo and quest.leadsTo.questId, 528, "saying where it leads")
 
-    levels[527] = 25
-    ns.settings.shouldShowAnyLeadIns, ns.settings.shouldShowDungeonLeadIns = false, false
-    ns.Availability.invalidate()
-    expectEqual(ns.Availability.isLowLevel(524, player), true, "neither: every low-level quest is low, the dungeon's lead-ins too")
-    quest = getQuest(getAvailableQuests(ns, TIRISFAL, { shouldShowLowLevel = true }), 524)
-    expectEqual(quest and quest.leadsTo and quest.leadsTo.questId, 527, "shown with all low-level ones, it still says where it leads")
-    expectEqual(ns.Availability.isLowLevel(527, player), false, "a quest in range is never low")
-end)
+        levels[527] = 25
+        ns.settings.shouldShowAnyLeadIns, ns.settings.shouldShowDungeonLeadIns = false, false
+        ns.Availability.invalidate()
+        expectEqual(
+            ns.Availability.isLowLevel(524, player),
+            true,
+            "neither: every low-level quest is low, the dungeon's lead-ins too"
+        )
+        quest = getQuest(getAvailableQuests(ns, TIRISFAL, { shouldShowLowLevel = true }), 524)
+        expectEqual(
+            quest and quest.leadsTo and quest.leadsTo.questId,
+            527,
+            "shown with all low-level ones, it still says where it leads"
+        )
+        expectEqual(ns.Availability.isLowLevel(527, player), false, "a quest in range is never low")
+    end
+)
 
-test("steps of one chain waiting together are drawn under the chain; a step named like the one before says which", function()
-    local ns = createAddon()
-    LibQuestieDB.Quest.Get = (function(original)
-        return function(id, field)
-            if id == 527 and field == "name" then
-                return "Patrols" -- named like the step before it, as the Elixir of Agony steps are
+test(
+    "steps of one chain waiting together are drawn under the chain; a step named like the one before says which",
+    function()
+        local ns = createAddon()
+        LibQuestieDB.Quest.Get = (function(original)
+            return function(id, field)
+                if id == 527 and field == "name" then
+                    return "Patrols" -- named like the step before it, as the Elixir of Agony steps are
+                end
+                return original(id, field)
             end
-            return original(id, field)
-        end
-    end)(LibQuestieDB.Quest.Get)
-    ns.Availability.prepare()
-    local blocker = ns.Availability.getBlocker(527, ns.Availability.getPlayer())
-    expectEqual(blocker and blocker.text, "After Patrols 1/3", "the step before is told apart by its place in the chain")
-    ns.Log.create()
-    ns.MapDock.create()
-    ns.MapDock.apply()
-    ns.Log.toggle()
-    ns.Log.showQuestAnywhere(527) -- opens the not-yet part, where 526, 527 and 528 wait as one chain
-    expectEqual(ns.Log.getSelectedAvailableQuestId(), 527, "a step inside a chain heading can be selected")
-end)
+        end)(LibQuestieDB.Quest.Get)
+        ns.Availability.prepare()
+        local blocker = ns.Availability.getBlocker(527, ns.Availability.getPlayer())
+        expectEqual(
+            blocker and blocker.text,
+            "After Patrols 1/3",
+            "the step before is told apart by its place in the chain"
+        )
+        ns.Log.create()
+        ns.MapDock.create()
+        ns.MapDock.apply()
+        ns.Log.toggle()
+        ns.Log.showQuestAnywhere(527) -- opens the not-yet part, where 526, 527 and 528 wait as one chain
+        expectEqual(ns.Log.getSelectedAvailableQuestId(), 527, "a step inside a chain heading can be selected")
+    end
+)
 
 test("a zone's summary says how many of the quests left are low-level", function()
     local ns, state = createAddon()
@@ -366,7 +411,9 @@ test("a zone's levels are the game's own when the client knows them, else its qu
     ns.Availability.prepare()
     local minLevel = ns.Availability.getZoneLevels(TIRISFAL)
     expectEqual(minLevel ~= nil, true, "from its quests without the game's")
-    C_Map.GetMapLevels = function(uiMapId) return uiMapId == 1420 and 1 or 0, uiMapId == 1420 and 10 or 0 end
+    C_Map.GetMapLevels = function(uiMapId)
+        return uiMapId == 1420 and 1 or 0, uiMapId == 1420 and 10 or 0
+    end
     ns.Availability.invalidate()
     local gameMin, gameMax = ns.Availability.getZoneLevels(TIRISFAL)
     expectEqual(gameMin, 1, "the game's lowest")
@@ -380,7 +427,7 @@ test("warnings name the lead-in quest, the either/or quest and a full log", func
     expectEqual(#warnings, 1, "lead-in warning count")
     expectEqual(warnings[1]:find("Lead-in", 1, true) ~= nil, true, "names the lead-in quest")
     warnings = ns.Warnings.getQuestWarnings(507)
-    expectEqual(warnings[1]:find("\"Or\"", 1, true) ~= nil, true, "names the other quest")
+    expectEqual(warnings[1]:find('"Or"', 1, true) ~= nil, true, "names the other quest")
     state.maxQuestCount = 0
     warnings = ns.Warnings.getQuestWarnings(501)
     expectEqual(warnings[#warnings], "Your quest log is full.", "full log")
@@ -406,9 +453,23 @@ test("a quest the game offers that the lists missed is added, noted, and drawn",
                 return {}
             end
             return {
-                { questID = 9999, questName = "Not in the Database", x = 0.5, y = 0.4, isHidden = false, startMapID = uiMapId },
+                {
+                    questID = 9999,
+                    questName = "Not in the Database",
+                    x = 0.5,
+                    y = 0.4,
+                    isHidden = false,
+                    startMapID = uiMapId,
+                },
                 { questID = 504, questName = "Too High", x = 0.3, y = 0.3, isHidden = false, startMapID = uiMapId },
-                { questID = 514, questName = "More Supplies", x = 0.3, y = 0.3, isHidden = false, startMapID = uiMapId },
+                {
+                    questID = 514,
+                    questName = "More Supplies",
+                    x = 0.3,
+                    y = 0.3,
+                    isHidden = false,
+                    startMapID = uiMapId,
+                },
                 { questID = 503, questName = "High Road", x = 0.3, y = 0.3, isHidden = false, startMapID = uiMapId },
             }
         end,
@@ -421,7 +482,11 @@ test("a quest the game offers that the lists missed is added, noted, and drawn",
     expectEqual(unknown.places[1].x, 50, "at the place of the game's mark")
     expectEqual(ns.settings.missedQuests[9999].reason, "not in the quest database", "and noted, with why")
     expectEqual(getQuest(quests, 504) ~= nil, true, "a quest the rules held back is added on the game's word")
-    expectEqual(ns.settings.missedQuests[504].reason, "the addon's rules said it was not available", "noted as a rule's hole")
+    expectEqual(
+        ns.settings.missedQuests[504].reason,
+        "the addon's rules said it was not available",
+        "noted as a rule's hole"
+    )
     expectEqual(getQuest(quests, 514), nil, "a repeatable quest stays out while the settings leave those out")
     expectEqual(ns.settings.missedQuests[503], nil, "a quest the lists already had is not noted")
     local count = 0
@@ -436,32 +501,53 @@ test("a quest the game offers that the lists missed is added, noted, and drawn",
     C_QuestLine = nil
 end)
 
-test("a quest a giver offers when talked to is learnt, listed, reported, and forgotten once no longer offered", function()
-    local ns = createAddon()
-    ns.Availability.prepare()
-    UnitGUID = function(unit) return unit == "npc" and "Creature-0-1-2-3-9003-0000ABCD" or nil end
-    local originalUnitName = UnitName
-    UnitName = function(unit) return unit == "npc" and "Deathguard Morris" or "Tester" end
-    -- "Too High" is held back by the rules for a level 10 character, yet the giver offers it
-    ns.GameOffers.learnOffers({ { questId = 504, title = "Too High" } }, true)
-    local quest = getQuest(getAvailableQuests(ns, TIRISFAL), 504)
-    expectEqual(quest ~= nil, true, "listed on the giver's word")
-    expectEqual(ns.settings.missedQuests[504].reason:find("offered by Deathguard Morris", 1, true) ~= nil, true, "noted with who offered it")
-    local report, count = ns.GameOffers.composeReport()
-    expectEqual(count, 1, "one quest in the report")
-    expectEqual(report:find("504 | Too High | Tirisfal Glades", 1, true) ~= nil, true, "a line to copy for it")
-    expectEqual(report:find("Deathguard Morris (9003)", 1, true) ~= nil, true, "with the giver")
-    local originalGetBuildInfo = GetBuildInfo
-    GetBuildInfo = function() return "1.60.1", "70938", "Nov 1 2026", 16001 end
-    expectEqual(ns.GameOffers.composeReport():find("client 1.60.1 (70938)", 1, true) ~= nil, true, "the client's version and build")
-    GetBuildInfo = originalGetBuildInfo
-    ns.MissedReport.show()
-    ns.GameOffers.learnOffers({}, true) -- talked to again: no longer offered
-    ns.GameOffers.reset()
-    ns.Availability.invalidate()
-    expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 504), nil, "forgotten once the giver no longer offers it")
-    UnitGUID, UnitName = nil, originalUnitName
-end)
+test(
+    "a quest a giver offers when talked to is learnt, listed, reported, and forgotten once no longer offered",
+    function()
+        local ns = createAddon()
+        ns.Availability.prepare()
+        UnitGUID = function(unit)
+            return unit == "npc" and "Creature-0-1-2-3-9003-0000ABCD" or nil
+        end
+        local originalUnitName = UnitName
+        UnitName = function(unit)
+            return unit == "npc" and "Deathguard Morris" or "Tester"
+        end
+        -- "Too High" is held back by the rules for a level 10 character, yet the giver offers it
+        ns.GameOffers.learnOffers({ { questId = 504, title = "Too High" } }, true)
+        local quest = getQuest(getAvailableQuests(ns, TIRISFAL), 504)
+        expectEqual(quest ~= nil, true, "listed on the giver's word")
+        expectEqual(
+            ns.settings.missedQuests[504].reason:find("offered by Deathguard Morris", 1, true) ~= nil,
+            true,
+            "noted with who offered it"
+        )
+        local report, count = ns.GameOffers.composeReport()
+        expectEqual(count, 1, "one quest in the report")
+        expectEqual(report:find("504 | Too High | Tirisfal Glades", 1, true) ~= nil, true, "a line to copy for it")
+        expectEqual(report:find("Deathguard Morris (9003)", 1, true) ~= nil, true, "with the giver")
+        local originalGetBuildInfo = GetBuildInfo
+        GetBuildInfo = function()
+            return "1.60.1", "70938", "Nov 1 2026", 16001
+        end
+        expectEqual(
+            ns.GameOffers.composeReport():find("client 1.60.1 (70938)", 1, true) ~= nil,
+            true,
+            "the client's version and build"
+        )
+        GetBuildInfo = originalGetBuildInfo
+        ns.MissedReport.show()
+        ns.GameOffers.learnOffers({}, true) -- talked to again: no longer offered
+        ns.GameOffers.reset()
+        ns.Availability.invalidate()
+        expectEqual(
+            getQuest(getAvailableQuests(ns, TIRISFAL), 504),
+            nil,
+            "forgotten once the giver no longer offers it"
+        )
+        UnitGUID, UnitName = nil, originalUnitName
+    end
+)
 
 test("a quest handed in counts as done at once, before the game marks it completed", function()
     local ns = createAddon()
@@ -472,13 +558,19 @@ test("a quest handed in counts as done at once, before the game marks it complet
     ns.Availability.forgetLists()
     expectEqual(ns.QuestState.isTurnedIn(101), true, "101 is done")
     local blocker = ns.Availability.getBlocker(102, player)
-    expectEqual(blocker and blocker.kind == "quest" and blocker.text or nil, nil, "102 no longer waits for 101 (only for its level)")
+    expectEqual(
+        blocker and blocker.kind == "quest" and blocker.text or nil,
+        nil,
+        "102 no longer waits for 101 (only for its level)"
+    )
 end)
 
 test("a quest is low-level exactly when the game greys it", function()
     local ns = createAddon()
     local savedRange = UnitQuestTrivialLevelRange
-    UnitQuestTrivialLevelRange = function() return 6 end -- the game's range for the player
+    UnitQuestTrivialLevelRange = function()
+        return 6
+    end -- the game's range for the player
     expectEqual(ns.Availability.getTrivialGap(33, "player"), 6, "the game's own range, not a rule of ours")
     UnitQuestTrivialLevelRange = nil
     expectEqual(ns.Availability.getTrivialGap(33, "player"), 8, "without the game's answer, the classic rule")
@@ -487,7 +579,11 @@ end)
 
 test("a profession is read from the character's skill lines", function()
     local ns = createAddon()
-    C_SkillInfo = { GetSkillLineInfoByID = function(skillId) return skillId == 164 and { rank = 151 } or nil end }
+    C_SkillInfo = {
+        GetSkillLineInfoByID = function(skillId)
+            return skillId == 164 and { rank = 151 } or nil
+        end,
+    }
     expectEqual(ns.Availability.getSkillRank(164), 151, "blacksmithing, as the character sheet has it")
     expectEqual(ns.Availability.getSkillRank(171), 0, "a profession not learnt")
     C_SkillInfo = nil
@@ -497,12 +593,20 @@ test("a giver friendly to both factions but only in the other faction's capital 
     local ns, state = createAddon()
     -- Envoy Maldrek, marked for no faction, stands only in Undercity; "Childhood Chore" is hers
     expectEqual(ns.Database.isNpcFriendly(9002), true, "the Horde can reach her")
-    expectEqual(getQuest(getAvailableQuests(ns, UNDERCITY, { shouldShowLowLevel = true }), 511) ~= nil, true, "and is offered her quest")
+    expectEqual(
+        getQuest(getAvailableQuests(ns, UNDERCITY, { shouldShowLowLevel = true }), 511) ~= nil,
+        true,
+        "and is offered her quest"
+    )
     state.playerFaction = "Alliance"
     expectEqual(ns.Database.isNpcFriendly(9002), false, "the Alliance cannot, in a Horde capital")
     ns.Availability.reset()
     ns.Availability.prepare()
-    expectEqual(getQuest(getAvailableQuests(ns, UNDERCITY, { shouldShowLowLevel = true }), 511), nil, "so her quest is not offered to them")
+    expectEqual(
+        getQuest(getAvailableQuests(ns, UNDERCITY, { shouldShowLowLevel = true }), 511),
+        nil,
+        "so her quest is not offered to them"
+    )
 end)
 
 test("alternatives of one quest, which close each other, count once in a zone", function()
@@ -623,7 +727,9 @@ test("same-named steps that ask something stay steps of their own, each told apa
                 elseif field == "triggerEnd" then
                     return id == 521 and { "Answer Braug Dimspirit's question correctly", {} } or nil
                 elseif field == "objectivesText" then
-                    return id == 521 and { "Answer Braug Dimspirit's question successfully and then speak to him again." } or { "Find Braug." }
+                    return id == 521
+                            and { "Answer Braug Dimspirit's question successfully and then speak to him again." }
+                        or { "Find Braug." }
                 elseif field == "preQuestSingle" then
                     return id == 521 and { 520 } or nil
                 elseif field == "nextQuestInChain" then
@@ -649,7 +755,9 @@ end)
 test("spell, specialization and availability-window requirements are read, not treated as unknown", function()
     local ns, state = createAddon()
     local known = {}
-    IsPlayerSpell = function(spellId) return known[spellId] == true end
+    IsPlayerSpell = function(spellId)
+        return known[spellId] == true
+    end
     local fields = {}
     LibQuestieDB.Quest.Get = (function(original)
         return function(id, field)
@@ -668,7 +776,7 @@ test("spell, specialization and availability-window requirements are read, not t
     fields.requiredSpell = -2575 -- for those who do not know Mining yet (Camping 101)
     expectEqual((check()), true, "offered to one who does not know the spell")
     known[2575] = true
-    local isEligible, blocker, isClosed = ns.Availability.isEligible(520, player), ns.Availability.getBlocker(520, player)
+    local isEligible, blocker = ns.Availability.isEligible(520, player), ns.Availability.getBlocker(520, player)
     expectEqual(isEligible, false, "not to one who knows it")
     expectEqual(blocker, nil, "and it never will be")
     fields.requiredSpell = 2575
@@ -724,8 +832,16 @@ test("an objective with no known place takes its hint from the quest's own sente
             return original(id, field)
         end
     end)(LibQuestieDB.Quest.Get)
-    expectEqual(ns.Location.getQuestTextHint(520, "Empty Red Waterskin: 0/1"), "Fill the Empty Red Waterskin at Stonewatch Falls near the murlocs.", "the sentence naming it")
-    expectEqual(ns.Location.getQuestTextHint(520, "Something Else"), "Fill the Empty Red Waterskin at Stonewatch Falls near the murlocs.", "else the first")
+    expectEqual(
+        ns.Location.getQuestTextHint(520, "Empty Red Waterskin: 0/1"),
+        "Fill the Empty Red Waterskin at Stonewatch Falls near the murlocs.",
+        "the sentence naming it"
+    )
+    expectEqual(
+        ns.Location.getQuestTextHint(520, "Something Else"),
+        "Fill the Empty Red Waterskin at Stonewatch Falls near the murlocs.",
+        "else the first"
+    )
     expectEqual(ns.Location.getQuestTextHint(999999, "x"), nil, "none without text")
 end)
 
@@ -733,8 +849,12 @@ test("a quest the game says it does not have is never offered (the database hold
     local ns = createAddon()
     local asked = {}
     local savedRequest, savedHave = C_QuestLog.RequestLoadQuestByID, HaveQuestData
-    C_QuestLog.RequestLoadQuestByID = function(questId) asked[#asked + 1] = questId end
-    HaveQuestData = function() return false end
+    C_QuestLog.RequestLoadQuestByID = function(questId)
+        asked[#asked + 1] = questId
+    end
+    HaveQuestData = function()
+        return false
+    end
     ns.QuestState.checkExists(93862)
     ns.QuestState.checkExists(93862)
     expectEqual(#asked, 1, "asked once")
@@ -744,7 +864,11 @@ test("a quest the game says it does not have is never offered (the database hold
     ns.QuestState.checkExists(501)
     expectEqual(ns.QuestState.handleQuestDataLoaded(501, true), false, "a quest the game loads stays")
     expectEqual(ns.QuestState.isMissingFromGame(501), false, "and is offered")
-    expectEqual(ns.QuestState.handleQuestDataLoaded(777, false), false, "an answer about a quest not asked about changes nothing")
+    expectEqual(
+        ns.QuestState.handleQuestDataLoaded(777, false),
+        false,
+        "an answer about a quest not asked about changes nothing"
+    )
     C_QuestLog.RequestLoadQuestByID, HaveQuestData = savedRequest, savedHave
 end)
 
@@ -757,7 +881,12 @@ test("showing low-level quests redraws the map and the minimap too, not only the
     ns.Log.toggle()
     ns.Log.showAvailable()
     local redraws = 0
-    ns.registerModule({ name = "Counter", refresh = function() redraws = redraws + 1 end })
+    ns.registerModule({
+        name = "Counter",
+        refresh = function()
+            redraws = redraws + 1
+        end,
+    })
     local check = ns.LogState.lowLevelCheck
     expectEqual(check ~= nil and check:GetScript("OnClick") ~= nil, true, "the checkbox is there")
     check:GetScript("OnClick")(check)
@@ -765,19 +894,22 @@ test("showing low-level quests redraws the map and the minimap too, not only the
     expectEqual(redraws > 0, true, "everything redrawn, the map's marks among it")
 end)
 
-test("the world's or a continent's map is no location: the Available list stays put and reads no offers there", function()
-    local ns = createAddon()
-    ns.Availability.prepare()
-    ns.Log.create()
-    ns.MapDock.create()
-    ns.MapDock.apply()
-    ns.Log.toggle()
-    ns.Log.showZone(SILVERPINE)
-    ns.Log.handleMapChanged(1415) -- the Eastern Kingdoms
-    expectEqual(ns.Log.getAvailableZoneId(), SILVERPINE, "the list keeps its zone")
-    expectEqual(ns.Database.isZoneMap(1415), false, "a continent's map is not a zone's")
-    expectEqual(#ns.GameOffers.get(10074), 0, "and the game's offers all over it are not read as a zone's")
-end)
+test(
+    "the world's or a continent's map is no location: the Available list stays put and reads no offers there",
+    function()
+        local ns = createAddon()
+        ns.Availability.prepare()
+        ns.Log.create()
+        ns.MapDock.create()
+        ns.MapDock.apply()
+        ns.Log.toggle()
+        ns.Log.showZone(SILVERPINE)
+        ns.Log.handleMapChanged(1415) -- the Eastern Kingdoms
+        expectEqual(ns.Log.getAvailableZoneId(), SILVERPINE, "the list keeps its zone")
+        expectEqual(ns.Database.isZoneMap(1415), false, "a continent's map is not a zone's")
+        expectEqual(#ns.GameOffers.get(10074), 0, "and the game's offers all over it are not read as a zone's")
+    end
+)
 
 test("a warning naming a lead-in says which quest, so the page can link its name", function()
     local ns = createAddon()
@@ -785,7 +917,9 @@ test("a warning naming a lead-in says which quest, so the page can link its name
     local warnings, links = ns.Warnings.getQuestWarnings(509)
     local found
     for index, warning in ipairs(warnings) do
-        if links[index] then found = { warning = warning, link = links[index] } end
+        if links[index] then
+            found = { warning = warning, link = links[index] }
+        end
     end
     expectEqual(found ~= nil, true, "the lead-in warning carries its quest")
     expectEqual(found.link.questId, 510, "the lead-in")
@@ -803,57 +937,78 @@ test("the page of a quest with a lead-in draws its warning with the lead-in's na
     expectEqual(ok, true, "drawn without an error: " .. tostring(err))
 end)
 
-test("a quest its giver leaves out of what they offer is not listed to pick up until they offer it, or the player levels", function()
-    local ns = createAddon()
-    ns.Availability.prepare()
-    UnitGUID = function(unit) return unit == "npc" and "Creature-0-1-2-3-9003-0000ABCD" or nil end
-    local originalUnitName = UnitName
-    UnitName = function(unit) return unit == "npc" and "Deathguard Morris" or "Tester" end
-    expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 501) ~= nil, true, "Fresh Start is listed by the rules")
-    ns.GameOffers.learnOffers({ { questId = 507, title = "Either" } }, true) -- his whole list, without it
-    ns.Availability.invalidate()
-    expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 501), nil, "not listed once he left it out")
-    local blocker = ns.Availability.getBlocker(501, ns.Availability.getPlayer())
-    expectEqual(blocker and blocker.kind, "refused", "said why")
-    expectEqual(blocker and blocker.text:find("Deathguard Morris", 1, true) ~= nil, true, "naming him")
-    ns.GameOffers.learnOffers({ { questId = 501, title = "Fresh Start" } }, false) -- he offers it after all
-    ns.Availability.invalidate()
-    expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 501) ~= nil, true, "listed again once offered")
-    UnitGUID, UnitName = nil, originalUnitName
-end)
+test(
+    "a quest its giver leaves out of what they offer is not listed to pick up until they offer it, or the player levels",
+    function()
+        local ns = createAddon()
+        ns.Availability.prepare()
+        UnitGUID = function(unit)
+            return unit == "npc" and "Creature-0-1-2-3-9003-0000ABCD" or nil
+        end
+        local originalUnitName = UnitName
+        UnitName = function(unit)
+            return unit == "npc" and "Deathguard Morris" or "Tester"
+        end
+        expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 501) ~= nil, true, "Fresh Start is listed by the rules")
+        ns.GameOffers.learnOffers({ { questId = 507, title = "Either" } }, true) -- his whole list, without it
+        ns.Availability.invalidate()
+        expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 501), nil, "not listed once he left it out")
+        local blocker = ns.Availability.getBlocker(501, ns.Availability.getPlayer())
+        expectEqual(blocker and blocker.kind, "refused", "said why")
+        expectEqual(blocker and blocker.text:find("Deathguard Morris", 1, true) ~= nil, true, "naming him")
+        ns.GameOffers.learnOffers({ { questId = 501, title = "Fresh Start" } }, false) -- he offers it after all
+        ns.Availability.invalidate()
+        expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 501) ~= nil, true, "listed again once offered")
+        UnitGUID, UnitName = nil, originalUnitName
+    end
+)
 
-test("the Available tab's search keeps the quests whose title or giver matches, and names other zones with matches", function()
-    local ns = createAddon()
-    local quest = getQuest(getAvailableQuests(ns, TIRISFAL), 501)
-    local word = quest.title:lower():match("%a+")
-    expectEqual(ns.Availability.isSearchMatch(quest, word), true, "part of the title")
-    expectEqual(ns.Availability.isSearchMatch(quest, quest.starterName:lower()), true, "the giver's name")
-    expectEqual(ns.Availability.isSearchMatch(quest, "no such words here"), false, "anything else")
-    expectEqual(ns.Availability.isSearchMatch(quest, ""), true, "an empty search keeps everything")
-    local others = ns.Availability.findInOtherZones(quest.title:lower(), SILVERPINE, {})
-    local found
-    for _, zone in ipairs(others) do
-        if zone.zoneId == TIRISFAL then
-            found = zone
+test(
+    "the Available tab's search keeps the quests whose title or giver matches, and names other zones with matches",
+    function()
+        local ns = createAddon()
+        local quest = getQuest(getAvailableQuests(ns, TIRISFAL), 501)
+        local word = quest.title:lower():match("%a+")
+        expectEqual(ns.Availability.isSearchMatch(quest, word), true, "part of the title")
+        expectEqual(ns.Availability.isSearchMatch(quest, quest.starterName:lower()), true, "the giver's name")
+        expectEqual(ns.Availability.isSearchMatch(quest, "no such words here"), false, "anything else")
+        expectEqual(ns.Availability.isSearchMatch(quest, ""), true, "an empty search keeps everything")
+        local others = ns.Availability.findInOtherZones(quest.title:lower(), SILVERPINE, {})
+        local found
+        for _, zone in ipairs(others) do
+            if zone.zoneId == TIRISFAL then
+                found = zone
+            end
+        end
+        expectEqual(found ~= nil, true, "searched from another zone, the quest's zone is named")
+        expectEqual(found and found.titles[1], quest.title, "with the quest")
+        for _, zone in ipairs(ns.Availability.findInOtherZones(quest.title:lower(), TIRISFAL, {})) do
+            expectEqual(zone.zoneId ~= TIRISFAL, true, "the zone shown is not among the others")
         end
     end
-    expectEqual(found ~= nil, true, "searched from another zone, the quest's zone is named")
-    expectEqual(found and found.titles[1], quest.title, "with the quest")
-    for _, zone in ipairs(ns.Availability.findInOtherZones(quest.title:lower(), TIRISFAL, {})) do
-        expectEqual(zone.zoneId ~= TIRISFAL, true, "the zone shown is not among the others")
-    end
-end)
+)
 
 test("an objective with no place says what can be done instead: the bank, the Auction House, its source", function()
     local ns = createAddon()
     local savedPrice, savedItem = ns.Prices.getAuctionPrice, C_Item
-    ns.Prices.getAuctionPrice = function(itemId) return itemId == 9002 and 12050 or nil end
-    C_Item = setmetatable({ GetItemCount = function(_, includeBank) return includeBank and 1 or 0 end }, { __index = savedItem })
-    local text = ns.LogQuestPage.composeWaysToGet({ objective = { type = "item", label = "Wool Cloth" }, itemId = 9002, stillNeeded = 3 })
+    ns.Prices.getAuctionPrice = function(itemId)
+        return itemId == 9002 and 12050 or nil
+    end
+    C_Item = setmetatable({
+        GetItemCount = function(_, includeBank)
+            return includeBank and 1 or 0
+        end,
+    }, { __index = savedItem })
+    local text = ns.LogQuestPage.composeWaysToGet({
+        objective = { type = "item", label = "Wool Cloth" },
+        itemId = 9002,
+        stillNeeded = 3,
+    })
     expectEqual(text:find("1 in your bank", 1, true) ~= nil, true, "what waits in the bank")
     expectEqual(text:find("for 2 at the Auction House", 1, true) ~= nil, true, "the rest at the Auction House")
     expectEqual(text:find("Point at it", 1, true) ~= nil, true, "and where the quest's words are")
-    local bare = ns.LogQuestPage.composeWaysToGet({ objective = { type = "monster", label = "Korrak the Bloodrager slain" } })
+    local bare =
+        ns.LogQuestPage.composeWaysToGet({ objective = { type = "monster", label = "Korrak the Bloodrager slain" } })
     expectEqual(bare:find("does not say where", 1, true) ~= nil, true, "nothing known: why there is no mark")
     ns.Prices.getAuctionPrice, C_Item = savedPrice, savedItem
 end)
@@ -861,9 +1016,15 @@ end)
 test("a quest giver's greeting window: each offered quest is read with its id", function()
     local ns = createAddon()
     local saved = { GetNumAvailableQuests, GetAvailableQuestInfo, GetAvailableTitle }
-    GetNumAvailableQuests = function() return 2 end
-    GetAvailableQuestInfo = function(index) return index == 2, 0, false, false, 500 + index end -- isTrivial, frequency, repeatable, legendary, questId
-    GetAvailableTitle = function(index) return "Quest " .. index end
+    GetNumAvailableQuests = function()
+        return 2
+    end
+    GetAvailableQuestInfo = function(index)
+        return index == 2, 0, false, false, 500 + index
+    end -- isTrivial, frequency, repeatable, legendary, questId
+    GetAvailableTitle = function(index)
+        return "Quest " .. index
+    end
     local quests, isComplete = ns.GameOffers.readDialogOffers("QUEST_GREETING")
     expectEqual(isComplete, true, "the whole list")
     expectEqual(quests[1] and quests[1].questId, 501, "the quest's id, the fifth value")
@@ -871,56 +1032,77 @@ test("a quest giver's greeting window: each offered quest is read with its id", 
     GetNumAvailableQuests, GetAvailableQuestInfo, GetAvailableTitle = saved[1], saved[2], saved[3]
 end)
 
-test("a quest the game offers stays out when the player's own choices leave it out: hidden, or of a kind turned off", function()
-    local ns = createAddon()
-    ns.print = function() end
-    local uiMapId = ns.Database.getUiMapId(TIRISFAL)
-    C_QuestLine = {
-        RequestQuestLinesForMap = function() end,
-        GetAvailableQuestLines = function(mapId)
-            if mapId ~= uiMapId then
-                return {}
-            end
-            return {
-                { questID = 504, questName = "Too High", x = 0.3, y = 0.3, isHidden = false, startMapID = uiMapId },
-                { questID = 9999, questName = "Not in the Database", x = 0.5, y = 0.4, isHidden = false, startMapID = uiMapId },
-            }
-        end,
-    }
-    ns.settings.hiddenQuestIds = { [504] = true, [9999] = true } -- (as QuestHiding.hide keeps them)
-    ns.Availability.prepare()
-    local quests = getAvailableQuests(ns, TIRISFAL)
-    expectEqual(getQuest(quests, 504), nil, "a quest the player hid is not brought back by the game's word")
-    expectEqual(getQuest(quests, 9999), nil, "nor one the database lacks")
-    expectEqual(ns.settings.missedQuests[504], nil, "and neither is noted as missed")
-    expectEqual(ns.settings.missedQuests[9999], nil, "(the rules missed nothing there)")
-    ns.QuestHiding.unhide(504)
-    ns.Availability.invalidate()
-    expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 504) ~= nil, true, "brought back: the game's word stands again")
-    C_QuestLine = nil
-end)
+test(
+    "a quest the game offers stays out when the player's own choices leave it out: hidden, or of a kind turned off",
+    function()
+        local ns = createAddon()
+        ns.print = function() end
+        local uiMapId = ns.Database.getUiMapId(TIRISFAL)
+        C_QuestLine = {
+            RequestQuestLinesForMap = function() end,
+            GetAvailableQuestLines = function(mapId)
+                if mapId ~= uiMapId then
+                    return {}
+                end
+                return {
+                    { questID = 504, questName = "Too High", x = 0.3, y = 0.3, isHidden = false, startMapID = uiMapId },
+                    {
+                        questID = 9999,
+                        questName = "Not in the Database",
+                        x = 0.5,
+                        y = 0.4,
+                        isHidden = false,
+                        startMapID = uiMapId,
+                    },
+                }
+            end,
+        }
+        ns.settings.hiddenQuestIds = { [504] = true, [9999] = true } -- (as QuestHiding.hide keeps them)
+        ns.Availability.prepare()
+        local quests = getAvailableQuests(ns, TIRISFAL)
+        expectEqual(getQuest(quests, 504), nil, "a quest the player hid is not brought back by the game's word")
+        expectEqual(getQuest(quests, 9999), nil, "nor one the database lacks")
+        expectEqual(ns.settings.missedQuests[504], nil, "and neither is noted as missed")
+        expectEqual(ns.settings.missedQuests[9999], nil, "(the rules missed nothing there)")
+        ns.QuestHiding.unhide(504)
+        ns.Availability.invalidate()
+        expectEqual(
+            getQuest(getAvailableQuests(ns, TIRISFAL), 504) ~= nil,
+            true,
+            "brought back: the game's word stands again"
+        )
+        C_QuestLine = nil
+    end
+)
 
-test("a giver's offer learnt by talking holds until the quest closes; one closed already when offered stands", function()
-    local ns, state = createAddon()
-    ns.Availability.prepare()
-    UnitGUID = function(unit) return unit == "npc" and "Creature-0-1-2-3-9003-0000ABCD" or nil end
-    local originalUnitName = UnitName
-    UnitName = function(unit) return unit == "npc" and "Deathguard Morris" or "Tester" end
-    ns.GameOffers.learnOffers({ { questId = 507, title = "Either" } }, false)
-    expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 507) ~= nil, true, "Either is listed")
-    -- The other of the pair is taken: Either is closed, and what the giver offered then is offered no more
-    state.questLog[508] = { isComplete = false, objectives = {} }
-    ns.Availability.invalidate()
-    expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 507), nil, "not listed once the other choice is taken")
-    expectEqual(ns.settings.missedQuests[507], nil, "nor noted as missed")
-    expectEqual(ns.getCharacterRecords("learnedOffers")[507], nil, "and forgotten")
-    -- Offered while the data already called it closed: a hole in the data, the giver's word stands
-    ns.GameOffers.learnOffers({ { questId = 507, title = "Either" } }, false)
-    ns.Availability.invalidate()
-    expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 507) ~= nil, true, "listed on the giver's word")
-    expectEqual(ns.settings.missedQuests[507] ~= nil, true, "and noted as the rules' hole")
-    UnitGUID, UnitName = nil, originalUnitName
-end)
+test(
+    "a giver's offer learnt by talking holds until the quest closes; one closed already when offered stands",
+    function()
+        local ns, state = createAddon()
+        ns.Availability.prepare()
+        UnitGUID = function(unit)
+            return unit == "npc" and "Creature-0-1-2-3-9003-0000ABCD" or nil
+        end
+        local originalUnitName = UnitName
+        UnitName = function(unit)
+            return unit == "npc" and "Deathguard Morris" or "Tester"
+        end
+        ns.GameOffers.learnOffers({ { questId = 507, title = "Either" } }, false)
+        expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 507) ~= nil, true, "Either is listed")
+        -- The other of the pair is taken: Either is closed, and what the giver offered then is offered no more
+        state.questLog[508] = { isComplete = false, objectives = {} }
+        ns.Availability.invalidate()
+        expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 507), nil, "not listed once the other choice is taken")
+        expectEqual(ns.settings.missedQuests[507], nil, "nor noted as missed")
+        expectEqual(ns.getCharacterRecords("learnedOffers")[507], nil, "and forgotten")
+        -- Offered while the data already called it closed: a hole in the data, the giver's word stands
+        ns.GameOffers.learnOffers({ { questId = 507, title = "Either" } }, false)
+        ns.Availability.invalidate()
+        expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 507) ~= nil, true, "listed on the giver's word")
+        expectEqual(ns.settings.missedQuests[507] ~= nil, true, "and noted as the rules' hole")
+        UnitGUID, UnitName = nil, originalUnitName
+    end
+)
 
 test("a quest asked for first counts as done when the other side of its choice was done instead", function()
     local ns, state = createAddon()
@@ -956,13 +1138,18 @@ test("a quest the game offers that the rules hold back is one row, not again amo
             if mapId ~= uiMapId then
                 return {}
             end
-            return { { questID = 504, questName = "Too High", x = 0.3, y = 0.3, isHidden = false, startMapID = uiMapId } }
+            return {
+                { questID = 504, questName = "Too High", x = 0.3, y = 0.3, isHidden = false, startMapID = uiMapId },
+            }
         end,
     }
     ns.Availability.prepare()
     expectEqual(getQuest(getAvailableQuests(ns, TIRISFAL), 504) ~= nil, true, "listed on the game's word")
-    expectEqual(getQuest(ns.Availability.getBlockedQuests(TIRISFAL, { shouldShowLowLevel = true }), 504) ~= nil, true,
-        "while the rules still hold it back")
+    expectEqual(
+        getQuest(ns.Availability.getBlockedQuests(TIRISFAL, { shouldShowLowLevel = true }), 504) ~= nil,
+        true,
+        "while the rules still hold it back"
+    )
     -- The Available tab draws the two lists: the quest once
     local Canvas = getmetatable(ns.Widgets.createCanvas("OneMoreQuestOneRowTestCanvas", UIParent, 200, 100))
     local savedAddText, count = Canvas.addText, 0
@@ -980,4 +1167,63 @@ test("a quest the game offers that the rules hold back is one row, not again amo
     Canvas.addText = savedAddText
     expectEqual(count, 1, "drawn once, not twice")
     C_QuestLine = nil
+end)
+
+test("the Available list groups a quest not yet to be had under what opens it", function()
+    local ns, state = createAddon()
+    state.playerLevel = 12
+    ns.Availability.prepare()
+    local player = ns.Availability.getPlayer()
+    local function getRoot(questId)
+        return ns.Availability.getUnlockRoot(questId, ns.Availability.getBlocker(questId, player), player)
+    end
+    -- Into the Vault (521) follows Rumours of the Vault (520), which can be picked up now
+    local root = getRoot(521)
+    expectEqual(root.kind, "take", "behind a quest to pick up now")
+    expectEqual(root.questId, 520, "which is named")
+    setQuest(state, 520, false)
+    ns.Availability.invalidate()
+    root = getRoot(521)
+    expectEqual(root.kind, "log", "behind a quest in the log, once it is taken")
+    expectEqual(root.questId, 520, "the same one")
+    local blocked
+    for _, quest in ipairs(ns.Availability.getBlockedQuests(TIRISFAL, { shouldShowLowLevel = true })) do
+        blocked = quest.questId == 521 and quest or blocked
+    end
+    expectEqual(blocked and blocked.unlockRoot.kind, "log", "the list's quest carries it")
+    -- A level still to reach is its own kind
+    expectEqual(ns.Availability.getUnlockRoot(521, { kind = "level", level = 20 }, player).level, 20, "a level")
+    expectEqual(
+        ns.Availability.getUnlockRoot(521, { kind = "skill", text = "Needs Cooking" }, player).kind,
+        "other",
+        "else"
+    )
+    -- Drawn: the quest that opens it once as a heading, the quest under it, and the chips over the list
+    local Canvas = getmetatable(ns.Widgets.createCanvas("OneMoreQuestNextListTestCanvas", UIParent, 200, 100))
+    local savedAddText, texts = Canvas.addText, {}
+    Canvas.addText = function(self, text, ...)
+        texts[tostring(text)] = (texts[tostring(text)] or 0) + 1
+        return savedAddText(self, text, ...)
+    end
+    ns.Log.create()
+    ns.MapDock.create()
+    ns.Log.toggle()
+    ns.Log.showAvailable(521)
+    texts = {}
+    ns.Log.refresh()
+    expectEqual(texts["OPENS FROM YOUR LOG"], 1, "the section of what the log opens")
+    expectEqual(texts["Rumours of the Vault"] ~= nil, true, "its heading: the quest in the log, by name")
+    expectEqual(texts["NOT YET AVAILABLE"], nil, "no long list of locked quests")
+    local hasChip = false
+    for text in pairs(texts) do
+        hasChip = hasChip or text:find("^Soon %d") ~= nil
+    end
+    expectEqual(hasChip, true, "the chips say how many are soon")
+    -- The Later chip keeps the list to what is far off: the log's group goes
+    ns.LogState.availableFilter = "later"
+    texts = {}
+    ns.Log.refresh()
+    expectEqual(texts["OPENS FROM YOUR LOG"], nil, "filtered away")
+    ns.LogState.availableFilter = nil
+    Canvas.addText = savedAddText
 end)

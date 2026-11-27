@@ -44,14 +44,15 @@ for _, dungeonId in ipairs({ WAILING_CAVERNS, RAZORFEN_KRAUL }) do
     expect(button ~= nil, dungeonId .. ": one mark for its quests")
     local shown = 0
     for _, orbiting in ipairs(button and button.orbiting or {}) do
-        if orbiting:IsShown() then shown = shown + 1 end
+        if orbiting:IsShown() then
+            shown = shown + 1
+        end
     end
     expect(shown >= 2, dungeonId .. ": its quests circle the entrance (" .. shown .. ")")
     expect(button and button.entranceIcon:IsShown(), dungeonId .. ": with the entrance icon of its own")
 end
 saveScene("own-entrance")
 -- Zoomed in on the entrance, to see the marks at their real size
-local container = map.ScrollContainer
 zoomMap(1)
 map:PanTo(0.46, 0.364)
 wait(0.5)
@@ -85,7 +86,13 @@ local function placePins()
     for _, pin in pairs(pins) do
         pin:SetScale(scale)
         pin:ClearAllPoints()
-        pin:SetPoint("CENTER", canvas, "TOPLEFT", canvas:GetWidth() * pin.data[2] / 100 / scale, -(canvas:GetHeight() * pin.data[3] / 100) / scale)
+        pin:SetPoint(
+            "CENTER",
+            canvas,
+            "TOPLEFT",
+            canvas:GetWidth() * pin.data[2] / 100 / scale,
+            -(canvas:GetHeight() * pin.data[3] / 100) / scale
+        )
         pin:Show()
     end
 end
@@ -98,18 +105,36 @@ local function expectOnLeatrixIcons(zoomText)
         if button then
             local buttonX, buttonY = getCenter(button)
             local pinX, pinY = getCenter(pins[name])
-            expect(math.abs(buttonX - pinX) < 1.5 and math.abs(buttonY - pinY) < 1.5,
-                string.format("%s, %s: the quests circle Leatrix's icon (ours at %.1f, %.1f; its at %.1f, %.1f)", name, zoomText, buttonX, buttonY, pinX, pinY))
-            expect(not button.entranceIcon:IsShown(), name .. ", " .. zoomText .. ": no entrance icon of ours on top of Leatrix's")
+            expect(
+                math.abs(buttonX - pinX) < 1.5 and math.abs(buttonY - pinY) < 1.5,
+                string.format(
+                    "%s, %s: the quests circle Leatrix's icon (ours at %.1f, %.1f; its at %.1f, %.1f)",
+                    name,
+                    zoomText,
+                    buttonX,
+                    buttonY,
+                    pinX,
+                    pinY
+                )
+            )
+            expect(
+                not button.entranceIcon:IsShown(),
+                name .. ", " .. zoomText .. ": no entrance icon of ours on top of Leatrix's"
+            )
             -- None of its quests under Leatrix's arrow (drawn over ours) by Razorfen Kraul
             local arrowLeft, arrowBottom, arrowWidth, arrowHeight = pins["Thousand Needles"]:GetRect()
             local arrowScale = pins["Thousand Needles"]:GetEffectiveScale()
             for _, orbiting in ipairs(button.orbiting) do
                 if orbiting:IsShown() then
                     local x, y = getCenter(orbiting)
-                    local isUnder = x > arrowLeft * arrowScale and x < (arrowLeft + arrowWidth) * arrowScale
-                        and y > arrowBottom * arrowScale and y < (arrowBottom + arrowHeight) * arrowScale
-                    expect(not isUnder, name .. ", " .. zoomText .. ": a quest mark of its is not under Leatrix's arrow")
+                    local isUnder = x > arrowLeft * arrowScale
+                        and x < (arrowLeft + arrowWidth) * arrowScale
+                        and y > arrowBottom * arrowScale
+                        and y < (arrowBottom + arrowHeight) * arrowScale
+                    expect(
+                        not isUnder,
+                        name .. ", " .. zoomText .. ": a quest mark of its is not under Leatrix's arrow"
+                    )
                 end
             end
         end
@@ -143,5 +168,8 @@ do
     hover({ x = x, y = require("sim").screenHeight - y })
     wait(0.2)
     local focus = G.GetMouseFoci()[1]
-    expect(not (focus and focus.mark and focus.mark.kind == "dungeon"), "Leatrix's arrow by the entrance is not under the dungeon's mark")
+    expect(
+        not (focus and focus.mark and focus.mark.kind == "dungeon"),
+        "Leatrix's arrow by the entrance is not under the dungeon's mark"
+    )
 end

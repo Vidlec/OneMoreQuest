@@ -17,7 +17,9 @@ local function tooltipText()
     for index = 1, G.GameTooltip:NumLines() do
         local left = G["GameTooltipTextLeft" .. index]
         local right = G["GameTooltipTextRight" .. index]
-        lines[#lines + 1] = (left and left:GetText() or "") .. " | " .. (right and right:IsShown() and right:GetText() or "")
+        lines[#lines + 1] = (left and left:GetText() or "")
+            .. " | "
+            .. (right and right:IsShown() and right:GetText() or "")
     end
     return table.concat(lines, "\n")
 end
@@ -27,16 +29,25 @@ wait(0.1)
 local text = tooltipText()
 print(text)
 expect(text:find("Plainstrider Menace", 1, true), "hovering a Plainstrider names the quest it helps")
-expect(text:find("Plainstrider Beak", 1, true) and text:find("%d+/%d+") and text:find("%d+%%"), "with the beaks, their count and the drop chance")
+expect(
+    text:find("Plainstrider Beak", 1, true) and text:find("%d+/%d+") and text:find("%d+%%"),
+    "with the beaks, their count and the drop chance"
+)
 
 hoverCreature(killNpcId)
 wait(0.1)
 text = tooltipText()
-expect(text:find("Disrupt the Attacks", 1, true) and text:find(killName, 1, true), "a kill quest's creature shows the kills it counts for")
+expect(
+    text:find("Disrupt the Attacks", 1, true) and text:find(killName, 1, true),
+    "a kill quest's creature shows the kills it counts for"
+)
 
 hoverCreature(3255) -- a Sunscale Screecher: nothing for these quests
 wait(0.1)
-expect(not tooltipText():find("Plainstrider Menace", 1, true) and not tooltipText():find("Disrupt", 1, true), "a creature worth nothing to your quests adds nothing")
+expect(
+    not tooltipText():find("Plainstrider Menace", 1, true) and not tooltipText():find("Disrupt", 1, true),
+    "a creature worth nothing to your quests adds nothing"
+)
 
 targetCreature(3244)
 G.GameTooltip:SetOwner(G.UIParent, "ANCHOR_CURSOR")
@@ -53,23 +64,33 @@ addon.settings.shouldShowUnitQuests = true
 restrict({ identity = true })
 hoverCreature(3244)
 wait(0.1)
-expect(not tooltipText():find("Plainstrider Menace", 1, true), "with creatures' identities kept secret, nothing is added")
+expect(
+    not tooltipText():find("Plainstrider Menace", 1, true),
+    "with creatures' identities kept secret, nothing is added"
+)
 restrict({ identity = false })
 
 -- The game can run the post-call twice for one tooltip: the lines go in once
 hoverCreature(3244)
 local data = { type = 2, guid = G.UnitGUID("mouseover") }
-for _, handler in ipairs(require("ui").tooltipPostCalls[2] or {}) do handler(G.GameTooltip, data) end
+for _, handler in ipairs(require("ui").tooltipPostCalls[2] or {}) do
+    handler(G.GameTooltip, data)
+end
 local _, count = tooltipText():gsub("Plainstrider Menace", "")
 expect(count == 1, "run again for the same tooltip, the quest is listed once (" .. count .. ")")
 
 -- Questie running with its own quest lines on tooltips: ours step aside rather than repeat them
 local isLoaded = G.C_AddOns.IsAddOnLoaded
-G.C_AddOns.IsAddOnLoaded = function(name) return name == "Questie" or isLoaded(name) end
+G.C_AddOns.IsAddOnLoaded = function(name)
+    return name == "Questie" or isLoaded(name)
+end
 G.Questie = { db = { profile = { enableTooltips = true } } }
 hoverCreature(3244)
 expect(not tooltipText():find("Plainstrider Menace", 1, true), "with Questie's tooltips on, OneMoreQuest adds nothing")
 G.Questie.db.profile.enableTooltips = false
 hoverCreature(3244)
-expect(tooltipText():find("Plainstrider Menace", 1, true), "with them switched off in Questie, OneMoreQuest's lines are back")
+expect(
+    tooltipText():find("Plainstrider Menace", 1, true),
+    "with them switched off in Questie, OneMoreQuest's lines are back"
+)
 G.C_AddOns.IsAddOnLoaded, G.Questie = isLoaded, nil

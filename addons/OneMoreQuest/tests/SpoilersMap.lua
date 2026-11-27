@@ -5,8 +5,15 @@
 local function describeMarks(marks)
     local parts = {}
     for _, mark in ipairs(marks) do
-        parts[#parts + 1] = string.format("%s:%s:%.4f:%.4f:%s:%d", mark.kind, tostring(mark.questId), mark.x, mark.y,
-            table.concat(mark.lines or {}, "/"), #(mark.spawnPoints or mark.points or {}))
+        parts[#parts + 1] = string.format(
+            "%s:%s:%.4f:%.4f:%s:%d",
+            mark.kind,
+            tostring(mark.questId),
+            mark.x,
+            mark.y,
+            table.concat(mark.lines or {}, "/"),
+            #(mark.spawnPoints or mark.points or {})
+        )
     end
     return table.concat(parts, "\n")
 end
@@ -30,8 +37,14 @@ end
 ---Every spot of a zone's map in fog (nothing explored), until put back.
 local function fogEverything()
     local saved = { info = C_MapExplorationInfo, layers = C_Map.GetMapArtLayers }
-    C_MapExplorationInfo = { GetExploredMapTextures = function() return {} end }
-    C_Map.GetMapArtLayers = function() return { { layerWidth = 1002, layerHeight = 668 } } end
+    C_MapExplorationInfo = {
+        GetExploredMapTextures = function()
+            return {}
+        end,
+    }
+    C_Map.GetMapArtLayers = function()
+        return { { layerWidth = 1002, layerHeight = 668 } }
+    end
     return function()
         C_MapExplorationInfo, C_Map.GetMapArtLayers = saved.info, saved.layers
     end
@@ -50,53 +63,65 @@ test("in Guide the maps draw exactly what they did, and nothing of the spoilers 
     expectEqual(describeMarks(ns.MapMarks.compose(1420)), before, "the same marks, in the same places")
     expectEqual(ns.MapPins.getDataKey():find("|guide", 1, true) ~= nil, true, "the maps' key says Guide, and stays so")
     local entry = ns.Model.composeEntry(201, ns.Model.getPlayer())
-    expectEqual(ns.MapMarks.getShownStep(entry, ns.MapMarks.getSpoilers(true)), nil, "the minimap shows the quest's own places")
+    expectEqual(
+        ns.MapMarks.getShownStep(entry, ns.MapMarks.getSpoilers(true)),
+        nil,
+        "the minimap shows the quest's own places"
+    )
     expectEqual(ns.Waypoints.getQuestPlace(entry) ~= nil, true, "the waypoint goes to its place")
 end)
 
-test("rough: a dashed circle round each area, its middle moved off, covering every spawn; no spawns, no shapes", function()
-    local ns, state = createAddon()
-    setQuest(state, 201, false, { killObjective(5, 12) })
-    ns.Tracker.create()
-    ns.Focus.set(201)
-    local exact = getMarks(ns.MapMarks.compose(1420), "objective")
-    startSpoilers(ns, { objectives = "rough" })
-    local marks = getMarks(ns.MapMarks.compose(1420), "objective")
-    expectEqual(#marks, #exact, "a mark for each area, as before")
-    for index, mark in ipairs(marks) do
-        expectEqual(mark.isRough, true, "a rough mark")
-        expectEqual(mark.roughCircles ~= nil and #mark.roughCircles, 1, "its circle")
-        expectEqual(#mark.points + #mark.areas + #(mark.spawnPoints or {}), 0, "no spawn and no area of its own")
-        expectEqual(hasLine(mark, "Somewhere here"), true, "it says so")
-        expectEqual(mark.x ~= exact[index].x or mark.y ~= exact[index].y, true, "not on the area's own spot")
-    end
-    -- In the world: every place of the area within the circle, the middle not the area's middle
-    local places = ns.Location.getObjectiveInfo(201, "monster", 1)
-    local circles = ns.MapMarks.getRoughCircles(201, 1, places)
-    expectEqual(ns.MapMarks.getRoughCircles(201, 1, places), circles, "worked out once")
-    for _, circle in ipairs(circles) do
-        local uiMapId = ns.Database.getUiMapId(circle.place.zoneId)
-        local _, north, west = ns.Geometry.getWorldPosition(uiMapId, circle.place.x, circle.place.y)
-        for _, place in ipairs(circle.places) do
-            local _, placeNorth, placeWest = ns.Geometry.getWorldPosition(ns.Database.getUiMapId(place.zoneId), place.x, place.y)
-            expectEqual(ns.Geometry.getDistance(north, west, placeNorth, placeWest) <= circle.radiusYards, true, "a spawn inside its circle")
+test(
+    "rough: a dashed circle round each area, its middle moved off, covering every spawn; no spawns, no shapes",
+    function()
+        local ns, state = createAddon()
+        setQuest(state, 201, false, { killObjective(5, 12) })
+        ns.Tracker.create()
+        ns.Focus.set(201)
+        local exact = getMarks(ns.MapMarks.compose(1420), "objective")
+        startSpoilers(ns, { objectives = "rough" })
+        local marks = getMarks(ns.MapMarks.compose(1420), "objective")
+        expectEqual(#marks, #exact, "a mark for each area, as before")
+        for index, mark in ipairs(marks) do
+            expectEqual(mark.isRough, true, "a rough mark")
+            expectEqual(mark.roughCircles ~= nil and #mark.roughCircles, 1, "its circle")
+            expectEqual(#mark.points + #mark.areas + #(mark.spawnPoints or {}), 0, "no spawn and no area of its own")
+            expectEqual(hasLine(mark, "Somewhere here"), true, "it says so")
+            expectEqual(mark.x ~= exact[index].x or mark.y ~= exact[index].y, true, "not on the area's own spot")
         end
+        -- In the world: every place of the area within the circle, the middle not the area's middle
+        local places = ns.Location.getObjectiveInfo(201, "monster", 1)
+        local circles = ns.MapMarks.getRoughCircles(201, 1, places)
+        expectEqual(ns.MapMarks.getRoughCircles(201, 1, places), circles, "worked out once")
+        for _, circle in ipairs(circles) do
+            local uiMapId = ns.Database.getUiMapId(circle.place.zoneId)
+            local _, north, west = ns.Geometry.getWorldPosition(uiMapId, circle.place.x, circle.place.y)
+            for _, place in ipairs(circle.places) do
+                local _, placeNorth, placeWest =
+                    ns.Geometry.getWorldPosition(ns.Database.getUiMapId(place.zoneId), place.x, place.y)
+                expectEqual(
+                    ns.Geometry.getDistance(north, west, placeNorth, placeWest) <= circle.radiusYards,
+                    true,
+                    "a spawn inside its circle"
+                )
+            end
+        end
+        ns.Focus.set(nil)
+        local quiet = getMarks(ns.MapMarks.compose(1420), "objective")
+        expectEqual(#quiet, 1, "out of focus one mark")
+        expectEqual(#quiet[1].roughCircles, #circles, "with every circle")
+        ns.MapPins.create()
+        ns.MapPins.refresh() -- draws the circles
+        local drawn = ns.MapMarks.getDrawn()
+        local isHovered = false
+        for _, area in ipairs(drawn.areas) do
+            isHovered = isHovered or area.note == "Somewhere here"
+        end
+        expectEqual(isHovered, true, "a circle answers the pointer")
+        local entry = ns.Model.composeEntry(201, ns.Model.getPlayer())
+        expectEqual(ns.Waypoints.getQuestPlace(entry), nil, "no waypoint to the exact place")
     end
-    ns.Focus.set(nil)
-    local quiet = getMarks(ns.MapMarks.compose(1420), "objective")
-    expectEqual(#quiet, 1, "out of focus one mark")
-    expectEqual(#quiet[1].roughCircles, #circles, "with every circle")
-    ns.MapPins.create()
-    ns.MapPins.refresh() -- draws the circles
-    local drawn = ns.MapMarks.getDrawn()
-    local isHovered = false
-    for _, area in ipairs(drawn.areas) do
-        isHovered = isHovered or area.note == "Somewhere here"
-    end
-    expectEqual(isHovered, true, "a circle answers the pointer")
-    local entry = ns.Model.composeEntry(201, ns.Model.getPlayer())
-    expectEqual(ns.Waypoints.getQuestPlace(entry), nil, "no waypoint to the exact place")
-end)
+)
 
 test("rough: who drops the item is named as chosen, the chances only with chances", function()
     local ns, state = createAddon()
@@ -104,7 +129,9 @@ test("rough: who drops the item is named as chosen, the chances only with chance
     setQuest(state, 301, false, { killObjective(12, 12), itemObjective(0, 4) })
     ns.Tracker.create()
     ns.Focus.set(301)
-    ns.Drops.getZones = function() return { { sources = { { npcId = 5002, name = "Silverpine Wolf", chance = 0.25 } } } } end
+    ns.Drops.getZones = function()
+        return { { sources = { { npcId = 5002, name = "Silverpine Wolf", chance = 0.25 } } } }
+    end
     startSpoilers(ns, { objectives = "rough", drops = "names" })
     local marks = getMarks(ns.MapMarks.compose(1421), "objective")
     expectEqual(#marks > 0, true, "a rough mark")
@@ -113,9 +140,17 @@ test("rough: who drops the item is named as chosen, the chances only with chance
     ns.Spoilers.setChoice("drops", "chances")
     expectEqual(hasLine(getMarks(ns.MapMarks.compose(1421), "objective")[1], "25%"), true, "with the chance")
     ns.Spoilers.setChoice("drops", "found")
-    expectEqual(hasLine(getMarks(ns.MapMarks.compose(1421), "objective")[1], "Dropped by"), false, "none dropped it yet")
+    expectEqual(
+        hasLine(getMarks(ns.MapMarks.compose(1421), "objective")[1], "Dropped by"),
+        false,
+        "none dropped it yet"
+    )
     ns.Spoilers.getMemory().drops[7001] = { [5002] = true }
-    expectEqual(hasLine(getMarks(ns.MapMarks.compose(1421), "objective")[1], "Dropped by Silverpine Wolf"), true, "once it dropped")
+    expectEqual(
+        hasLine(getMarks(ns.MapMarks.compose(1421), "objective")[1], "Dropped by Silverpine Wolf"),
+        true,
+        "once it dropped"
+    )
     removeProfitData()
 end)
 
@@ -128,7 +163,8 @@ test("found: only where the player saw the objective move on, said to be found; 
     expectEqual(#getMarks(ns.MapMarks.compose(1420), "objective"), 0, "nothing found yet: nothing drawn")
     local entry = ns.Model.composeEntry(201, ns.Model.getPlayer())
     expectEqual(ns.MapMarks.getShownStep(entry, ns.MapMarks.getSpoilers(true)).isHidden, true, "nothing on the minimap")
-    ns.Spoilers.getMemory().found[201] = { [1] = { { zoneId = TIRISFAL, x = 60, y = 50 }, { zoneId = TIRISFAL, x = 61, y = 50.5 } } }
+    ns.Spoilers.getMemory().found[201] =
+        { [1] = { { zoneId = TIRISFAL, x = 60, y = 50 }, { zoneId = TIRISFAL, x = 61, y = 50.5 } } }
     local marks = getMarks(ns.MapMarks.compose(1420), "objective")
     expectEqual(#marks, 1, "one mark where it was found")
     expectEqual(hasLine(marks[1], "Found by you"), true, "said to be found")
@@ -236,15 +272,23 @@ test("Alt held over the world map shows everything there, once a peek, and nowhe
     ns.MapPins.create()
     local key = ns.MapPins.getDataKey()
     local savedAlt, savedContainer = IsAltKeyDown, WorldMapFrame.ScrollContainer
-    WorldMapFrame.ScrollContainer = { IsMouseOver = function() return true end }
-    IsAltKeyDown = function() return true end
+    WorldMapFrame.ScrollContainer = {
+        IsMouseOver = function()
+            return true
+        end,
+    }
+    IsAltKeyDown = function()
+        return true
+    end
     ns.MapHover.handleModifierChange("LALT", 1)
     expectEqual(ns.MapMarks.isPeeking(), true, "peeking")
     expectEqual(ns.MapPins.getDataKey() ~= key, true, "the map is drawn again for it")
     expectEqual(#getMarks(ns.MapMarks.compose(1420), "objective") > 0, true, "the world map shows the objectives")
     expectEqual(#getMarks(ns.MapMarks.compose(1420, true), "objective"), 0, "the minimap does not")
     expectEqual(ns.Spoilers.getMemory().peeks, 1, "counted once")
-    IsAltKeyDown = function() return false end
+    IsAltKeyDown = function()
+        return false
+    end
     ns.MapHover.handleModifierChange("LALT", 0)
     expectEqual(ns.MapMarks.isPeeking(), false, "let go: back as chosen")
     expectEqual(#getMarks(ns.MapMarks.compose(1420), "objective"), 0, "held back again")
@@ -253,15 +297,42 @@ end)
 
 test("a quest area's drop lines follow the drops choice: chances, names, those that dropped it, none", function()
     local ns = createAddon()
-    local item = { type = "item", label = "Kraul Guano", text = "Kraul Guano: 0/12", isFinished = false, fulfilled = 0, required = 12 }
-    ns.QuestState.isInLog = function() return true end
-    ns.QuestState.getQuest = function() return { title = "Going, Going, Guano!", objectives = { item } } end
-    ns.Location.getObjectiveTarget = function() return { itemId = 5175 } end
+    local item = {
+        type = "item",
+        label = "Kraul Guano",
+        text = "Kraul Guano: 0/12",
+        isFinished = false,
+        fulfilled = 0,
+        required = 12,
+    }
+    ns.QuestState.isInLog = function()
+        return true
+    end
+    ns.QuestState.getQuest = function()
+        return { title = "Going, Going, Guano!", objectives = { item } }
+    end
+    ns.Location.getObjectiveTarget = function()
+        return { itemId = 5175 }
+    end
     ns.Drops.getZones = function()
-        return { { sources = { { npcId = 1, name = "Kraul Bat", chance = 0.09 }, { npcId = 2, name = "Greater Kraul Bat", chance = 0.08 } } } }
+        return {
+            {
+                sources = {
+                    { npcId = 1, name = "Kraul Bat", chance = 0.09 },
+                    { npcId = 2, name = "Greater Kraul Bat", chance = 0.08 },
+                },
+            },
+        }
     end
     local lines
-    local tooltip = { AddLine = function(_, text) lines[#lines + 1] = text end, AddDoubleLine = function(_, left, right) lines[#lines + 1] = left .. "|" .. right end }
+    local tooltip = {
+        AddLine = function(_, text)
+            lines[#lines + 1] = text
+        end,
+        AddDoubleLine = function(_, left, right)
+            lines[#lines + 1] = left .. "|" .. right
+        end,
+    }
     local function read()
         lines = {}
         ns.MapHover.addDropLines(tooltip, 1109, 1)

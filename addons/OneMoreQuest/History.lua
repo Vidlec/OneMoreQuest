@@ -29,7 +29,9 @@ local merged -- { entries, undated, levelUps }, worked out when first asked afte
 ---@param provider HistoryProvider
 function History.registerProvider(provider)
     providers[#providers + 1] = provider
-    table.sort(providers, function(first, second) return first.order < second.order end)
+    table.sort(providers, function(first, second)
+        return first.order < second.order
+    end)
     merged = nil
 end
 

@@ -23,4 +23,7 @@ wait(1)
 print("MAP", G.WorldMapFrame:IsShown(), G.WorldMapFrame:GetMapID(), "SELECTED", addon.Log.getSelectedQuestId())
 expect(G.WorldMapFrame:IsShown(), "the map opened")
 expect(addon.Log.getSelectedQuestId() == 1060, "its page is open")
-expect(G.WorldMapFrame:GetMapID() == addon.Database.getUiMapId(entry.zoneId), "the map shows the quest's zone, not the player's")
+expect(
+    G.WorldMapFrame:GetMapID() == addon.Database.getUiMapId(entry.zoneId),
+    "the map shows the quest's zone, not the player's"
+)

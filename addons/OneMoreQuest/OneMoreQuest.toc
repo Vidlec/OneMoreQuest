@@ -1,7 +1,18 @@
 ## Interface: 16001
-## Title: OneMoreQuest
+## Title: OneMoreQuest|cFF00FF00 v0.16.0|r
 ## Notes: Just one more quest: a quest log beside the map, a tracker grouped by zone, and map marks showing where to go. Built on QuestieDB.
-## Version: 0.15.0
+## Version: 0.16.0
+## Category: Quests
+## Category-deDE: Quests
+## Category-esES: Misiones
+## Category-esMX: Misiones
+## Category-frFR: Quêtes
+## Category-itIT: Missioni
+## Category-koKR: 퀘스트
+## Category-ptBR: Missões
+## Category-ruRU: Задания
+## Category-zhCN: 任务
+## Category-zhTW: 任務
 ## X-License: GPL-3.0
 ## Dependencies: QuestieDB
 ## OptionalDeps: TnnysMobLoot, Auctionator, TomTom, AzerothCesky, WowfCZ, Spoken, Spoken_Quests, ForeverDungeonJournal
@@ -68,6 +79,7 @@ Log\AvailableTab.lua
 Log\DungeonsTab.lua
 Log\SettingsView.lua
 Log\Window.lua
+Log\Diagram.lua
 MapDock.lua
 Gamepad.lua
 GamepadMenu.lua
@@ -80,6 +92,7 @@ MapMarks\Pills.lua
 MapMarks\Layout.lua
 MapMarks\Shapes.lua
 MapMarks\Areas.lua
+MapMarks\World.lua
 MapMarks\Draw.lua
 GatheringNodes.lua
 GatheringSpots.lua

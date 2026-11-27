@@ -7,11 +7,12 @@ local _, ns = ...
 local Log = ns.Log
 local Style, State, Actions = ns.LogStyle, ns.LogState, ns.LogActions
 local List, QuestPage, DungeonsTab = ns.LogList, ns.LogQuestPage, ns.LogDungeonsTab
-local addListHeading, addListQuest = List.addListHeading, List.addListQuest
+local addListQuest = List.addListQuest
 local drawAvailableQuest = QuestPage.drawAvailableQuest
 local selectQuest = Actions.selectQuest
 local selectedQuestIds = State.selectedQuestIds
-local COLORS, DOT, GIVER_ICON, ITEM_ICON, OBJECT_ICON, PADDING = Style.COLORS, Style.DOT, Style.GIVER_ICON, Style.ITEM_ICON, Style.OBJECT_ICON, Style.PADDING
+local COLORS, DOT, GIVER_ICON, ITEM_ICON, OBJECT_ICON, PADDING =
+    Style.COLORS, Style.DOT, Style.GIVER_ICON, Style.ITEM_ICON, Style.OBJECT_ICON, Style.PADDING
 local TAB_DUNGEONS, MEDIA = Style.TAB_DUNGEONS, Style.MEDIA
 -- Up, for a lead-in's arrow to the quest it opens: the chevron that points down, turned over
 local UP_CHEVRON, UP_COORDS = MEDIA .. "ChevronDown", { 0, 1, 1, 0 }
@@ -28,7 +29,9 @@ local SECTIONS = {
 -- Listed after the rest, but not counted among the quests left: a dungeon with only these is all done
 local DONE_SECTION = { key = "done", title = "Done" }
 local LISTED_SECTIONS = {}
-for _, section in ipairs(SECTIONS) do LISTED_SECTIONS[#LISTED_SECTIONS + 1] = section end
+for _, section in ipairs(SECTIONS) do
+    LISTED_SECTIONS[#LISTED_SECTIONS + 1] = section
+end
 LISTED_SECTIONS[#LISTED_SECTIONS + 1] = DONE_SECTION
 local DONE_ICON = "Interface\\RaidFrame\\ReadyCheck-Ready" -- the game's green check
 
@@ -57,8 +60,15 @@ local function getRows()
             if total > 0 or doneCount > 0 then
                 local minLevel, maxLevel = ns.Availability.getZoneLevels(dungeonId)
                 rows[#rows + 1] = {
-                    dungeon = dungeon, run = run, minLevel = minLevel, maxLevel = maxLevel, total = total,
-                    inLog = #run.inLog, toPickUp = #run.pickUp + #run.foundInside, doneCount = doneCount, isDone = total == 0,
+                    dungeon = dungeon,
+                    run = run,
+                    minLevel = minLevel,
+                    maxLevel = maxLevel,
+                    total = total,
+                    inLog = #run.inLog,
+                    toPickUp = #run.pickUp + #run.foundInside,
+                    doneCount = doneCount,
+                    isDone = total == 0,
                 }
             end
         end
@@ -86,15 +96,28 @@ local function getEntrancePlace(dungeon)
     if not entrance then
         return nil
     end
-    return { zoneId = entrance.zoneId, x = entrance.x, y = entrance.y, groupZoneId = dungeon.areaId,
-        mapZoneId = ns.Database.getParentZoneId(entrance.zoneId) or entrance.zoneId, dungeonName = dungeon.name, dungeonZoneId = dungeon.areaId }
+    return {
+        zoneId = entrance.zoneId,
+        x = entrance.x,
+        y = entrance.y,
+        groupZoneId = dungeon.areaId,
+        mapZoneId = ns.Database.getParentZoneId(entrance.zoneId) or entrance.zoneId,
+        dungeonName = dungeon.name,
+        dungeonZoneId = dungeon.areaId,
+    }
 end
 
 ---A level in the game's difficulty colour for the player, as quest titles are coloured.
 ---@param shade number? How light the colour stays: 1 on the dark list, less on parchment
 local function colorLevel(level, shade)
     local color, factor = ns.Widgets.getDifficultyColor(level), shade or 1
-    return string.format("|cff%02x%02x%02x%d|r", color[1] * 255 * factor, color[2] * 255 * factor, color[3] * 255 * factor, level)
+    return string.format(
+        "|cff%02x%02x%02x%d|r",
+        color[1] * 255 * factor,
+        color[2] * 255 * factor,
+        color[3] * 255 * factor,
+        level
+    )
 end
 
 ---The dungeon's levels, each number in its own difficulty colour: "levels 30-34" can be grey at one end and yellow
@@ -110,7 +133,10 @@ local function composeLevels(row, shade)
     end
     -- The translation's numbers swapped for the coloured ones, so the words stay where the language puts them
     if hasRange then
-        return (ns.L("levels %d-%d"):gsub("%%d", "%%s")):format(colorLevel(row.minLevel, shade), colorLevel(row.maxLevel, shade))
+        return (ns.L("levels %d-%d"):gsub("%%d", "%%s")):format(
+            colorLevel(row.minLevel, shade),
+            colorLevel(row.maxLevel, shade)
+        )
     end
     return (ns.L("level %d"):gsub("%%d", "%%s")):format(colorLevel(row.minLevel, shade))
 end
@@ -150,9 +176,13 @@ local function composeQuestText(quest, sectionKey, isNested)
         for _, leadInId in ipairs(quest.leadInIds) do
             names[#names + 1] = ns.QuestText.getQuestName(leadInId) or ("Quest " .. leadInId)
         end
-        return #names > 2 and ns.L("After %d lead-ins, from %s", #names, names[1]) or ns.L("After %s", table.concat(names, " > "))
+        return #names > 2 and ns.L("After %d lead-ins, from %s", #names, names[1])
+            or ns.L("After %s", table.concat(names, " > "))
     elseif sectionKey == "foundInside" then
-        return ns.L(quest.startType == "item" and "Drops inside: %s" or "Given inside: %s", quest.itemName or quest.starterName or ns.L("unknown"))
+        return ns.L(
+            quest.startType == "item" and "Drops inside: %s" or "Given inside: %s",
+            quest.itemName or quest.starterName or ns.L("unknown")
+        )
     elseif quest.availableAtLevel then
         return ns.L("At level %d", quest.availableAtLevel) .. DOT .. (quest.starterName or ns.L("unknown giver"))
     elseif quest.blocker then
@@ -170,12 +200,19 @@ local IN_LOG_ICON, READY_ICON = "Interface\\GossipFrame\\IncompleteQuestIcon", "
 local function composeEntries(run)
     local listedIds = {}
     for _, section in ipairs(SECTIONS) do
-        for _, quest in ipairs(run[section.key]) do listedIds[quest.questId] = true end
+        for _, quest in ipairs(run[section.key]) do
+            listedIds[quest.questId] = true
+        end
     end
     local leadInsByTarget, sectionOf = {}, {}
     for _, sectionKey in ipairs({ "pickUp", "inLog" }) do
         for _, quest in ipairs(run[sectionKey]) do
-            if quest.isLeadIn and quest.leadsToQuestId and listedIds[quest.leadsToQuestId] and quest.leadsToQuestId ~= quest.questId then
+            if
+                quest.isLeadIn
+                and quest.leadsToQuestId
+                and listedIds[quest.leadsToQuestId]
+                and quest.leadsToQuestId ~= quest.questId
+            then
                 leadInsByTarget[quest.leadsToQuestId] = leadInsByTarget[quest.leadsToQuestId] or {}
                 table.insert(leadInsByTarget[quest.leadsToQuestId], quest)
                 sectionOf[quest] = sectionKey
@@ -184,7 +221,9 @@ local function composeEntries(run)
     end
     local entries, isNested = {}, {}
     for _, leadIns in pairs(leadInsByTarget) do
-        for _, leadIn in ipairs(leadIns) do isNested[leadIn] = true end
+        for _, leadIn in ipairs(leadIns) do
+            isNested[leadIn] = true
+        end
     end
     for _, section in ipairs(LISTED_SECTIONS) do
         for _, quest in ipairs(run[section.key] or {}) do
@@ -247,7 +286,10 @@ end
 
 -- The page's progress bar, in the zone page's colours: done, in the log, to pick up, for later
 local PROGRESS_COLORS = {
-    done = COLORS.darkGreen, inLog = Style.SELECTED_EDGE, pickUp = { 0.96, 0.93, 0.82 }, later = { 0.54, 0.52, 0.47 },
+    done = COLORS.darkGreen,
+    inLog = Style.SELECTED_EDGE,
+    pickUp = { 0.96, 0.93, 0.82 },
+    later = { 0.54, 0.52, 0.47 },
 }
 
 ---The quests one run is about: those in the log, to pick up (their lead-ins too: they are done on the way) and
@@ -266,8 +308,12 @@ end
 ---@return { key: string, count: number, label: string }[] parts
 local function composeProgress(run)
     local inLog, pickUp = 0, 0
-    for _, quest in ipairs(run.inLog) do inLog = inLog + (quest.isLeadIn and 0 or 1) end
-    for _, quest in ipairs(run.pickUp) do pickUp = pickUp + (quest.isLeadIn and 0 or 1) end
+    for _, quest in ipairs(run.inLog) do
+        inLog = inLog + (quest.isLeadIn and 0 or 1)
+    end
+    for _, quest in ipairs(run.pickUp) do
+        pickUp = pickUp + (quest.isLeadIn and 0 or 1)
+    end
     pickUp = pickUp + #run.foundInside
     local later = #run.behindLeadIn + #run.notYet
     return {
@@ -347,25 +393,56 @@ local function addGlance(y, run)
         end
     end
     for _, quest in ipairs(run.done) do
-        allExperience = allExperience + (keptExperience[quest.questId] or ns.Database.getQuestExperience(quest.questId) or 0)
+        allExperience = allExperience
+            + (keptExperience[quest.questId] or ns.Database.getQuestExperience(quest.questId) or 0)
     end
     local levelMax = UnitXPMax and UnitXPMax("player") or 0
-    local levelShare = levelMax > 0 and rewards.experience > 0 and math.floor(rewards.experience / levelMax * 100 + 0.5) or nil
+    local levelShare = levelMax > 0 and rewards.experience > 0 and math.floor(rewards.experience / levelMax * 100 + 0.5)
+        or nil
     local totalCount = run.doneCount + leftCount + #run.behindLeadIn + #run.notYet
     local formatNumber = ns.ChroniclePage.formatNumber
     return ns.ChroniclePage.addRewardStrip(State.detail, y, {
-        { label = ns.L("Experience left"), value = rewards.experience > 0 and formatNumber(rewards.experience) or "-", icon = ICONS .. "XP_Icon",
-            note = ns.Lp(leftCount, "From the %d quest still to do here, at your level", "From the %d quests still to do here, at your level") },
-        { label = ns.L("Money"), value = rewards.money > 0 and ns.ChroniclePage.formatTileMoney(rewards.money) or "-", icon = ICONS .. "INV_Misc_Coin_01",
-            note = ns.L("The quests still to do here, handed in") },
-        { label = ns.L("Reward items"), value = rewards.itemCount > 0 and tostring(rewards.itemCount) or "-", icon = ICONS .. "INV_Box_01",
-            note = #rewards.itemNames > 0 and table.concat(rewards.itemNames, ", ") or ns.L("No items among the rewards") },
-        { label = ns.L("Quests done"), value = ns.L("%d of %d", run.doneCount, totalCount), icon = ICONS .. "INV_Scroll_03",
-            note = ns.L("The dungeon's quests you can have, lead-ins left out") },
-        { label = ns.L("Experience in all"), value = allExperience > 0 and formatNumber(allExperience) or "-", icon = ICONS .. "INV_Misc_Book_09",
-            note = ns.L("What is left here, what the quests for later would give, and what the done ones gave") },
-        { label = ns.L("Of your level"), value = levelShare and (levelShare .. "%") or "-", icon = ICONS .. "Spell_Holy_SealOfWisdom",
-            note = ns.L("How much of your current level the experience left would fill") },
+        {
+            label = ns.L("Experience left"),
+            value = rewards.experience > 0 and formatNumber(rewards.experience) or "-",
+            icon = ICONS .. "XP_Icon",
+            note = ns.Lp(
+                leftCount,
+                "From the %d quest still to do here, at your level",
+                "From the %d quests still to do here, at your level"
+            ),
+        },
+        {
+            label = ns.L("Money"),
+            value = rewards.money > 0 and ns.ChroniclePage.formatTileMoney(rewards.money) or "-",
+            icon = ICONS .. "INV_Misc_Coin_01",
+            note = ns.L("The quests still to do here, handed in"),
+        },
+        {
+            label = ns.L("Reward items"),
+            value = rewards.itemCount > 0 and tostring(rewards.itemCount) or "-",
+            icon = ICONS .. "INV_Box_01",
+            note = #rewards.itemNames > 0 and table.concat(rewards.itemNames, ", ")
+                or ns.L("No items among the rewards"),
+        },
+        {
+            label = ns.L("Quests done"),
+            value = ns.L("%d of %d", run.doneCount, totalCount),
+            icon = ICONS .. "INV_Scroll_03",
+            note = ns.L("The dungeon's quests you can have, lead-ins left out"),
+        },
+        {
+            label = ns.L("Experience in all"),
+            value = allExperience > 0 and formatNumber(allExperience) or "-",
+            icon = ICONS .. "INV_Misc_Book_09",
+            note = ns.L("What is left here, what the quests for later would give, and what the done ones gave"),
+        },
+        {
+            label = ns.L("Of your level"),
+            value = levelShare and (levelShare .. "%") or "-",
+            icon = ICONS .. "Spell_Holy_SealOfWisdom",
+            note = ns.L("How much of your current level the experience left would fill"),
+        },
     }, 2) -- two to a row: the page is narrower than the chronicle's
 end
 
@@ -383,7 +460,11 @@ end
 
 ---A quest's line on the route: its name with its level, then who gives or takes it, quieter.
 local function composeQuestLine(quest, note)
-    local name = string.format("[%d] %s", quest.level or 0, quest.title or ns.QuestText.getQuestName(quest.questId) or ("Quest " .. quest.questId))
+    local name = string.format(
+        "[%d] %s",
+        quest.level or 0,
+        quest.title or ns.QuestText.getQuestName(quest.questId) or ("Quest " .. quest.questId)
+    )
     return { text = name .. (note and ("  " .. colorText(note, COLORS.softInk)) or ""), questId = quest.questId }
 end
 
@@ -393,7 +474,9 @@ end
 local function groupIntoStops(items)
     local stopsByName, stops = {}, {}
     for _, item in ipairs(items) do
-        local name = item.place and ns.Database.getZoneName(item.place.mapZoneId or item.place.groupZoneId or item.place.zoneId) or ns.L("Unknown location")
+        local name = item.place
+                and ns.Database.getZoneName(item.place.mapZoneId or item.place.groupZoneId or item.place.zoneId)
+            or ns.L("Unknown location")
         local stop = stopsByName[name]
         if not stop then
             stop = { title = name, lines = {}, distance = math.huge }
@@ -416,8 +499,13 @@ end
 local function composePickUpStops(run)
     local items = {}
     for _, quest in ipairs(run.pickUp) do
-        local note = (quest.starterName or ns.L("unknown giver")) .. (quest.isLeadIn and not Told.isStoryHidden and (DOT .. ns.L("Lead-in for %s", quest.leadsToTitle)) or "")
-        items[#items + 1] = { place = quest.nearestPlace or (quest.places or {})[1], distance = quest.distance, line = composeQuestLine(quest, note) }
+        local note = (quest.starterName or ns.L("unknown giver"))
+            .. (quest.isLeadIn and not Told.isStoryHidden and (DOT .. ns.L("Lead-in for %s", quest.leadsToTitle)) or "")
+        items[#items + 1] = {
+            place = quest.nearestPlace or (quest.places or {})[1],
+            distance = quest.distance,
+            line = composeQuestLine(quest, note),
+        }
     end
     return groupIntoStops(items)
 end
@@ -430,15 +518,22 @@ local function composeInsideStops(run)
         for _, objective in ipairs(logQuest and logQuest.objectives or {}) do
             if not objective.isFinished then
                 lines[#lines + 1] = {
-                    text = (objective.shownLabel or objective.label or "") .. "  " .. colorText(quest.title, COLORS.softInk),
-                    rightText = (objective.required or 0) > 1 and ns.L("%d of %d", objective.fulfilled or 0, objective.required) or nil,
+                    text = (objective.shownLabel or objective.label or "")
+                        .. "  "
+                        .. colorText(quest.title, COLORS.softInk),
+                    rightText = (objective.required or 0) > 1
+                            and ns.L("%d of %d", objective.fulfilled or 0, objective.required)
+                        or nil,
                     questId = quest.questId,
                 }
             end
         end
     end
     for _, quest in ipairs(run.foundInside) do
-        local source = ns.L(quest.startType == "item" and "Drops inside: %s" or "Given inside: %s", quest.itemName or quest.starterName or ns.L("unknown"))
+        local source = ns.L(
+            quest.startType == "item" and "Drops inside: %s" or "Given inside: %s",
+            quest.itemName or quest.starterName or ns.L("unknown")
+        )
         lines[#lines + 1] = { text = source, rightText = ns.L("starts %s", quest.title), questId = quest.questId }
     end
     return #lines > 0 and { { isInside = true, lines = lines } } or {}
@@ -454,7 +549,8 @@ local function composeHandInStops(run)
         if not isSpoiling or ns.Model.isTurnInShown(quest.questId) then
             local places, finisherName = ns.Location.getFinisherPlaces(quest.questId)
             local distance, _, place = ns.Geometry.getNearest(places, position, ns.Database.getUiMapId)
-            items[#items + 1] = { place = place or places[1], distance = distance, line = composeQuestLine(quest, finisherName) }
+            items[#items + 1] =
+                { place = place or places[1], distance = distance, line = composeQuestLine(quest, finisherName) }
         end
     end
     return groupIntoStops(items)
@@ -472,19 +568,38 @@ local function addStops(y, stops)
     for stopIndex, stop in ipairs(stops) do
         local top = y
         if stop.title then
-            y = y + State.detail:addText(stop.title, textLeft, y + 2, { font = "QuestFont", color = COLORS.ink, width = textWidth, isSingleLine = true }) + 5
+            y = y
+                + State.detail:addText(
+                    stop.title,
+                    textLeft,
+                    y + 2,
+                    { font = "QuestFont", color = COLORS.ink, width = textWidth, isSingleLine = true }
+                )
+                + 5
         else
             y = y + 2
         end
         for _, line in ipairs(stop.lines) do
             local lineTop, rightWidth = y, 0
             if line.rightText then
-                local _, measured = State.detail:addText(line.rightText, textLeft + textWidth - RIGHT_TEXT_WIDTH, y + 2, {
-                    font = "GameFontHighlightSmall", color = COLORS.softInk, width = RIGHT_TEXT_WIDTH, justify = "RIGHT", isSingleLine = true,
-                })
+                local _, measured =
+                    State.detail:addText(line.rightText, textLeft + textWidth - RIGHT_TEXT_WIDTH, y + 2, {
+                        font = "GameFontHighlightSmall",
+                        color = COLORS.softInk,
+                        width = RIGHT_TEXT_WIDTH,
+                        justify = "RIGHT",
+                        isSingleLine = true,
+                    })
                 rightWidth = math.min(type(measured) == "number" and measured or RIGHT_TEXT_WIDTH, RIGHT_TEXT_WIDTH) + 8
             end
-            y = y + State.detail:addText(line.text, textLeft, y, { font = "QuestFont", color = COLORS.brown, width = textWidth - rightWidth }) + 4
+            y = y
+                + State.detail:addText(
+                    line.text,
+                    textLeft,
+                    y,
+                    { font = "QuestFont", color = COLORS.brown, width = textWidth - rightWidth }
+                )
+                + 4
             if line.questId then
                 State.detail:addButton(textLeft - 4, lineTop - 1, textWidth + 4, y - lineTop, openQuest, line.questId)
             end
@@ -507,8 +622,18 @@ end
 ---@return number y Below it
 local function addLine(y, title, note, questId)
     local width = State.detail.width - 2 * PADDING
-    State.detail:addText(title, PADDING, y + 2, { font = "QuestFont", color = COLORS.ink, width = width, isSingleLine = true })
-    State.detail:addText(note, PADDING, y + 18, { font = "GameFontHighlightSmall", color = COLORS.softInk, width = width, isSingleLine = true })
+    State.detail:addText(
+        title,
+        PADDING,
+        y + 2,
+        { font = "QuestFont", color = COLORS.ink, width = width, isSingleLine = true }
+    )
+    State.detail:addText(
+        note,
+        PADDING,
+        y + 18,
+        { font = "GameFontHighlightSmall", color = COLORS.softInk, width = width, isSingleLine = true }
+    )
     if questId then
         State.detail:addButton(PADDING - 4, y, width + 8, 34, openQuest, questId)
     end
@@ -541,7 +666,13 @@ local function drawDungeonPage(row, run)
     QuestPage.setPageRewards(nil)
     local y = 12
     if dungeon.isLearned then
-        y = QuestPage.addBody(y, ns.L("Not in the quest database: known from another addon or your own runs, so more quests may be done here."), COLORS.softInk) + 8
+        y = QuestPage.addBody(
+            y,
+            ns.L(
+                "Not in the quest database: known from another addon or your own runs, so more quests may be done here."
+            ),
+            COLORS.softInk
+        ) + 8
     end
     y = addProgress(y, run, width)
     -- (the run's worth: not where the Spoilers choice keeps rewards back)
@@ -571,7 +702,12 @@ local function drawDungeonPage(row, run)
     if #later > 0 then
         y = QuestPage.addHeading(y, ns.L("Later"))
         for _, item in ipairs(later) do
-            y = addLine(y, string.format("[%d] %s", item.quest.level or 0, item.quest.title), composeQuestText(item.quest, item.key, false), item.quest.questId)
+            y = addLine(
+                y,
+                string.format("[%d] %s", item.quest.level or 0, item.quest.title),
+                composeQuestText(item.quest, item.key, false),
+                item.quest.questId
+            )
         end
         y = y + 12
     end
@@ -579,9 +715,14 @@ local function drawDungeonPage(row, run)
         y = QuestPage.addHeading(y, ns.L("Done here"))
         for _, quest in ipairs(run.done) do
             State.detail:addIcon(PADDING, y + 1, 14, DONE_ICON, nil, 3)
-            y = y + State.detail:addText(string.format("[%d] %s", quest.level or 0, quest.title), PADDING + 20, y, {
-                font = "QuestFont", color = COLORS.softInk, width = width - 20, isSingleLine = true,
-            }) + 6
+            y = y
+                + State.detail:addText(string.format("[%d] %s", quest.level or 0, quest.title), PADDING + 20, y, {
+                    font = "QuestFont",
+                    color = COLORS.softInk,
+                    width = width - 20,
+                    isSingleLine = true,
+                })
+                + 6
         end
         y = y + 6
     end
@@ -595,7 +736,12 @@ end
 ---@return table? selected, number? dungeonCount nil while the database is being read
 function DungeonsTab.drawDungeonsTab()
     if not ns.Availability.isReady() then
-        State.list:addText(ns.L("Reading the quest database..."), 10, 8, { color = COLORS.tan, width = State.list.width - 20 })
+        State.list:addText(
+            ns.L("Reading the quest database..."),
+            10,
+            8,
+            { color = COLORS.tan, width = State.list.width - 20 }
+        )
         State.list:finish(40)
         State.detail:finish(1)
         State.frame.status:SetText("")
@@ -620,9 +766,13 @@ function DungeonsTab.drawDungeonsTab()
     for _, row in ipairs(rows) do
         local dungeonId = row.dungeon.areaId
         y = List.addDungeonRow(y, {
-            name = row.dungeon.name, levelText = composeLevels(row),
-            subText = composeRowText(row), isSelected = selectedId == -dungeonId or State.selectedDungeonId == dungeonId, isDone = row.isDone,
-            handleClick = selectDungeon, data = -dungeonId,
+            name = row.dungeon.name,
+            levelText = composeLevels(row),
+            subText = composeRowText(row),
+            isSelected = selectedId == -dungeonId or State.selectedDungeonId == dungeonId,
+            isDone = row.isDone,
+            handleClick = selectDungeon,
+            data = -dungeonId,
         })
         if State.selectedDungeonId == dungeonId then
             selectedRow = selectedId == -dungeonId and row or selectedRow
@@ -637,15 +787,27 @@ function DungeonsTab.drawDungeonsTab()
                 -- Under the dungeon's mark and name: icons under its mark, titles where its name starts; a quest in the
                 -- log with the game's own ? (grey while worked on, yellow when done) and saying so in green
                 local rowTop = y
-                if entry.depth == 0 then parentTop = y end
-                local icon = quest.isDone and DONE_ICON or isInLog and (logQuest and logQuest.isComplete and READY_ICON or IN_LOG_ICON) or getStartIcon(quest)
+                if entry.depth == 0 then
+                    parentTop = y
+                end
+                local icon = quest.isDone and DONE_ICON
+                    or isInLog and (logQuest and logQuest.isComplete and READY_ICON or IN_LOG_ICON)
+                    or getStartIcon(quest)
                 local isColoured = icon == GIVER_ICON or icon == READY_ICON -- (the "!" and the "?" ready: in the kind's colour)
                 y = addListQuest(y, quest.questId, {
-                    indent = 2 + entry.depth * 16, isIconSpaceKept = true, title = quest.title, level = quest.level,
-                    subText = isInLog and ("|cff7ce07c" .. ns.L(logQuest and logQuest.isComplete and "Ready to turn in" or "In your log") .. "|r")
+                    indent = 2 + entry.depth * 16,
+                    isIconSpaceKept = true,
+                    title = quest.title,
+                    level = quest.level,
+                    subText = isInLog
+                            and ("|cff7ce07c" .. ns.L(
+                                logQuest and logQuest.isComplete and "Ready to turn in" or "In your log"
+                            ) .. "|r")
                         or composeQuestText(quest, entry.sectionKey, entry.depth > 0),
                     icon = icon,
-                    iconColour = isColoured and ns.MapMarks.getQuestIconColour(quest.questId, quest.isLowLevel, icon == READY_ICON) or nil,
+                    iconColour = isColoured
+                            and ns.MapMarks.getQuestIconColour(quest.questId, quest.isLowLevel, icon == READY_ICON)
+                        or nil,
                     isTurnInIcon = icon == READY_ICON,
                     color = quest.isDone and COLORS.tan or nil, -- handed in: its difficulty no longer matters
                     handleClick = quest.isDone and ignoreClick or openQuest,
@@ -663,7 +825,12 @@ function DungeonsTab.drawDungeonsTab()
         end
     end
     if #rows == 0 then
-        State.list:addText(ns.L("No dungeon has quests for you right now."), 10, y + 4, { color = COLORS.tan, width = State.list.width - 20 })
+        State.list:addText(
+            ns.L("No dungeon has quests for you right now."),
+            10,
+            y + 4,
+            { color = COLORS.tan, width = State.list.width - 20 }
+        )
         y = y + 24
     end
     State.list:finish(y + 8)
@@ -681,15 +848,26 @@ function DungeonsTab.drawDungeonsTab()
         end
         State.mapQuestId = nil
         State.selectedAvailableQuest = selectedQuest
-        State.frame.finishPage(function() return drawAvailableQuest(selectedQuest, State.selectedDungeonId) end)
+        State.frame.finishPage(function()
+            return drawAvailableQuest(selectedQuest, State.selectedDungeonId)
+        end)
     elseif selectedRow then
         local run = List.keepRunToPickUp(selectedRow.run, Told.pickup)
-        State.frame.finishPage(function() return drawDungeonPage(selectedRow, run) end)
+        State.frame.finishPage(function()
+            return drawDungeonPage(selectedRow, run)
+        end)
     else
         State.frame.finishPage(function()
-            State.detail:addText(ns.L("Select a dungeon to see its quests, where its way in is, and what to pick up before you go."), PADDING, PADDING, {
-                font = "QuestFont", color = COLORS.softInk, width = State.detail.width - 2 * PADDING,
-            })
+            State.detail:addText(
+                ns.L("Select a dungeon to see its quests, where its way in is, and what to pick up before you go."),
+                PADDING,
+                PADDING,
+                {
+                    font = "QuestFont",
+                    color = COLORS.softInk,
+                    width = State.detail.width - 2 * PADDING,
+                }
+            )
             return 80
         end)
     end

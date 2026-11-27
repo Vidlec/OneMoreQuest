@@ -1,5 +1,5 @@
 // The WowAddons project for AddonSim: our addons, the installed ones their scenarios play with, and the simulator
-// plugins and helpers that are ours (OneMoreQuest's party protocol, its mark audit). Paths are relative to this file.
+// plugins and helpers that are ours (OneMoreQuest's and Questie's party protocols, its mark audit). Paths are relative to this file.
 import { defineProject } from "addonsim";
 
 export default defineProject({
@@ -10,7 +10,7 @@ export default defineProject({
   // What loads when a scenario names nothing (--@addons): not QuestieProfit, which pulls Questie in with it
   load: ["QuestieDB", "OneMoreQuest", "ForeverDungeonJournal"],
   scenarios: "sim/scenarios",
-  plugins: ["sim/plugins/omq-party.lua"],
+  plugins: ["sim/plugins/omq-party.lua", "sim/plugins/questie-party.lua"],
   luaPath: ["sim/lib"],
   coverage: "OneMoreQuest",
   gallery: "~/Desktop/OneMoreQuest-CurseForge/gallery",

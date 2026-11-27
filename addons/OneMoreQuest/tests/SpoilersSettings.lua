@@ -67,18 +67,29 @@ test("the Spoilers page draws its cards and buttons, and a click on either sets 
     end
     ns.settings.language = "en"
     ns.Log.refresh()
-    local card = findPageButton(ns, function(data) return data == "explorer" end)
+    local card = findPageButton(ns, function(data)
+        return data == "explorer"
+    end)
     expectEqual(card ~= nil, true, "Explorer's card takes a click")
     card.handleClick(card.data)
     expectEqual(ns.Spoilers.getPreset(), "explorer", "the card picks the preset")
     -- Each kind's buttons (or its dropdown, where the words do not fit a row of buttons)
     local hidden = findPageButton(ns, function(data)
-        return type(data) == "table" and data.option and data.option.spoilerCategory == "rewards" and data.value == "hidden"
+        return type(data) == "table"
+            and data.option
+            and data.option.spoilerCategory == "rewards"
+            and data.value == "hidden"
     end)
     expectEqual(hidden ~= nil, true, "Rewards and numbers: Hidden takes a click")
     hidden.handleClick(hidden.data)
     expectEqual(ns.Spoilers.getChoice("rewards"), "hidden", "the button sets the kind")
     expectEqual(ns.Spoilers.getPreset(), "custom", "and the cards say Custom")
     ns.Log.refresh()
-    expectEqual(findPageButton(ns, function(data) return data == "custom" end), nil, "no card for Custom: it is said under them")
+    expectEqual(
+        findPageButton(ns, function(data)
+            return data == "custom"
+        end),
+        nil,
+        "no card for Custom: it is said under them"
+    )
 end)

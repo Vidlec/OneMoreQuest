@@ -35,7 +35,9 @@ local state = {
 
 ---@return boolean isOn The game's gamepad interface is on (Forever's Gamepad UI)
 function Gamepad.isGamepadUI()
-    return type(InputUtil) == "table" and type(InputUtil.IsGamepadUIEnabled) == "function" and InputUtil.IsGamepadUIEnabled() == true
+    return type(InputUtil) == "table"
+        and type(InputUtil.IsGamepadUIEnabled) == "function"
+        and InputUtil.IsGamepadUIEnabled() == true
 end
 
 ---@return table? manager The game's frame controls (GamepadMode.FrameControlsManager), only ever read
@@ -147,7 +149,9 @@ function Gamepad.makePadButtons(name, keys, rank, handleDown, handleUp)
     set.owner:SetScript("OnUpdate", function(owner, elapsed)
         local key = set.held
         -- (the button another set's now, a menu's say: its release goes there, the repeat stops here)
-        local isOurs = key and GetBindingAction and GetBindingAction(key, true) == "CLICK " .. set.buttons[key]:GetName() .. ":LeftButton"
+        local isOurs = key
+            and GetBindingAction
+            and GetBindingAction(key, true) == "CLICK " .. set.buttons[key]:GetName() .. ":LeftButton"
         if not key or not set.boundKeys[key] or not isOurs then
             set.held = nil
             owner:Hide()
@@ -267,7 +271,8 @@ local STRIP_PADDING, PROMPT_GAP, ICON_SIZE, DIVIDER_SIZE, ICON_GAP = 10, 15, 24,
 
 ---@return string? atlas The game's icon of a pad button (or a divider: "SLASH"), for the pad in use
 local function getInputAtlas(key)
-    local utility = type(InputIconTextureSetUtility) == "table" and InputIconTextureSetUtility.GetNormalActiveInputIconButtonTexture
+    local utility = type(InputIconTextureSetUtility) == "table"
+        and InputIconTextureSetUtility.GetNormalActiveInputIconButtonTexture
     local atlas = utility and key and utility(key)
     return type(atlas) == "string" and atlas ~= "" and atlas or nil
 end
@@ -573,7 +578,10 @@ end
 
 ---@return boolean isStop The frame takes the pad's A: a button, a box to type in, a slider
 local function isStopFrame(frame)
-    if frame.padSkip or not (frame:IsObjectType("Button") or frame:IsObjectType("EditBox") or frame:IsObjectType("Slider")) then
+    if
+        frame.padSkip
+        or not (frame:IsObjectType("Button") or frame:IsObjectType("EditBox") or frame:IsObjectType("Slider"))
+    then
         return false
     end
     if frame.IsMouseEnabled and not frame:IsMouseEnabled() then
@@ -676,7 +684,8 @@ local function getCursorQuest()
         return nil, false -- (the settings' and the chronicle's rows are sections, chapters and days)
     end
     -- A quest's own row (or one worth dropping) only: other rows carry numbers too (a dungeon's, negative; a zone's)
-    local questId = (button.isQuestRow or button.isDropSuggestion) and type(button.data) == "number" and button.data or nil
+    local questId = (button.isQuestRow or button.isDropSuggestion) and type(button.data) == "number" and button.data
+        or nil
     if button == ns.Log.getPageTitleButton() then
         questId = button:GetParent() and button:GetParent().questId -- the page's title: its quest
     end
@@ -718,7 +727,12 @@ end
 ---@return Button? row
 local function getPlaceRow()
     local button = state.cursor
-    if not button or not isInList(button) or type(button.data) ~= "number" or (button:GetWidth() or 0) < getRowWidth() then
+    if
+        not button
+        or not isInList(button)
+        or type(button.data) ~= "number"
+        or (button:GetWidth() or 0) < getRowWidth()
+    then
         return nil, nil
     end
     if ns.Log.isShowingAvailable() and button.isQuestRow and not ns.QuestState.isInLog(button.data) then
@@ -833,7 +847,11 @@ end
 ---a row in the list
 local function hasOwnMenu(button)
     -- (a quest worth dropping, in its own window, has the quest's menu too: Abandon is there)
-    return button ~= nil and (button.handleRightClick ~= nil or ((isInList(button) or button.isDropSuggestion) and getCursorQuest() ~= nil))
+    return button ~= nil
+        and (
+            button.handleRightClick ~= nil
+            or ((isInList(button) or button.isDropSuggestion) and getCursorQuest() ~= nil)
+        )
 end
 
 ---@return boolean isSections The window shows the settings or the chronicle: sections (chapters) down the list's side,
@@ -847,7 +865,10 @@ end
 ---on nothing with a menu)
 local function isOptionsMenu()
     local button = state.cursor
-    return button ~= nil and (ns.Log.isInPage(button) or isSectionView()) and not hasOwnMenu(button) and #getPageActions() > 0
+    return button ~= nil
+        and (ns.Log.isInPage(button) or isSectionView())
+        and not hasOwnMenu(button)
+        and #getPageActions() > 0
 end
 
 ---The page's buttons as a menu at the cursor, Abandon in red, each as the button itself would be clicked.
@@ -863,7 +884,9 @@ local function openPageOptions()
             if button == window.abandonButton and RED_FONT_COLOR and RED_FONT_COLOR.WrapTextInColorCode then
                 text = RED_FONT_COLOR:WrapTextInColorCode(text)
             end
-            local entry = root:CreateButton(text, function() button:Click() end)
+            local entry = root:CreateButton(text, function()
+                button:Click()
+            end)
             if button.IsEnabled and not button:IsEnabled() and entry and entry.SetEnabled then
                 entry:SetEnabled(false)
             end
@@ -973,8 +996,13 @@ local function showSectionOnRest(button)
     end
     local token, data = state.restToken, button.data
     C_Timer.After(REST_SECONDS, function()
-        if token == state.restToken and state.cursor == button and button.data == data and button:IsVisible()
-            and not isRowOnPage(button) then
+        if
+            token == state.restToken
+            and state.cursor == button
+            and button.data == data
+            and button:IsVisible()
+            and not isRowOnPage(button)
+        then
             showRow(button)
         end
     end)
@@ -1044,7 +1072,9 @@ local function findListRow(wanted, isExact)
         local button = pool[index]
         -- A quest's own row (not a suggestion of the drop panel above the list, which has the same quest), or a
         -- row of another kind (a dungeon, a place to pick)
-        local isRow = button.isQuestRow or (button.data ~= nil and type(button.data) ~= "number") or (type(button.data) == "number" and button.data < 0)
+        local isRow = button.isQuestRow
+            or (button.data ~= nil and type(button.data) ~= "number")
+            or (type(button.data) == "number" and button.data < 0)
         if isRow and button:IsVisible() and (button:GetWidth() or 0) >= rowWidth then
             if button.data == wanted then
                 return button
@@ -1099,7 +1129,9 @@ function Gamepad.showRowInList(data, isRetry)
     end
     if not row then
         if not isRetry and C_Timer then
-            C_Timer.After(0, function() Gamepad.showRowInList(data, true) end) -- (the list drawn the next frame)
+            C_Timer.After(0, function()
+                Gamepad.showRowInList(data, true)
+            end) -- (the list drawn the next frame)
         end
         return
     end
@@ -1133,8 +1165,19 @@ local function findFirstControl(canvas)
     for index = 1, pool.usedCount or 0 do
         local button = pool[index]
         local top, bottom = button:GetTop(), button:GetBottom()
-        if button:IsVisible() and not button.padSkip and top and bottom and top <= viewTop + 1 and bottom >= viewBottom - 1
-            and (not bestTop or top > bestTop + 1 or (math.abs(top - bestTop) <= 1 and (button:GetLeft() or 0) < (best:GetLeft() or 0))) then
+        if
+            button:IsVisible()
+            and not button.padSkip
+            and top
+            and bottom
+            and top <= viewTop + 1
+            and bottom >= viewBottom - 1
+            and (
+                not bestTop
+                or top > bestTop + 1
+                or (math.abs(top - bestTop) <= 1 and (button:GetLeft() or 0) < (best:GetLeft() or 0))
+            )
+        then
             best, bestTop = button, top
         end
     end
@@ -1378,7 +1421,12 @@ local function moveCursor(direction)
         stops = samePane
     end
     local target = Gamepad.findInDirection(from, direction, stops)
-    if direction == "left" and not from.isRect and ns.Log.isInPage(from) and not (target and ns.Log.isInPage(target)) then
+    if
+        direction == "left"
+        and not from.isRect
+        and ns.Log.isInPage(from)
+        and not (target and ns.Log.isInPage(target))
+    then
         handleBack()
         return
     end
@@ -1467,7 +1515,19 @@ end
 ---------------------------------------------------------------------------------------------------------------
 -- The window's buttons and prompts
 
-local WINDOW_KEYS = { "PADDUP", "PADDDOWN", "PADDLEFT", "PADDRIGHT", "PAD1", "PAD2", "PAD3", "PAD4", "PADBACK", "PADLSHOULDER", "PADRSHOULDER" }
+local WINDOW_KEYS = {
+    "PADDUP",
+    "PADDDOWN",
+    "PADDLEFT",
+    "PADDRIGHT",
+    "PAD1",
+    "PAD2",
+    "PAD3",
+    "PAD4",
+    "PADBACK",
+    "PADLSHOULDER",
+    "PADRSHOULDER",
+}
 
 ---@return boolean isTaken d-pad left is the window's: something to the left in it (or a slider to move, or the window
 ---alone); else it is the game's, which goes to the map from its quest log
@@ -1533,10 +1593,12 @@ local function getPrompts()
     if getCursorQuestId() then
         prompts[#prompts + 1] = { key = "PAD3", label = getQuestActionLabel(), isHold = true }
     elseif getPlaceRow() then
-        prompts[#prompts + 1] = { key = "PAD3", label = ns.L(getPlaceRow() == "entrance" and "Show entrance" or "Show giver") }
+        prompts[#prompts + 1] =
+            { key = "PAD3", label = ns.L(getPlaceRow() == "entrance" and "Show entrance" or "Show giver") }
     end
     if hasCursorMenu() then
-        local label = isOptionsMenu() and (CONTEXT_ACTION_LABEL_OPTIONS or ns.L("Options")) or (CONTEXT_ACTION_LABEL_MORE_ACTIONS or ns.L("More actions"))
+        local label = isOptionsMenu() and (CONTEXT_ACTION_LABEL_OPTIONS or ns.L("Options"))
+            or (CONTEXT_ACTION_LABEL_MORE_ACTIONS or ns.L("More actions"))
         prompts[#prompts + 1] = { key = "PAD4", label = label }
     end
     if ns.Log.getShownSearchBox() and not isSearching() then
@@ -1549,7 +1611,11 @@ local function getPrompts()
         prompts[#prompts + 1] = { key = "PADDLEFT", label = WORLD_MAP or ns.L("World map") } -- (the game's own, to the map)
     end
     -- (beside the map with nothing to go back to: the game's own B, which closes the map)
-    prompts[#prompts + 1] = { key = "PAD2", label = canGoBack() and (FRAME_ACTION_BACK or BACK or ns.L("Back")) or (FRAME_ACTION_CLOSE or CLOSE or ns.L("Close")) }
+    prompts[#prompts + 1] = {
+        key = "PAD2",
+        label = canGoBack() and (FRAME_ACTION_BACK or BACK or ns.L("Back"))
+            or (FRAME_ACTION_CLOSE or CLOSE or ns.L("Close")),
+    }
     return prompts
 end
 
@@ -1649,8 +1715,12 @@ end
 ---game's runs.
 local function hideGameCursor(isHidden)
     local map = WorldMapFrame
-    local parts = { type(SmartNavigation) == "table" and SmartNavigation.Pointer, _G.GamepadScrollBarHint,
-        map and map.questLogFooter and map.questLogFooter.inputLegend, map and map.questDetailsFooter and map.questDetailsFooter.inputLegend }
+    local parts = {
+        type(SmartNavigation) == "table" and SmartNavigation.Pointer,
+        _G.GamepadScrollBarHint,
+        map and map.questLogFooter and map.questLogFooter.inputLegend,
+        map and map.questDetailsFooter and map.questDetailsFooter.inputLegend,
+    }
     for index = 1, 4 do
         local part = parts[index]
         if type(part) == "table" and part.SetAlpha then
@@ -1829,7 +1899,12 @@ local function updateGlow()
     if window:IsVisible() and Gamepad.isGamepadUI() then
         if ns.Log.isAlone() then
             mode = state.isActive and "alone" or nil
-        elseif mapGlow and map:IsShown() and not (map.IsMaximized and map:IsMaximized()) and Gamepad.getGameFocus() == map then
+        elseif
+            mapGlow
+            and map:IsShown()
+            and not (map.IsMaximized and map:IsMaximized())
+            and Gamepad.getGameFocus() == map
+        then
             mode = "pair"
         end
     end
@@ -1874,7 +1949,13 @@ local function findMiddleRow(canvas)
     for index = 1, pool and pool.usedCount or 0 do
         local button = pool[index]
         local _, _, top, bottom = getRect(button)
-        if top and button:IsVisible() and not button.padSkip and (button:GetWidth() or 0) >= rowWidth and isInView(button) then
+        if
+            top
+            and button:IsVisible()
+            and not button.padSkip
+            and (button:GetWidth() or 0) >= rowWidth
+            and isInView(button)
+        then
             local distance = math.abs((top + bottom) / 2 - middle)
             if not bestDistance or distance < bestDistance then
                 best, bestDistance = button, distance
@@ -1910,30 +1991,34 @@ end
 local function watch()
     if not state.watcher then
         state.watcher = CreateFrame("Frame")
-        state.watcher:SetScript("OnUpdate", function(watcher, elapsed)
-            local window = ns.Log.getWindow()
-            if not window or not window:IsVisible() or not Gamepad.isGamepadUI() then
-                setActive(false)
+        state.watcher:SetScript(
+            "OnUpdate",
+            ns.Timing.timed("pad window watch (each frame)", function(watcher, elapsed)
+                local window = ns.Log.getWindow()
+                if not window or not window:IsVisible() or not Gamepad.isGamepadUI() then
+                    setActive(false)
+                    updateGlow()
+                    updateSoftCursor()
+                    watcher:Hide()
+                    return
+                end
+                setActive(isWanted())
                 updateGlow()
                 updateSoftCursor()
-                watcher:Hide()
-                return
-            end
-            setActive(isWanted())
-            updateGlow()
-            updateSoftCursor()
-            if state.isActive then
-                scrollByStick(elapsed)
-                placeStickHint()
-                local isMenuOpen = ns.GamepadMenu and ns.GamepadMenu.isOpen()
-                state.pointer:SetShown(not isMenuOpen and state.cursor ~= nil and isInView(state.cursor))
-            end
-        end)
+                if state.isActive then
+                    scrollByStick(elapsed)
+                    placeStickHint()
+                    local isMenuOpen = ns.GamepadMenu and ns.GamepadMenu.isOpen()
+                    state.pointer:SetShown(not isMenuOpen and state.cursor ~= nil and isInView(state.cursor))
+                end
+            end)
+        )
     end
     state.watcher:Show()
 end
 
----The window shown or hidden, the interface changed: one pane with the pad, two without; the watch started.
+---The window shown or hidden, the interface changed: the watch started (the panes follow the Quest details setting,
+---the same with the pad and the mouse).
 function Gamepad.sync()
     ns.noteActivity("gamepad sync")
     local window = ns.Log and ns.Log.getWindow and ns.Log.getWindow()
@@ -1941,7 +2026,6 @@ function Gamepad.sync()
         return
     end
     local isPad = Gamepad.isGamepadUI() and window:IsVisible()
-    ns.Log.setNarrow(false) -- (the list and the quest's page side by side, as with the mouse)
     if isPad then
         watch()
     else
@@ -2036,8 +2120,16 @@ local function findGameTaint()
     }
     local map = _G.WorldMapFrame
     if map then
-        for _, key in ipairs({ "currentFocus", "questLogTooltipBindings", "worldMapCursorBindings", "questDetailCursorBindings",
-            "navBarBindings", "worldMapFooter", "questLogFooter", "questDetailsFooter" }) do
+        for _, key in ipairs({
+            "currentFocus",
+            "questLogTooltipBindings",
+            "worldMapCursorBindings",
+            "questDetailCursorBindings",
+            "navBarBindings",
+            "worldMapFooter",
+            "questLogFooter",
+            "questDetailsFooter",
+        }) do
             local isSecure, taintedBy = isSecureAt(map, key)
             if not isSecure then
                 return "WorldMapFrame." .. key, taintedBy
@@ -2071,8 +2163,10 @@ local function watchGameTaint()
         end
         local found, taintedBy = findGameTaint()
         if found then
-            ns.Timing.noteError("The game's gamepad state was tainted by " .. tostring(taintedBy) .. ": " .. found,
-                "OneMoreQuest's last doings:\n" .. ns.getActivityText())
+            ns.Timing.noteError(
+                "The game's gamepad state was tainted by " .. tostring(taintedBy) .. ": " .. found,
+                "OneMoreQuest's last doings:\n" .. ns.getActivityText()
+            )
             scanner:Hide()
         end
     end)
@@ -2101,7 +2195,13 @@ local function hookWindow()
         GameTooltip:HookScript("OnShow", function(tooltip)
             local panel = WorldMapFrame and WorldMapFrame.QuestLog
             local owner = tooltip.GetOwner and tooltip:GetOwner()
-            if not state.isActive or not panel or (panel:GetAlpha() or 1) > 0.5 or not owner or not isInside(owner, panel) then
+            if
+                not state.isActive
+                or not panel
+                or (panel:GetAlpha() or 1) > 0.5
+                or not owner
+                or not isInside(owner, panel)
+            then
                 return
             end
             tooltip:Hide()
