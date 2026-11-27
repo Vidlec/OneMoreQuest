@@ -72,10 +72,12 @@ files["addons/OneMoreQuest/**"] = {
         "SLASH_ONEMOREQUEST2",
     },
 }
-files["addons/QuestieProfit/**"] = { globals = { "QuestieProfitDB", "SlashCmdList", "SLASH_QUESTIEPROFIT1" } }
+-- A function of the addon a reader can hold in their head (CLAUDE.md, Style): over this, split it into named steps.
+-- (Not the tests and scenarios: they are long scripts on purpose.)
+files["addons/OneMoreQuest/**"].max_cyclomatic_complexity = 25
 -- The parts of the log and the map marks each start with the same header naming their sibling parts (local Compose,
 -- Look, Layout... = MapMarks.Compose...) and the addon's name: kept whole in every part, used or not
-for _, folder in ipairs({ "Log", "MapMarks" }) do
+for _, folder in ipairs({ "Log", "Map/Marks" }) do
     files["addons/OneMoreQuest/" .. folder .. "/**"] = { ignore = { "211/^%u%l", "211/addonName" } }
 end
 -- (MapUtils' own table of tabs, which OneMoreQuest adds its tab to)
@@ -83,7 +85,7 @@ files["addons/OneMoreQuest/Compatibility/MapUtils.lua"] = { globals = { "_G" } }
 
 -- The unit tests run outside the game on a fake one (tests/FakeGame.lua), which sets the game's globals up itself;
 -- a helper's several answers are read one at a time
-files["addons/OneMoreQuest/tests/**"] = { ignore = { "11.", "12.", "311" } }
+files["addons/OneMoreQuest/tests/**"] = { ignore = { "11.", "12.", "311" }, max_cyclomatic_complexity = false }
 
 -- Scenarios and the simulator's plugins run with its steps as globals (moveTo, wait, expect...): read from their
 -- declarations for the language server (addonsim's types/addonsim.lua)

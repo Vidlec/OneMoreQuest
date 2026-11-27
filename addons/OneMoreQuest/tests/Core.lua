@@ -385,6 +385,9 @@ test(
         expectEqual(settings.trackerScale, 1, "a number that is words: the default")
         expectEqual(type(settings.collapsedZones), "table", "a table that is not one: empty")
         expectEqual(settings.language, "en", "the language too")
+        settings = ns.loadSettings({ diagramTreeWidth = 420, diagramHeight = 700 })
+        expectEqual(settings.diagramTreeWidth, 420, "the quest diagram's size as the player left it: kept")
+        expectEqual(settings.diagramHeight, 700, "its height too")
         ns.settings.killCounts = 7
         expectEqual(
             type(ns.getCharacterRecords("killCounts")),

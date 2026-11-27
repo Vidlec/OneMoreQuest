@@ -37,37 +37,6 @@ local function project(placeMapId, x, y, mapId)
     return api.MapFromWorld(mapId, u, v)
 end
 
-local ZONE_MAP_TYPE = Enum and Enum.UIMapType and Enum.UIMapType.Zone or 3
-local WORLD_MAP_TYPE = Enum and Enum.UIMapType and Enum.UIMapType.World or 1
-local zoneMapIdsByTop = {} -- every zone's map under a world map, worked out once
-
----@return number[]? mapIds Every zone's map in the world a map belongs to; nil where the game cannot list them
-local function getWorldZoneMapIds(mapId)
-    if not (C_Map and C_Map.GetMapInfo and C_Map.GetMapChildrenInfo) then
-        return nil
-    end
-    -- Up to the world the map is part of
-    local topId, info, steps = mapId, ns.Database.getMapInfo(mapId), 0
-    while
-        info
-        and info.mapType
-        and info.mapType > WORLD_MAP_TYPE
-        and info.parentMapID
-        and info.parentMapID > 0
-        and steps < 10
-    do
-        topId, info, steps = info.parentMapID, ns.Database.getMapInfo(info.parentMapID), steps + 1
-    end
-    if not zoneMapIdsByTop[topId] then
-        local mapIds = {}
-        for _, child in ipairs(C_Map.GetMapChildrenInfo(topId, ZONE_MAP_TYPE, true) or {}) do
-            mapIds[#mapIds + 1] = child.mapID
-        end
-        zoneMapIdsByTop[topId] = mapIds
-    end
-    return #zoneMapIdsByTop[topId] > 0 and zoneMapIdsByTop[topId] or nil
-end
-
 ---The zones in view: every zone of the world whose map, placed as OpenMap draws it, reaches into the view; where
 ---the game cannot list the zones, OpenMap is asked which zone lies at points spread across it instead.
 ---@return number[] mapIds
@@ -77,25 +46,9 @@ local function getZoneMapIds(mapId, bounds)
     if not api then
         return mapIds
     end
-    local worldZoneMapIds = getWorldZoneMapIds(mapId)
-    if worldZoneMapIds then
-        for _, zoneMapId in ipairs(worldZoneMapIds) do
-            local left, top = project(zoneMapId, 0, 0, mapId)
-            local right, bottom = project(zoneMapId, 1, 1, mapId)
-            if
-                left
-                and top
-                and right
-                and bottom
-                and left <= bounds.right
-                and right >= bounds.left
-                and top <= bounds.bottom
-                and bottom >= bounds.top
-            then
-                mapIds[#mapIds + 1] = zoneMapId
-            end
-        end
-        return mapIds
+    local worldZoneMapIds = ns.Compatibility.getWorldZoneMapIds(mapId)
+    if worldZoneMapIds and #worldZoneMapIds > 0 then
+        return ns.Compatibility.getZoneMapIdsInView(worldZoneMapIds, mapId, bounds, project)
     end
     if type(api.MapAt) ~= "function" then
         return mapIds

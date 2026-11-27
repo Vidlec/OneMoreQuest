@@ -1,0 +1,117 @@
+# On every merge to main: the checks, then a release of the version in the TOC if it has none yet.
+#
+# - Builds OneMoreQuest-<version>.zip and SHA256SUMS.txt (tools/release/build_zip.py).
+# - Creates the GitHub release v<version>: its notes are the version's CHANGELOG.md section, how to install and the
+#   checksum (tools/release/notes.py), then the merged pull requests (GitHub's generated notes). The zip and the
+#   checksums are its downloads. A version with a "-" (1.2.3-beta1) is marked a pre-release.
+# - Uploads the zip to CurseForge (tools/release/curseforge.py) when it is set up: the secret CURSEFORGE_API_TOKEN
+#   and the repository variables CURSEFORGE_PROJECT_ID and CURSEFORGE_GAME_VERSIONS (Settings > Secrets and
+#   variables > Actions). Without the token the step is skipped.
+#
+# A merge that does not raise "## Version:" in the TOC releases nothing (its version has a release already): raise
+# the version and write its CHANGELOG.md section in the pull request to release it. Run by hand (Actions > Release >
+# Run workflow) to retry a release that failed part way; what was done already is not done twice.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      curseforge:
+        description: "Upload to CurseForge even if the GitHub release exists already (it failed there before)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    uses: ./.github/workflows/checks.yml
+
+  release:
+    name: Release
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      CURSEFORGE_API_TOKEN: ${{ secrets.CURSEFORGE_API_TOKEN }}
+      CURSEFORGE_PROJECT_ID: ${{ vars.CURSEFORGE_PROJECT_ID }}
+      CURSEFORGE_GAME_VERSIONS: ${{ vars.CURSEFORGE_GAME_VERSIONS }}
+      CURSEFORGE_RELEASE_TYPE: ${{ vars.CURSEFORGE_RELEASE_TYPE }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # (the tags, for the generated notes since the last release)
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build the zip
+        id: build
+        run: python tools/release/build_zip.py
+
+      - name: Is this version released already?
+        id: state
+        env:
+          VERSION: ${{ steps.build.outputs.version }}
+        run: |
+          if gh release view "v$VERSION" > /dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "OneMoreQuest $VERSION has a release already: nothing new to release (raise the TOC's version to release)." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Write the release notes
+        if: steps.state.outputs.exists == 'false'
+        run: python tools/release/notes.py --out dist/release-notes.md
+
+      - name: Create the GitHub release
+        if: steps.state.outputs.exists == 'false'
+        env:
+          VERSION: ${{ steps.build.outputs.version }}
+          ZIP: ${{ steps.build.outputs.zip }}
+          CHECKSUMS: ${{ steps.build.outputs.checksums }}
+          PRERELEASE: ${{ steps.build.outputs.prerelease }}
+        run: |
+          flags=()
+          if [ "$PRERELEASE" = "true" ]; then flags+=(--prerelease); else flags+=(--latest); fi
+          gh release create "v$VERSION" "$ZIP" "$CHECKSUMS" \
+            --title "OneMoreQuest $VERSION" \
+            --target "$GITHUB_SHA" \
+            --notes-file dist/release-notes.md \
+            --generate-notes \
+            "${flags[@]}"
+          {
+            echo "Released [OneMoreQuest $VERSION]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/v$VERSION)"
+            echo
+            echo '```'
+            cat "$CHECKSUMS"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload to CurseForge
+        if: env.CURSEFORGE_API_TOKEN != '' && (steps.state.outputs.exists == 'false' || inputs.curseforge)
+        env:
+          ZIP: ${{ steps.build.outputs.zip }}
+        run: python tools/release/curseforge.py --zip "$ZIP"
+
+      - name: CurseForge is not set up
+        if: env.CURSEFORGE_API_TOKEN == '' && steps.state.outputs.exists == 'false'
+        run: |
+          echo "::notice::Not uploaded to CurseForge: the secret CURSEFORGE_API_TOKEN is not set (see .github/workflows/release.yml)"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: OneMoreQuest-${{ steps.build.outputs.version }}
+          path: dist/
+          retention-days: 30

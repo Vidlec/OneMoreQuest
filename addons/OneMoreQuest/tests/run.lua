@@ -3,102 +3,21 @@
 -- fake game, the addon's files, and the helpers every test file can use.
 local FakeGame = dofile("tests/FakeGame.lua")
 
-local FILES = {
-    "Core.lua",
-    "Locale.lua",
-    "Locales/Czech.lua",
-    "Locales/CzechLog.lua",
-    "Locales/CzechChronicle.lua",
-    "Locales/CzechSettings.lua",
-    "Locales/CzechMap.lua",
-    "QuestText.lua",
-    "Translators/AzerothCesky.lua",
-    "Translators/WowfCZ.lua",
-    "Translators/Spoken.lua",
-    "Database.lua",
-    "CraftedItems.lua",
-    "Crafting.lua",
-    "LearnedDungeons.lua",
-    "Geometry.lua",
-    "Location.lua",
-    "Chain.lua",
-    "QuestState.lua",
-    "Focus.lua",
-    "Model.lua",
-    "Spoilers.lua",
-    "HiddenQuests.lua",
-    "EventQuests.lua",
-    "Events.lua",
-    "GameOffers.lua",
-    "DataCheck.lua",
-    "Availability.lua",
-    "Prices.lua",
-    "Loot.lua",
-    "Drops.lua",
-    "Profit.lua",
-    "KillCounter.lua",
-    "UnitTooltip.lua",
-    "History.lua",
-    "Chronicle.lua",
-    "Ledger.lua",
-    "Warnings.lua",
-    "Comms.lua",
-    "QuestieBridge.lua",
-    "Party.lua",
-    "Announce.lua",
-    "AutoQuest.lua",
-    "Nameplates.lua",
-    "Widgets.lua",
-    "QuestTooltip.lua",
-    "MissedReport.lua",
-    "BlizzardTracker.lua",
-    "ItemButtons.lua",
-    "TrackerLook.lua",
-    "TrackerFrame.lua",
-    "WindowBorder.lua",
-    "Log/Base.lua",
-    "Log/List.lua",
-    "Log/QuestPage.lua",
-    "Log/QuestsTab.lua",
-    "Log/AvailableTab.lua",
-    "Log/DungeonsTab.lua",
-    "Log/SettingsView.lua",
-    "Log/Window.lua",
-    "Log/Diagram.lua",
-    "MapDock.lua",
-    "Gamepad.lua",
-    "GamepadMenu.lua",
-    "GamepadTracker.lua",
-    "GamepadMap.lua",
-    "MapPins.lua",
-    "MapMarks/Compose.lua",
-    "MapMarks/Look.lua",
-    "MapMarks/Pills.lua",
-    "MapMarks/Layout.lua",
-    "MapMarks/Shapes.lua",
-    "MapMarks/Areas.lua",
-    "MapMarks/World.lua",
-    "MapMarks/Draw.lua",
-    "GatheringNodes.lua",
-    "GatheringSpots.lua",
-    "MinimapPins.lua",
-    "MapHover.lua",
-    "Waypoints.lua",
-    "Compatibility.lua",
-    "Compatibility/Questie.lua",
-    "Compatibility/SpokenPlaces.lua",
-    "Compatibility/QuestieDB.lua",
-    "Compatibility/TomTom.lua",
-    "Compatibility/Auctionator.lua",
-    "Compatibility/TnnysMobLoot.lua",
-    "Compatibility/LeatrixMaps.lua",
-    "Compatibility/MapUtils.lua",
-    "Compatibility/OpenMap.lua",
-    "Compatibility/ForeverDungeonJournal.lua",
-    "Settings.lua",
-    "ChroniclePage.lua",
-    "ChroniclePictures.lua",
-}
+---@return string[] files The addon's files in the order the game loads them: the toc's own list, so a file added,
+---moved or reordered there is tested as the game runs it
+local function readTocFiles(path)
+    local files = {}
+    for line in io.lines(path) do
+        line = line:match("^%s*(.-)%s*$") -- (a CRLF line's carriage return too: %s)
+        if line ~= "" and not line:find("^#") then
+            files[#files + 1] = (line:gsub("\\", "/"))
+        end
+    end
+    assert(#files > 0, "no files listed in " .. path)
+    return files
+end
+
+local FILES = readTocFiles("OneMoreQuest.toc")
 local TIRISFAL, UNDERCITY, ORGRIMMAR, SILVERPINE = 85, 1497, 1637, 130
 
 local passedCount, failedCount = 0, 0

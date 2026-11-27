@@ -197,7 +197,7 @@ test(
 
 test("every switch on the settings page is a real setting with a default", function()
     local ns = createAddon()
-    local source = readFile("Settings.lua")
+    local source = readFile("Core/Settings.lua")
     local count = 0
     for key in source:gmatch('key = "([%w_]+)"') do
         count = count + 1
@@ -205,7 +205,11 @@ test("every switch on the settings page is a real setting with a default", funct
         -- Each one is read somewhere outside the settings page and the defaults, or it would switch nothing
         local isUsed = false
         for _, file in ipairs(FILES) do
-            if file ~= "Settings.lua" and file ~= "Core.lua" and readFile(file):find("settings." .. key, 1, true) then
+            if
+                file ~= "Core/Settings.lua"
+                and file ~= "Core/Core.lua"
+                and readFile(file):find("settings." .. key, 1, true)
+            then
                 isUsed = true
             end
         end
@@ -232,8 +236,8 @@ test("every switch on the settings page is a real setting with a default", funct
                 local isUsed = value == ns.settings[key] or choice.choose ~= nil
                 for _, file in ipairs(FILES) do
                     if
-                        file ~= "Settings.lua"
-                        and file ~= "Core.lua"
+                        file ~= "Core/Settings.lua"
+                        and file ~= "Core/Core.lua"
                         and readFile(file):find('"' .. value .. '"', 1, true)
                     then
                         isUsed = true

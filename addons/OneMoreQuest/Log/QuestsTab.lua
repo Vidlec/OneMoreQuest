@@ -11,12 +11,12 @@ local addListQuest = List.addListQuest
 local composeProgress, drawLogQuest, drawZonePage =
     QuestPage.composeProgress, QuestPage.drawLogQuest, QuestPage.drawZonePage
 local filterDropdown, listOpening, selectedQuestIds = State.filterDropdown, State.listOpening, State.selectedQuestIds
-local COLORS, FILTERS, HEADER_BAR_HIGH, HEADER_BAR_LOW, ITEM_ICON, PADDING =
-    Style.COLORS, Style.FILTERS, Style.HEADER_BAR_HIGH, Style.HEADER_BAR_LOW, Style.ITEM_ICON, Style.PADDING
+local COLORS, FILTERS, HEADER_BAR_HIGH, HEADER_BAR_LOW, ITEM_ICON =
+    Style.COLORS, Style.FILTERS, Style.HEADER_BAR_HIGH, Style.HEADER_BAR_LOW, Style.ITEM_ICON
 local SWITCH_EDGE, SWITCH_TRACK, TAB_QUESTS = Style.SWITCH_EDGE, Style.SWITCH_TRACK, Style.TAB_QUESTS
 
 ---------------------------------------------------------------------------------------------------------------
--- The two tabs
+-- The filters above the list
 
 local FILTER_LABELS = { all = "All", ready = "Ready", tracked = "Tracked" }
 
@@ -74,16 +74,7 @@ end
 local DROP_WINDOW_WIDTH, DROP_ROW_HEIGHT, DROP_TOP = 260, 34, 28
 local DROP_EDGE, DROP_BACK = { 0.42, 0.29, 0.13 }, { 0.03, 0.02, 0.01, 0.95 }
 local dropWindow
-
-local function setEdged(frame, edge, back)
-    frame:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Buttons\\WHITE8X8",
-        edgeSize = 1,
-    })
-    frame:SetBackdropColor(back[1], back[2], back[3], back[4] or 1)
-    frame:SetBackdropBorderColor(edge[1], edge[2], edge[3], 1)
-end
+local setEdged = Style.setEdged
 
 local function createDropRow(parent)
     local row = CreateFrame("Button", nil, parent)
@@ -176,23 +167,7 @@ local function createDropWindow()
     title:SetText(ns.L("Worth dropping"))
     dropWindow.count = ns.Widgets.createFontString(dropWindow, "OVERLAY", "GameFontDisableSmall")
     dropWindow.count:SetPoint("LEFT", title, "RIGHT", 8, 0)
-    -- The flat cross the quest window's own drawn looks use (Media\Close), lit on hover
-    local close = CreateFrame("Button", nil, dropWindow)
-    close:SetSize(14, 14)
-    close:SetPoint("TOPRIGHT", dropWindow, "TOPRIGHT", -7, -7)
-    local crossFile = "Interface\\AddOns\\" .. ns.addonName .. "\\Media\\Close"
-    local cross = close:CreateTexture(nil, "ARTWORK")
-    cross:SetAllPoints(close)
-    cross:SetTexture(crossFile)
-    cross:SetVertexColor(0.85, 0.85, 0.85)
-    local lit = close:CreateTexture(nil, "HIGHLIGHT")
-    lit:SetAllPoints(close)
-    lit:SetTexture(crossFile)
-    lit:SetBlendMode("ADD")
-    lit:SetAlpha(0.5)
-    close:SetScript("OnClick", function()
-        dropWindow:Hide()
-    end)
+    Style.addCloseButton(dropWindow, 7)
     dropWindow.rows = {}
     dropWindow:Hide()
     if type(UISpecialFrames) == "table" then
@@ -303,69 +278,86 @@ local function isKeptByFilter(entry, isTracked)
     return true
 end
 
----@return table? selected The quest or zone group shown on the page
----@return number questCount
-local function drawLogTab()
-    local model = ns.Model.compose(nil, {
-        questIds = ns.QuestState.getLogQuestIds(),
-        collapsedZones = {},
-        isExpandedByDefault = true,
-    })
-    local counts = { ready = 0, tracked = 0 }
-    local isTracked = {}
-    local selectedEntry, firstEntry, selectedGroup
+---@return boolean isHeld One of the entries is the quest
+local function holdsQuest(entries, questId)
+    for _, entry in ipairs(entries) do
+        if entry.questId == questId then
+            return true
+        end
+    end
+    return false
+end
+
+---What a search looks through besides the title and the zone, gathered only while one is typed (every quest of
+---the log is asked, the ones under folded zones too).
+---@return string? searched
+local function composeSearchedText(entry)
+    if State.searchText == "" then
+        return nil
+    end
+    local objectiveLabels = {}
+    for _, objective in ipairs(entry.objectives) do
+        objectiveLabels[#objectiveLabels + 1] = objective.label
+        objectiveLabels[#objectiveLabels + 1] = objective.shownLabel
+    end
+    -- A translated quest is found by its English title too
+    objectiveLabels[#objectiveLabels + 1] = entry.englishTitle
+    return table.concat(objectiveLabels, " ")
+end
+
+---Sorts the log's quests into what the list shows: each group's shownEntries (what the filter and the search
+---keep), how many quests each filter keeps, and which quests are tracked.
+---@return table pass { counts, isTracked, selectedEntry?, firstEntry?, selectedGroup? }
+local function collectShownEntries(model)
+    local pass = { counts = { ready = 0, tracked = 0 }, isTracked = {} }
+    local counts, isTracked = pass.counts, pass.isTracked
     for _, group in ipairs(model.groups) do
         group.shownEntries = {}
         if group.zoneId == State.selectedLogZoneId then
-            selectedGroup = group
+            pass.selectedGroup = group
         end
         for _, entry in ipairs(group.entries) do
             isTracked[entry.questId] = ns.QuestState.isWatched(entry.questId)
             counts.ready = counts.ready + (entry.isTurnIn and 1 or 0)
             counts.tracked = counts.tracked + (isTracked[entry.questId] and 1 or 0)
-            -- What a search looks through, gathered only while one is typed (every quest of the log is asked, the
-            -- ones under folded zones too)
-            local searched
-            if State.searchText ~= "" then
-                local objectiveLabels = {}
-                for _, objective in ipairs(entry.objectives) do
-                    objectiveLabels[#objectiveLabels + 1] = objective.label
-                    objectiveLabels[#objectiveLabels + 1] = objective.shownLabel
-                end
-                -- A translated quest is found by its English title too
-                objectiveLabels[#objectiveLabels + 1] = entry.englishTitle
-                searched = table.concat(objectiveLabels, " ")
-            end
+            local searched = composeSearchedText(entry)
             if isKeptByFilter(entry, isTracked[entry.questId]) and isMatch(entry.title, group.zoneName, searched) then
                 group.shownEntries[#group.shownEntries + 1] = entry
-                firstEntry = firstEntry or entry
+                pass.firstEntry = pass.firstEntry or entry
                 if entry.questId == selectedQuestIds[TAB_QUESTS] then
-                    selectedEntry = entry
+                    pass.selectedEntry = entry
                 end
             end
         end
     end
-    -- A quest chosen outside the list (its map pin, the tracker) that a search or filter left there hides: the
-    -- search and filter give way, rather than the quest being let go of with no row to show for it
-    if
-        State.scrollTargetQuestId
-        and State.scrollTargetQuestId == selectedQuestIds[TAB_QUESTS]
-        and not selectedEntry
-        and (State.searchText ~= "" or State.logFilter ~= "all")
-        and ns.QuestState.isInLog(State.scrollTargetQuestId)
-    then
-        State.searchText, State.logFilter = "", "all"
-        if type(State.frame.search) == "table" and type(State.frame.search.SetText) == "function" then
-            State.frame.search:SetText("") -- (its OnTextChanged finds the text already cleared: no second drawing)
-        end
-        return drawLogTab()
-    end
-    if not selectedGroup then
-        State.selectedLogZoneId = nil
-    end
-    -- No quest is selected until the player picks one; the list never chooses for them
+    return pass
+end
 
-    -- The filter is the game's dropdown beside the search; without one, a switch of three parts above the list
+---A quest chosen outside the list (its map pin, the tracker) that a search or filter left there hides: the
+---search and filter give way, rather than the quest being let go of with no row to show for it.
+---@return boolean isGivenWay The search and the filter were cleared, and the list must be drawn again
+local function giveWayToChosenQuest(selectedEntry)
+    local questId = State.scrollTargetQuestId
+    if
+        not questId
+        or questId ~= selectedQuestIds[TAB_QUESTS]
+        or selectedEntry
+        or (State.searchText == "" and State.logFilter == "all")
+        or not ns.QuestState.isInLog(questId)
+    then
+        return false
+    end
+    State.searchText, State.logFilter = "", "all"
+    if type(State.frame.search) == "table" and type(State.frame.search.SetText) == "function" then
+        State.frame.search:SetText("") -- (its OnTextChanged finds the text already cleared: no second drawing)
+    end
+    return true
+end
+
+---What stands over the quests: the filter, the game's dropdown beside the search (without one, a switch of three
+---parts above the list), then the log's fill and the quests worth dropping.
+---@return number y Below it
+local function addListTop(counts)
     filterDropdown.counts = counts
     local y = 4
     if filterDropdown.button then
@@ -376,105 +368,144 @@ local function drawLogTab()
     if State.searchText == "" and ns.settings.shouldSuggestDrops ~= false then
         y = addDropSuggestions(y) -- (the player's choice: Quest window, Quest lists)
     end
-    local mapZoneId = List.getShownMapZoneId()
-    State.drawnMapZoneId = mapZoneId
-    State.shownZoneIds = {}
-    -- On opening, the list starts at the group of the focused quest; with none in the list, at the first open
-    -- group with a tracked quest
-    local openingQuestId = listOpening.isOpening and ns.Focus.get() or nil
-    local isOpeningQuestShown = false
-    for _, group in ipairs(openingQuestId and model.groups or {}) do
-        for _, entry in ipairs(group.shownEntries) do
-            isOpeningQuestShown = isOpeningQuestShown or entry.questId == openingQuestId
+    return y
+end
+
+---@return boolean hasTracked One of the group's quests (shown or not) is tracked
+local function hasTrackedQuest(group, isTracked)
+    for _, entry in ipairs(group.entries) do
+        if isTracked[entry.questId] == true then
+            return true
         end
     end
+    return false
+end
+
+---Whether a zone is folded. The first time a zone is listed it is open only if it holds a tracked quest. Its state
+---is kept from then on, and changes only when the player opens or shuts it.
+---@return boolean isCollapsed
+local function isZoneCollapsed(group, hasTracked)
+    local collapsedZones = ns.settings.collapsedLogZones
+    if collapsedZones[group.zoneId] == nil then
+        collapsedZones[group.zoneId] = not hasTracked
+    end
+    -- A search shows what it found, folded or not
+    local isCollapsed = collapsedZones[group.zoneId] == true and State.searchText == ""
+    if isCollapsed and State.scrollTargetQuestId and holdsQuest(group.shownEntries, State.scrollTargetQuestId) then
+        -- A quest picked on the map must be seen, so its folded zone opens
+        collapsedZones[group.zoneId] = false
+        isCollapsed = false
+    end
+    return isCollapsed
+end
+
+---On opening, the list starts at the group of the focused quest; with none in the list, at the first open group
+---with a tracked quest. The first group that qualifies keeps its top (listOpening.scrollTop).
+---@param opening { questId: number?, isShown: boolean } The focused quest, and whether the list shows it
+---@return boolean isCollapsed The group's folding: opened when it holds the focused quest
+local function markOpeningGroup(y, group, isCollapsed, hasTracked, opening)
+    if not listOpening.isOpening or listOpening.scrollTop then
+        return isCollapsed
+    end
+    if opening.isShown and holdsQuest(group.shownEntries, opening.questId) then
+        ns.settings.collapsedLogZones[group.zoneId] = false -- the focused quest is in view
+        listOpening.scrollTop = y
+        return false
+    end
+    if not opening.isShown and hasTracked and not isCollapsed then
+        listOpening.scrollTop = y
+    end
+    return isCollapsed
+end
+
+---@return number y Below the quest's row
+local function addLogQuestRow(y, entry, isTracked, isChainShown)
+    local progressText = composeProgress(entry)
+    return addListQuest(y, entry.questId, {
+        title = entry.title,
+        level = entry.level,
+        isReady = entry.isTurnIn,
+        isTracked = isTracked,
+        canShareWithParty = Log.canShareWithParty(entry.questId),
+        partyCount = Log.getPartyCount(entry.questId),
+        number = entry.number,
+        progress = ns.MapMarks.getProgress(entry),
+        isFocused = entry.questId == ns.Focus.get(),
+        canFocus = true,
+        itemTexture = entry.item and (entry.item.texture or ITEM_ICON) or nil,
+        subText = progressText ~= "" and progressText or nil,
+        chainText = isChainShown and List.composeChainText(entry) or nil,
+        chainIcon = not entry.chainIndex and ns.LogStyle.UNLOCK_ICON or nil,
+        profitText = ns.settings.shouldShowProfit and ns.Profit.format(ns.Profit.get(entry.questId)) or nil,
+    })
+end
+
+---@return { questId: number?, isShown: boolean } opening The quest the list opens at (the focused one), if any
+local function findOpeningQuest(model)
+    local opening = { questId = listOpening.isOpening and ns.Focus.get() or nil, isShown = false }
+    if opening.questId then
+        for _, group in ipairs(model.groups) do
+            opening.isShown = opening.isShown or holdsQuest(group.shownEntries, opening.questId)
+        end
+    end
+    return opening
+end
+
+---The zones with quests the filter and the search keep, each its heading and, unless folded, its quests.
+---@return number y Below the last zone
+local function addLogGroups(y, model, isTracked)
+    State.shownZoneIds = {}
+    local opening = findOpeningQuest(model)
     listOpening.scrollTop = nil
     -- A chain's step on the row ("2/5") says how long the chain is: not where the Spoilers choice hides chains
     local isChainShown = not ns.Spoilers.isActive() or ns.Spoilers.getChoice("chains") ~= "hidden"
     for _, group in ipairs(model.groups) do
         if #group.shownEntries > 0 then
             State.shownZoneIds[#State.shownZoneIds + 1] = group.zoneId
-            -- The first time a zone is listed it is open only if it holds a tracked quest. Its state is kept
-            -- from then on, and changes only when the player opens or shuts it.
-            local collapsedZones = ns.settings.collapsedLogZones
-            local hasTracked = false
-            for _, entry in ipairs(group.entries) do
-                hasTracked = hasTracked or isTracked[entry.questId] == true
-            end
-            if collapsedZones[group.zoneId] == nil then
-                collapsedZones[group.zoneId] = not hasTracked
-            end
-            -- A search shows what it found, folded or not
-            local isCollapsed = collapsedZones[group.zoneId] == true and State.searchText == ""
-            if isCollapsed and State.scrollTargetQuestId then
-                for _, entry in ipairs(group.shownEntries) do
-                    if entry.questId == State.scrollTargetQuestId then
-                        -- A quest picked on the map must be seen, so its folded zone opens
-                        collapsedZones[group.zoneId] = false
-                        isCollapsed = false
-                    end
-                end
-            end
-            if listOpening.isOpening and not listOpening.scrollTop then
-                local holdsOpeningQuest = false
-                for _, entry in ipairs(group.shownEntries) do
-                    holdsOpeningQuest = holdsOpeningQuest or entry.questId == openingQuestId
-                end
-                if isOpeningQuestShown and holdsOpeningQuest then
-                    collapsedZones[group.zoneId], isCollapsed = false, false -- the focused quest is in view
-                    listOpening.scrollTop = y
-                elseif not isOpeningQuestShown and hasTracked and not isCollapsed then
-                    listOpening.scrollTop = y
-                end
-            end
+            local hasTracked = hasTrackedQuest(group, isTracked)
+            local isCollapsed = isZoneCollapsed(group, hasTracked)
+            isCollapsed = markOpeningGroup(y, group, isCollapsed, hasTracked, opening)
             y = List.addZoneHeading(y, group, isCollapsed, hasTracked)
-            for _, entry in ipairs(isCollapsed and {} or group.shownEntries) do
-                local progressText = composeProgress(entry)
-                y = addListQuest(y, entry.questId, {
-                    title = entry.title,
-                    level = entry.level,
-                    isReady = entry.isTurnIn,
-                    isTracked = isTracked[entry.questId],
-                    canShareWithParty = Log.canShareWithParty(entry.questId),
-                    partyCount = Log.getPartyCount(entry.questId),
-                    number = entry.number,
-                    progress = ns.MapMarks.getProgress(entry),
-                    isFocused = entry.questId == ns.Focus.get(),
-                    canFocus = true,
-                    itemTexture = entry.item and (entry.item.texture or ITEM_ICON) or nil,
-                    subText = progressText ~= "" and progressText or nil,
-                    chainText = isChainShown
-                            and (entry.chainIndex and string.format("%d/%d", entry.chainIndex, entry.chainTotal) or (#(entry.unlockIds or {}) > 0 and "+" .. #entry.unlockIds))
-                        or nil,
-                    chainIcon = not entry.chainIndex and ns.LogStyle.UNLOCK_ICON or nil,
-                    profitText = ns.settings.shouldShowProfit and ns.Profit.format(ns.Profit.get(entry.questId)) or nil,
-                })
+            if not isCollapsed then
+                for _, entry in ipairs(group.shownEntries) do
+                    y = addLogQuestRow(y, entry, isTracked[entry.questId], isChainShown)
+                end
             end
             y = y + (isCollapsed and 2 or 8) -- folded zones stack close together
         end
     end
+    return y
+end
+
+---Under an empty list, why it is empty.
+local function addEmptyListNote(y, model, firstEntry)
+    local note
     if model.questCount == 0 then
-        State.list:addText(
-            ns.L("Your quest log is empty."),
-            10,
-            y + 4,
-            { color = COLORS.tan, width = State.list.width - 20 }
-        )
+        note = ns.L("Your quest log is empty.")
     elseif not firstEntry then
-        State.list:addText(ns.L("No quest matches."), 10, y + 4, { color = COLORS.tan, width = State.list.width - 20 })
+        note = ns.L("No quest matches.")
     end
-    State.list:finish(y + 30)
+    if note then
+        State.list:addText(note, 10, y + 4, { color = COLORS.tan, width = State.list.width - 20 })
+    end
+end
 
-    -- The log's size is on the My quests tab, "My quests (31/40)", amber nearly full, red full (Window's tab texts);
-    -- the panel over the list says it in words
-    local count = ns.Warnings.getLogSize() -- (the tab's count, given back below)
-    State.frame.status:SetText("")
+local pageGroup, pageEntry -- what the page beside the list shows, read by its drawing functions below
 
+local function drawSelectedZonePage()
+    return drawZonePage(pageGroup)
+end
+
+local function drawSelectedQuestPage()
+    return drawLogQuest(pageEntry)
+end
+
+---The page beside the list: the selected zone's page, the selected quest's, or a hint on selecting one.
+local function drawLogPage(model, selectedGroup, selectedEntry)
     if selectedGroup then
-        State.frame.finishPage(function()
-            return drawZonePage(selectedGroup)
-        end)
-        return selectedGroup, count
+        pageGroup = selectedGroup
+        State.frame.finishPage(drawSelectedZonePage)
+        return
     end
     if selectedQuestIds[TAB_QUESTS] and not selectedEntry then
         -- The selected quest is no longer in the list (filtered out, searched away, or gone): keeping it
@@ -487,24 +518,48 @@ local function drawLogTab()
     end
     State.mapQuestId = nil
     if selectedEntry then
-        State.frame.finishPage(function()
-            return drawLogQuest(selectedEntry)
-        end)
-    else
-        local hint = model.questCount > 0
+        pageEntry = selectedEntry
+        State.frame.finishPage(drawSelectedQuestPage)
+        return
+    end
+    QuestPage.drawHintPage(
+        model.questCount > 0
                 and ns.L("Select a quest to open its page and highlight it on the map. Click it again to let go of it.")
             or ""
-        State.frame.finishPage(function()
-            State.detail:addText(
-                hint,
-                PADDING,
-                PADDING,
-                { font = "QuestFont", color = COLORS.softInk, width = State.detail.width - 2 * PADDING }
-            )
-            return 80
-        end)
+    )
+end
+
+---Draws the My quests tab: the list of the log's quests by zone, and the page beside it.
+---@return table? selected The quest or zone group shown on the page
+---@return number questCount
+local function drawLogTab()
+    local model = ns.Model.compose(nil, {
+        questIds = ns.QuestState.getLogQuestIds(),
+        collapsedZones = {},
+        isExpandedByDefault = true,
+    })
+    local pass = collectShownEntries(model)
+    if giveWayToChosenQuest(pass.selectedEntry) then
+        return drawLogTab()
     end
-    return selectedEntry, count
+    if not pass.selectedGroup then
+        State.selectedLogZoneId = nil
+    end
+    -- No quest is selected until the player picks one; the list never chooses for them
+
+    local y = addListTop(pass.counts)
+    State.drawnMapZoneId = List.getShownMapZoneId()
+    y = addLogGroups(y, model, pass.isTracked)
+    addEmptyListNote(y, model, pass.firstEntry)
+    State.list:finish(y + 30)
+
+    -- The log's size is on the My quests tab, "My quests (31/40)", amber nearly full, red full (Window's tab texts);
+    -- the panel over the list says it in words
+    local count = ns.Warnings.getLogSize() -- (the tab's count, given back below)
+    State.frame.status:SetText("")
+
+    drawLogPage(model, pass.selectedGroup, pass.selectedEntry)
+    return pass.selectedGroup or pass.selectedEntry, count
 end
 
 -- Shared with the other parts of the window

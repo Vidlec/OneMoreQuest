@@ -3,7 +3,7 @@
 -- Herbs and Find Minerals can show (MinimapPins keeps its marks off them). A scenario of its own, outside the suite
 -- (sim/tools is not the scenarios folder); run it from the WowAddons folder:
 --   bun addonsim test sim/tools/gathering-nodes.lua        (the simulator's runner, with this project)
--- It needs QuestieDB installed in the game's AddOns folder, and writes addons/OneMoreQuest/GatheringNodes.lua.
+-- It needs QuestieDB installed in the game's AddOns folder, and writes addons/OneMoreQuest/Data/GatheringNodes.lua.
 -- Herbs: objects named as a herb item is (Trade Goods, Herb). Ores: objects named "... Vein", "... Deposit" or
 -- "... Chunk" (the miner's nodes). Left out: objects a quest asks for by name (its object objectives), which are
 -- that quest's own things, not nodes.
@@ -60,13 +60,13 @@ local function list(ids)
     end
     return table.concat(lines, "\r\n")
 end
-local path = projectRoot .. "/addons/OneMoreQuest/GatheringNodes.lua"
+local path = projectRoot .. "/addons/OneMoreQuest/Data/GatheringNodes.lua"
 local out = assert(io.open(path, "wb"))
 out:write(table.concat({
     "local _, ns = ...",
     "",
     "-- The herbs and ores of the world, by their object ids in QuestieDB: where the game's Find Herbs and Find",
-    "-- Minerals can show a node on the minimap. Made by tools/gathering-nodes.lua (run it again when the database",
+    "-- Minerals can show a node on the minimap. Made by sim/tools/gathering-nodes.lua (run it again when the database",
     "-- grows); MinimapPins keeps its marks off these places while that tracking is on.",
     "ns.GatheringNodes = {",
     "    herb = {",

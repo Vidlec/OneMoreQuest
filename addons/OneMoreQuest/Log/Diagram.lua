@@ -319,17 +319,193 @@ function Diagram.zoom(step)
     end
 end
 
+-- Where drawTree puts the tree in its pane, for the functions that draw its parts: the left and top of the tree,
+-- and the offset of its highest box
+local treeLayout = { left = 0, top = 0, firstOffset = 0 }
+
+---How far down a box stands from the quest itself (up: below zero): a level a depth, and within a wrapped block a
+---row further out a row.
+local function getOffset(box)
+    local side = box.depth < 0 and -1 or 1
+    return box.depth * (NODE_HEIGHT + LEVEL_GAP) + side * (box.wrapRow or 0) * (NODE_HEIGHT + WRAP_GAP)
+end
+
+---@return number x, number y The box's top left corner on the tree's canvas
+local function getBoxPlace(box)
+    return treeLayout.left + box.slot * (NODE_WIDTH + SLOT_GAP),
+        treeLayout.top + getOffset(box) - treeLayout.firstOffset
+end
+
+-- One link being drawn, measured by measureLink for the functions that draw its pieces (one table, reused)
+local link = {}
+
+---Measures the line from a box to the quest it hangs on (see addLink) into link.
+local function measureLink(box)
+    local parent = box.parent
+    link.isAfter = box.depth > parent.depth
+    local x, y = getBoxPlace(box)
+    link.y = y
+    link.centre = math.floor(x + NODE_WIDTH / 2)
+    local parentX, parentY = getBoxPlace(parent)
+    link.parentY = parentY
+    link.parentCentre = math.floor(parentX + NODE_WIDTH / 2)
+    link.rim = parent.isThis and 3 or 0 -- (the gold frame round the quest itself)
+    -- The crossing: the middle of the gap between the parent and the block's nearest row
+    local nearY = y - (link.isAfter and 1 or -1) * (box.wrapRow or 0) * (NODE_HEIGHT + WRAP_GAP)
+    link.crossY = link.isAfter and math.floor((parentY + NODE_HEIGHT + nearY) / 2)
+        or math.floor((nearY + NODE_HEIGHT + parentY) / 2)
+    link.trunkX = box.wrapSlot and math.floor(treeLayout.left + box.wrapSlot * (NODE_WIDTH + SLOT_GAP)) - 8
+end
+
+---The parent's own stem to the crossing: out of its foot, or into its head at an arrow's point.
+local function addParentStem(canvas)
+    if link.isAfter then
+        local fromY = link.parentY + NODE_HEIGHT + link.rim
+        canvas:addRect(link.parentCentre - 1, fromY, 2, link.crossY - fromY + 1, LINE, 1)
+        return
+    end
+    canvas:addRect(link.parentCentre - 1, link.crossY, 2, link.parentY - link.rim - link.crossY - 5, LINE, 1)
+    canvas:addIcon(link.parentCentre - 6, link.parentY - link.rim - 11, 12, MEDIA .. "ChevronDown", LINE, 2)
+end
+
+---The trunk down (or up) the left side of a wrapped block, from the crossing to its further rows.
+local function addTrunk(canvas, box)
+    local reach = (box.wrapRows - 1) * (NODE_HEIGHT + WRAP_GAP)
+    canvas:addRect(link.trunkX, link.crossY, math.min(link.centre, link.parentCentre) - link.trunkX, 2, LINE, 1)
+    if link.isAfter then
+        canvas:addRect(link.trunkX, link.crossY, 2, reach + 2, LINE, 1)
+    else
+        canvas:addRect(link.trunkX, link.crossY - reach, 2, reach + 2, LINE, 1)
+    end
+end
+
+---A box of a block's first row (or of no block): its stem to the crossing, the line across to the parent's centre;
+---once for the parent, its own stem and the trunk of a block with more rows.
+local function addFirstRowLink(canvas, box)
+    local y, centre, crossY = link.y, link.centre, link.crossY
+    if link.isAfter then
+        canvas:addRect(centre - 1, crossY, 2, y - crossY - 5, LINE, 1)
+        canvas:addIcon(centre - 6, y - 11, 12, MEDIA .. "ChevronDown", LINE, 2)
+    else
+        canvas:addRect(centre - 1, y + NODE_HEIGHT, 2, crossY - y - NODE_HEIGHT + 1, LINE, 1)
+    end
+    canvas:addRect(
+        math.min(centre, link.parentCentre) - 1,
+        crossY,
+        math.abs(link.parentCentre - centre) + 2,
+        2,
+        LINE,
+        1
+    )
+    if box.slot == (box.wrapSlot or box.slot) or centre == link.parentCentre then
+        addParentStem(canvas)
+    end
+    if link.trunkX and box.slot == box.wrapSlot and box.wrapRows > 1 then
+        addTrunk(canvas, box)
+    end
+end
+
+---A further row of a block: from the trunk along the row's own line, then into (or out of) the box.
+local function addFurtherRowLink(canvas)
+    local y, centre = link.y, link.centre
+    local rowY = link.isAfter and y - WRAP_GAP / 2 or y + NODE_HEIGHT + WRAP_GAP / 2
+    canvas:addRect(link.trunkX, rowY, centre - link.trunkX + 1, 2, LINE, 1)
+    if link.isAfter then
+        canvas:addRect(centre - 1, rowY, 2, y - rowY - 5, LINE, 1)
+        canvas:addIcon(centre - 6, y - 11, 12, MEDIA .. "ChevronDown", LINE, 2)
+    else
+        canvas:addRect(centre - 1, y + NODE_HEIGHT, 2, rowY - y - NODE_HEIGHT + 1, LINE, 1)
+    end
+end
+
+---The line from a box to the quest it hangs on, always from the earlier quest down to the later: out of the
+---earlier one's foot, across the gap's middle, into the later one's head at an arrow's point. A wrapped block's
+---further rows reach that crossing by a trunk down the block's left side and a line of their own each.
+local function addLink(canvas, box)
+    measureLink(box)
+    if (box.wrapRow or 0) == 0 then
+        addFirstRowLink(canvas, box)
+    else
+        addFurtherRowLink(canvas)
+    end
+end
+
+local THIS_GROUND = { 0.05, 0.035, 0.02 }
+local FILIGREE = { atlas = "banner-smallfiligree" }
+
+---The quest the diagram is of: a gold frame round it, and the game's small filigree over it.
+local function addThisFrame(canvas, x, y)
+    canvas:addRect(x - 3, y - 3, NODE_WIDTH + 6, NODE_HEIGHT + 6, Style.SELECTED_EDGE, 0)
+    canvas:addRect(x - 2, y - 2, NODE_WIDTH + 4, NODE_HEIGHT + 4, THIS_GROUND, 1)
+    if ns.LogList.hasGameArt("banner-smallfiligree") then
+        canvas:addImage(x + NODE_WIDTH / 2 - 30, y - 15, 61, 19, FILIGREE, nil, nil, 5)
+    end
+end
+
+---The quest whose page is shown: the game's glow, as on the list's chosen row.
+local function addSelectedGlow(canvas, x, y)
+    if ns.LogList.hasGameArt("questlog-quest-glow-yellow") then
+        canvas:addImage(x - 4, y - 3, NODE_WIDTH + 8, NODE_HEIGHT + 6, ns.LogList.SELECTED_GLOW, nil, nil, 3)
+    else
+        canvas:addRect(x + 1, y + NODE_HEIGHT - 3, NODE_WIDTH - 2, 2, COLORS.gold, 4)
+    end
+end
+
+---One quest's box: its frame, its state's mark and its title in the colour of where the character stands with it; a
+---click opens its page beside the tree.
+local function addBox(canvas, box, x, y)
+    local isSelected = box.questId == window.selectedQuestId
+    if box.isThis then
+        addThisFrame(canvas, x, y)
+    end
+    canvas:addRect(x, y, NODE_WIDTH, NODE_HEIGHT, box.isThis and Style.SELECTED_EDGE or NODE_EDGE, 2)
+    canvas:addRect(x + 1, y + 1, NODE_WIDTH - 2, NODE_HEIGHT - 2, box.isThis and Style.SELECTED_FILL or NODE_FILL, 3)
+    if isSelected then
+        addSelectedGlow(canvas, x, y)
+    end
+    addStateIcon(canvas, x + 6, y + 7, 16, box.state)
+    local name = ns.QuestText.getQuestName(box.questId) or ns.L("Quest %s", box.questId)
+    local level = ns.Database.getQuestField(box.questId, "questLevel") or 0
+    local color = box.state == "done" and DONE_TEXT
+        or box.state == "later" and LATER_TEXT
+        or ns.Widgets.getDifficultyColor(level)
+    canvas:addText(string.format("[%d] %s", level, name), x + 26, y + 9, {
+        font = "GameFontHighlightSmall",
+        color = (box.isThis or isSelected) and COLORS.white or color,
+        width = NODE_WIDTH - 32,
+        isSingleLine = true,
+    })
+    box.button = canvas:addButton(x, y, NODE_WIDTH, NODE_HEIGHT, handleBoxClick, box, showBoxTooltip, nil, hideTooltip)
+end
+
+---The line over the tree: how many quests there are each way, and how to move around a tree that scrolls.
+local function setCaption(boxes, diagram)
+    local beforeCount, afterCount = 0, 0
+    for _, box in ipairs(boxes) do
+        beforeCount, afterCount = beforeCount + (box.depth < 0 and 1 or 0), afterCount + (box.depth > 0 and 1 or 0)
+    end
+    local parts = {}
+    if beforeCount > 0 then
+        parts[#parts + 1] = ns.Lp(beforeCount, "%d quest before", "%d quests before")
+    end
+    if afterCount > 0 then
+        parts[#parts + 1] = ns.Lp(afterCount, "%d quest after", "%d quests after")
+    end
+    window.caption:SetText(table.concat(parts, DOT))
+    local tree = window.tree
+    local canMove = tree.maxSideScroll > 0 or (tree.canvas.maxScroll or 0) > 0
+    local hint = canMove and ns.L("Drag to move; Shift and the wheel go sideways, Ctrl zooms") or ""
+    if diagram.isCutBefore or diagram.isCutAfter then
+        hint = ns.L("More quests lie further out: Diagram from here on one at the edge")
+    end
+    window.hint:SetText(hint)
+end
+
 ---Draws the tree for the window's quest, as large as its pane lets it be (or as the player chose: Diagram.zoom).
 drawTree = function()
     local tree = window.tree
     local canvas = tree.canvas
     local boxes, slotCount, diagram = Diagram.compose(window.questId)
-    -- How far down each box stands from the quest itself (up: below zero): a level a depth, and within a wrapped
-    -- block a row further out a row
-    local function getOffset(box)
-        local side = box.depth < 0 and -1 or 1
-        return box.depth * (NODE_HEIGHT + LEVEL_GAP) + side * (box.wrapRow or 0) * (NODE_HEIGHT + WRAP_GAP)
-    end
     local firstOffset, lastOffset = 0, 0
     for _, box in ipairs(boxes) do
         firstOffset, lastOffset = math.min(firstOffset, getOffset(box)), math.max(lastOffset, getOffset(box))
@@ -344,124 +520,20 @@ drawTree = function()
     canvas.content:SetScale(scale)
     canvas:clear()
     -- Smaller than the pane: in its middle
-    local left = PADDING + math.max(0, (paneWidth / scale - width) / 2)
-    local top = PADDING + math.max(0, (paneHeight / scale - height) / 2)
-    local function getBoxPlace(box)
-        return left + box.slot * (NODE_WIDTH + SLOT_GAP), top + getOffset(box) - firstOffset
-    end
-    ---The line from a box to the quest it hangs on, always from the earlier quest down to the later: out of the
-    ---earlier one's foot, across the gap's middle, into the later one's head at an arrow's point. A wrapped block's
-    ---further rows reach that crossing by a trunk down the block's left side and a line of their own each.
-    local function addLink(box)
-        local parent = box.parent
-        local isAfter = box.depth > parent.depth
-        local x, y = getBoxPlace(box)
-        local centre = math.floor(x + NODE_WIDTH / 2)
-        local parentX, parentY = getBoxPlace(parent)
-        local parentCentre = math.floor(parentX + NODE_WIDTH / 2)
-        local rim = parent.isThis and 3 or 0 -- (the gold frame round the quest itself)
-        -- The crossing: the middle of the gap between the parent and the block's nearest row
-        local nearY = y - (isAfter and 1 or -1) * (box.wrapRow or 0) * (NODE_HEIGHT + WRAP_GAP)
-        local crossY = isAfter and math.floor((parentY + NODE_HEIGHT + nearY) / 2)
-            or math.floor((nearY + NODE_HEIGHT + parentY) / 2)
-        local trunkX = box.wrapSlot and math.floor(left + box.wrapSlot * (NODE_WIDTH + SLOT_GAP)) - 8
-        if (box.wrapRow or 0) == 0 then
-            if isAfter then
-                canvas:addRect(centre - 1, crossY, 2, y - crossY - 5, LINE, 1)
-                canvas:addIcon(centre - 6, y - 11, 12, MEDIA .. "ChevronDown", LINE, 2)
-            else
-                canvas:addRect(centre - 1, y + NODE_HEIGHT, 2, crossY - y - NODE_HEIGHT + 1, LINE, 1)
-            end
-            canvas:addRect(math.min(centre, parentCentre) - 1, crossY, math.abs(parentCentre - centre) + 2, 2, LINE, 1)
-            -- Once for the parent: its own stem to the crossing, and the trunk of a block with more rows
-            if box.slot == (box.wrapSlot or box.slot) or centre == parentCentre then
-                if isAfter then
-                    local fromY = parentY + NODE_HEIGHT + rim
-                    canvas:addRect(parentCentre - 1, fromY, 2, crossY - fromY + 1, LINE, 1)
-                else
-                    canvas:addRect(parentCentre - 1, crossY, 2, parentY - rim - crossY - 5, LINE, 1)
-                    canvas:addIcon(parentCentre - 6, parentY - rim - 11, 12, MEDIA .. "ChevronDown", LINE, 2)
-                end
-            end
-            if trunkX and box.slot == box.wrapSlot and box.wrapRows > 1 then
-                local reach = (box.wrapRows - 1) * (NODE_HEIGHT + WRAP_GAP)
-                canvas:addRect(trunkX, crossY, math.min(centre, parentCentre) - trunkX, 2, LINE, 1)
-                if isAfter then
-                    canvas:addRect(trunkX, crossY, 2, reach + 2, LINE, 1)
-                else
-                    canvas:addRect(trunkX, crossY - reach, 2, reach + 2, LINE, 1)
-                end
-            end
-            return
-        end
-        -- A further row of a block: from the trunk along the row's own line, then into (or out of) the box
-        local rowY = isAfter and y - WRAP_GAP / 2 or y + NODE_HEIGHT + WRAP_GAP / 2
-        canvas:addRect(trunkX, rowY, centre - trunkX + 1, 2, LINE, 1)
-        if isAfter then
-            canvas:addRect(centre - 1, rowY, 2, y - rowY - 5, LINE, 1)
-            canvas:addIcon(centre - 6, y - 11, 12, MEDIA .. "ChevronDown", LINE, 2)
-        else
-            canvas:addRect(centre - 1, y + NODE_HEIGHT, 2, rowY - y - NODE_HEIGHT + 1, LINE, 1)
-        end
-    end
+    treeLayout.left = PADDING + math.max(0, (paneWidth / scale - width) / 2)
+    treeLayout.top = PADDING + math.max(0, (paneHeight / scale - height) / 2)
+    treeLayout.firstOffset = firstOffset
     window.boxes = boxes
-    local beforeCount, afterCount, thisX, thisY = 0, 0, 0, 0
+    local thisX, thisY = 0, 0
     for _, box in ipairs(boxes) do
         local x, y = getBoxPlace(box)
         box.state = getState(box.questId)
-        beforeCount, afterCount = beforeCount + (box.depth < 0 and 1 or 0), afterCount + (box.depth > 0 and 1 or 0)
-        local isSelected = box.questId == window.selectedQuestId
         if box.isThis then
             thisX, thisY = x + NODE_WIDTH / 2, y + NODE_HEIGHT / 2
-            -- The quest the diagram is of: a gold frame round it, and the game's small filigree over it
-            canvas:addRect(x - 3, y - 3, NODE_WIDTH + 6, NODE_HEIGHT + 6, Style.SELECTED_EDGE, 0)
-            canvas:addRect(x - 2, y - 2, NODE_WIDTH + 4, NODE_HEIGHT + 4, { 0.05, 0.035, 0.02 }, 1)
-            if ns.LogList.hasGameArt("banner-smallfiligree") then
-                canvas:addImage(
-                    x + NODE_WIDTH / 2 - 30,
-                    y - 15,
-                    61,
-                    19,
-                    { atlas = "banner-smallfiligree" },
-                    nil,
-                    nil,
-                    5
-                )
-            end
         end
-        canvas:addRect(x, y, NODE_WIDTH, NODE_HEIGHT, box.isThis and Style.SELECTED_EDGE or NODE_EDGE, 2)
-        canvas:addRect(
-            x + 1,
-            y + 1,
-            NODE_WIDTH - 2,
-            NODE_HEIGHT - 2,
-            box.isThis and Style.SELECTED_FILL or NODE_FILL,
-            3
-        )
-        if isSelected then
-            -- The quest whose page is shown: the game's glow, as on the list's chosen row
-            if ns.LogList.hasGameArt("questlog-quest-glow-yellow") then
-                canvas:addImage(x - 4, y - 3, NODE_WIDTH + 8, NODE_HEIGHT + 6, ns.LogList.SELECTED_GLOW, nil, nil, 3)
-            else
-                canvas:addRect(x + 1, y + NODE_HEIGHT - 3, NODE_WIDTH - 2, 2, COLORS.gold, 4)
-            end
-        end
-        addStateIcon(canvas, x + 6, y + 7, 16, box.state)
-        local name = ns.QuestText.getQuestName(box.questId) or ns.L("Quest %s", box.questId)
-        local level = ns.Database.getQuestField(box.questId, "questLevel") or 0
-        local color = box.state == "done" and DONE_TEXT
-            or box.state == "later" and LATER_TEXT
-            or ns.Widgets.getDifficultyColor(level)
-        canvas:addText(string.format("[%d] %s", level, name), x + 26, y + 9, {
-            font = "GameFontHighlightSmall",
-            color = (box.isThis or isSelected) and COLORS.white or color,
-            width = NODE_WIDTH - 32,
-            isSingleLine = true,
-        })
-        box.button =
-            canvas:addButton(x, y, NODE_WIDTH, NODE_HEIGHT, handleBoxClick, box, showBoxTooltip, nil, hideTooltip)
+        addBox(canvas, box, x, y)
         if box.parent then
-            addLink(box)
+            addLink(canvas, box)
         end
     end
     canvas.content:SetWidth(width)
@@ -476,28 +548,16 @@ drawTree = function()
     else
         setSideScroll(tree.sideScroll)
     end
-    -- The line over the tree: how many quests there are each way, and how to move around a tree that scrolls
-    local parts = {}
-    if beforeCount > 0 then
-        parts[#parts + 1] = ns.Lp(beforeCount, "%d quest before", "%d quests before")
-    end
-    if afterCount > 0 then
-        parts[#parts + 1] = ns.Lp(afterCount, "%d quest after", "%d quests after")
-    end
-    window.caption:SetText(table.concat(parts, DOT))
-    local canMove = tree.maxSideScroll > 0 or (canvas.maxScroll or 0) > 0
-    local hint = canMove and ns.L("Drag to move; Shift and the wheel go sideways, Ctrl zooms") or ""
-    if diagram.isCutBefore or diagram.isCutAfter then
-        hint = ns.L("More quests lie further out: Diagram from here on one at the edge")
-    end
-    window.hint:SetText(hint)
+    setCaption(boxes, diagram)
 end
 
 ---@return number treeWidth, number height The window's size as the player left it: the tree's width, and the height
 local function getSize()
     local settings = ns.settings
-    local treeWidth = math.floor(tonumber(settings.diagramTreeWidth) or TREE_WIDTH)
-    local height = math.floor(tonumber(settings.diagramHeight) or HEIGHT)
+    -- (0, or nothing kept: the usual size)
+    local savedWidth, savedHeight = tonumber(settings.diagramTreeWidth) or 0, tonumber(settings.diagramHeight) or 0
+    local treeWidth = math.floor(savedWidth > 0 and savedWidth or TREE_WIDTH)
+    local height = math.floor(savedHeight > 0 and savedHeight or HEIGHT)
     return math.max(MIN_TREE_WIDTH, math.min(MAX_TREE_WIDTH, treeWidth)),
         math.max(MIN_HEIGHT, math.min(MAX_HEIGHT, height))
 end
@@ -856,7 +916,7 @@ createSizeGrip = function()
         local left, top = window:GetLeft(), window:GetTop()
         if left and top then
             window:ClearAllPoints()
-            window:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left * window:GetScale(), top * window:GetScale())
+            window:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top) -- (both in its own units, as SetPoint takes)
         end
         local sinceDrawn = 1
         self:SetScript("OnUpdate", function(_, elapsed)

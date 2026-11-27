@@ -1,0 +1,85 @@
+# The checks every change goes through: the Lua's format (StyLua) and lint (luacheck), the tools' TypeScript and JSON
+# (Biome), the unit tests (their own fake game, LuaJIT), and the release build (the TOC's files all there, none
+# forgotten, a changelog for the version).
+# The simulator's scenarios (bun addonsim test) need the game's client files and run on a developer's machine only.
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches-ignore: [main] # (main's pushes run these through the release workflow)
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  STYLUA_VERSION: v2.6.0 # the versions AddonSim pins (node_modules/addonsim/tools/lua-tools.ts)
+  LUACHECK_VERSION: 1.2.0-1
+
+jobs:
+  lua:
+    name: Format, lint and unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      # (AddonSim, a link to a checkout beside this one, is for the simulator only: left out here)
+      - name: Install Biome
+        run: |
+          cp package.json package.json.orig
+          jq 'del(.dependencies.addonsim)' package.json.orig > package.json
+          bun install
+          mv package.json.orig package.json
+
+      - name: Install LuaJIT, luacheck and StyLua
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q luajit lua5.1 liblua5.1-0-dev luarocks
+          sudo luarocks install luacheck "$LUACHECK_VERSION"
+          curl -fsSL -o /tmp/stylua.zip "https://github.com/JohnnyMorganz/StyLua/releases/download/${STYLUA_VERSION}/stylua-linux-x86_64.zip"
+          sudo unzip -o -q /tmp/stylua.zip -d /usr/local/bin
+          sudo chmod +x /usr/local/bin/stylua
+          stylua --version && luacheck --version && luajit -v
+
+      - name: Biome (the tools' TypeScript, JSON)
+        run: bun x biome ci .
+
+      - name: Format (StyLua)
+        run: stylua --check addons sim tools
+
+      - name: Lint (luacheck)
+        run: luacheck --no-color --codes addons sim tools
+
+      - name: Unit tests
+        working-directory: addons/OneMoreQuest
+        run: luajit tests/run.lua
+
+  release-build:
+    name: Release build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build the zip and its notes
+        run: |
+          python -m py_compile tools/release/*.py
+          python tools/release/build_zip.py
+          python tools/release/notes.py
+          CURSEFORGE_GAME_VERSIONS=0 python tools/release/curseforge.py --zip dist/OneMoreQuest-*.zip --dry-run > /dev/null
+          cat dist/SHA256SUMS.txt >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OneMoreQuest-build
+          path: dist/
+          retention-days: 7

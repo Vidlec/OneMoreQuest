@@ -71,26 +71,32 @@ local function setTabLook(tab, isSelected)
     ns.Widgets.setColor(tab.label, isSelected and COLORS.white or COLORS.gold)
 end
 
-local function updateControls(selected, tabCount)
-    local isQuestsTab = State.selectedTab == TAB_QUESTS
-    local isAvailableTab, isDungeonsTab = State.selectedTab == TAB_AVAILABLE, State.selectedTab == TAB_DUNGEONS
-    -- A dungeon's page (no quest of it opened): its way in on the map, and the DungeonJournal addon's page of it
+-- The bar's and the tab row's controls, shown for what the window draws now (updateControls, in its steps)
+
+---A dungeon's page (no quest of it opened): its way in on the map, and the DungeonJournal addon's page of it.
+local function showDungeonButtons(isDungeonsTab)
     local shownDungeon = isDungeonsTab and State.shownDungeon or nil
     State.frame.entranceButton:SetShown(shownDungeon ~= nil and shownDungeon.entrance ~= nil)
     State.frame.journalButton:SetShown(
         shownDungeon ~= nil and ns.DungeonJournal ~= nil and ns.DungeonJournal.knows(shownDungeon.name)
     )
+end
+
+---A zone's page has its Track all and its map; a quest of the log its Track, Focus, Share and Abandon.
+local function showQuestButtons(selected, isQuestsTab)
     local isZonePage = isQuestsTab and selected ~= nil and selected.entries ~= nil
-    local questId = selected and selected.questId
+    local isQuestPage = isQuestsTab and selected ~= nil and selected.questId ~= nil
     State.frame.shownZoneGroup = isZonePage and selected or nil
     State.frame.trackAllButton:SetShown(isZonePage)
     State.frame.zoneMapButton:SetShown(isZonePage)
-    State.frame.trackButton:SetShown(isQuestsTab and questId ~= nil)
-    State.frame.focusButton:SetShown(isQuestsTab and questId ~= nil)
-    State.frame.shareButton:SetShown(isQuestsTab and questId ~= nil)
-    State.frame.abandonButton:SetShown(isQuestsTab and questId ~= nil)
+    State.frame.trackButton:SetShown(isQuestPage)
+    State.frame.focusButton:SetShown(isQuestPage)
+    State.frame.shareButton:SetShown(isQuestPage)
+    State.frame.abandonButton:SetShown(isQuestPage)
+end
 
-    -- On the Available tab the bar holds the two map buttons; the quest page has its own on the other tab
+---On the Available tab the bar holds the two map buttons; the quest page has its own on the other tab.
+local function showMapButtons(selected, isQuestsTab)
     local hasPlace = not isQuestsTab and State.shownPlace ~= nil and State.shownPlace.x >= 0
     local hasTurnInPlace = not isQuestsTab and State.shownTurnInPlace ~= nil and State.shownTurnInPlace.x >= 0
     State.frame.mapButton:SetShown(hasPlace)
@@ -105,47 +111,46 @@ local function updateControls(selected, tabCount)
     else
         State.frame.turnInMapButton:SetPoint("LEFT", State.frame.bar, "LEFT", 10, 0)
     end
+end
 
-    State.frame.search:SetShown(isQuestsTab)
-    if type(State.frame.search.Instructions) == "table" and State.frame.search.Instructions.SetText then
-        State.frame.search.Instructions:SetText(ns.L("Search")) -- the game's template writes its own, in the client's language
+---The game's search box template writes its own "Search", in the client's language: it is named again in ours.
+local function nameSearchInstructions(searchBox)
+    if type(searchBox.Instructions) == "table" and searchBox.Instructions.SetText then
+        searchBox.Instructions:SetText(ns.L("Search"))
     end
+end
+
+---The row over the list: the search and the filter on My quests, the location and its search on Available, and
+---the low-level switch, which stays put under the Available list (the list ends above it).
+local function showSearchControls(isQuestsTab, isAvailableTab)
+    State.frame.search:SetShown(isQuestsTab)
+    nameSearchInstructions(State.frame.search)
     if filterDropdown.button then
         filterDropdown.button:SetShown(isQuestsTab)
     end
     State.frame.searchLabel:SetText(ns.L(isQuestsTab and "Search quests" or "Location"))
     State.frame.zoneButton:SetShown(isAvailableTab and not State.zoneDropdown)
     State.frame.availableSearch:SetShown(isAvailableTab and not State.isPickingZone)
-    if
-        type(State.frame.availableSearch.Instructions) == "table" and State.frame.availableSearch.Instructions.SetText
-    then
-        State.frame.availableSearch.Instructions:SetText(ns.L("Search"))
-    end
+    nameSearchInstructions(State.frame.availableSearch)
     if State.zoneDropdown then
         State.zoneDropdown:SetShown(isAvailableTab)
     end
-    -- The low-level switch stays put under the Available list, which ends above it
     State.lowLevelBar:SetShown(isAvailableTab)
-    if isQuestsTab and questId then
-        -- Each button says what it will do, as the game's own quest log does ("Untrack")
-        local isWatched = ns.QuestState.isWatched(questId)
-        Log.setButtonText(State.frame.trackButton, ns.L(isWatched and "Untrack" or "Track"))
-        local isFocused = questId == ns.Focus.get()
-        Log.setButtonText(State.frame.focusButton, ns.L(isFocused and "Unfocus" or "Focus"))
-        local canShare = C_QuestLog.IsPushableQuest
-            and C_QuestLog.IsPushableQuest(questId)
-            and IsInGroup
-            and IsInGroup()
-        State.frame.shareButton:SetEnabled(canShare == true)
-    end
-    State.frame.resetSettingsButton:Hide()
-    State.frame.doneButton:Hide()
-    State.frame.journalBackButton:Hide()
-    for _, control in ipairs({ State.frame.status, State.frame.tabRowFill, State.frame.tabRowRule }) do
-        control:Show()
-    end
-    -- With this addon's quests to pick up switched off, or the Spoilers choice naming none, the game's own marks show
-    -- them and the tab goes; the Dungeons tab goes where the choice keeps dungeons back. The tabs left close up.
+end
+
+---Each button says what it will do, as the game's own quest log does ("Untrack").
+local function nameQuestButtons(questId)
+    local isWatched = ns.QuestState.isWatched(questId)
+    Log.setButtonText(State.frame.trackButton, ns.L(isWatched and "Untrack" or "Track"))
+    local isFocused = questId == ns.Focus.get()
+    Log.setButtonText(State.frame.focusButton, ns.L(isFocused and "Unfocus" or "Focus"))
+    local canShare = C_QuestLog.IsPushableQuest and C_QuestLog.IsPushableQuest(questId) and IsInGroup and IsInGroup()
+    State.frame.shareButton:SetEnabled(canShare == true)
+end
+
+---With this addon's quests to pick up switched off, or the Spoilers choice naming none, the game's own marks show
+---them and the tab goes; the Dungeons tab goes where the choice keeps dungeons back. The tabs left close up.
+local function placeShownTabs()
     local isAvailableShown, isDungeonsShown = List.isAvailableTabShown(), List.isDungeonsTabShown()
     local shownTabsKey = (isAvailableShown and "a" or "") .. (isDungeonsShown and "d" or "")
     local isTabsMoved = State.frame.shownTabsKey ~= shownTabsKey
@@ -166,32 +171,34 @@ local function updateControls(selected, tabCount)
         State.frame.tabHintsKey = nil -- (the shoulder buttons and the quests' count after the last tab shown: placed again)
         placeTabHints(State.frame.isShowingTabHints == true)
     end
-    for tab, button in ipairs(State.frame.tabs) do
-        setTabLook(button, tab == State.selectedTab)
+end
+
+---A tab's words: its name, with the count it last showed (the Dungeons tab with none: how many dungeons there are
+---tells nothing). The quest log's size is on its own tab: "My quests (31/40)", the count amber nearly full, red full
+---(beside the tabs stand a controller's LB and RB).
+local function composeTabText(tabIndex)
+    local label = ns.L(TAB_LABELS[tabIndex])
+    if tabIndex == TAB_QUESTS then
+        local count, max, isNearlyFull = ns.Warnings.getLogSize()
+        local colour = count >= max and "ff9a7a" or isNearlyFull and "ffb84d" or nil
+        local size = string.format("%d/%d", count, max)
+        return string.format("%s (%s)", label, colour and ("|cff" .. colour .. size .. "|r") or size)
     end
+    local shownCount = State.frame.tabCounts[tabIndex]
+    if shownCount and tabIndex ~= TAB_DUNGEONS then
+        return string.format("%s (%d)", label, shownCount)
+    end
+    return label
+end
+
+---Each tab with the count it last showed, named again in the language of the moment.
+---@param tabCount number? The selected tab's count, just drawn
+local function nameTabs(tabCount)
     if tabCount then
         State.frame.tabCounts[State.selectedTab] = tabCount
     end
-    -- Each tab with the count it last showed, named again in the language of the moment
     for tabIndex, tab in ipairs(State.frame.tabs) do
-        local shownCount = State.frame.tabCounts[tabIndex]
-        -- (the Dungeons tab with no count: how many dungeons there are tells nothing)
-        local text = shownCount
-                and tabIndex ~= TAB_DUNGEONS
-                and string.format("%s (%d)", ns.L(TAB_LABELS[tabIndex]), shownCount)
-            or ns.L(TAB_LABELS[tabIndex])
-        if tabIndex == TAB_QUESTS then
-            -- The quest log's size is on its tab: "My quests (31/40)", the count amber nearly full, red full (beside the
-            -- tabs stand a controller's LB and RB)
-            local count, max, isNearlyFull = ns.Warnings.getLogSize()
-            local colour = count >= max and "ff9a7a" or isNearlyFull and "ffb84d" or nil
-            local size = string.format("%d/%d", count, max)
-            text = string.format(
-                "%s (%s)",
-                ns.L(TAB_LABELS[tabIndex]),
-                colour and ("|cff" .. colour .. size .. "|r") or size
-            )
-        end
+        local text = composeTabText(tabIndex)
         if tabIndex == State.selectedTab and tabCount or State.frame.tabTexts[tabIndex] ~= text then
             State.frame.tabTexts[tabIndex] = text
             if nativeTabs[tab] then
@@ -202,6 +209,32 @@ local function updateControls(selected, tabCount)
             end
         end
     end
+end
+
+---The window's controls for the tab just drawn and what it selected.
+---@param selected table? The quest, zone group or dungeon on the page
+---@param tabCount number? The count the tab shows
+local function updateControls(selected, tabCount)
+    local isQuestsTab = State.selectedTab == TAB_QUESTS
+    showDungeonButtons(State.selectedTab == TAB_DUNGEONS)
+    showQuestButtons(selected, isQuestsTab)
+    showMapButtons(selected, isQuestsTab)
+    showSearchControls(isQuestsTab, State.selectedTab == TAB_AVAILABLE)
+    local questId = selected and selected.questId
+    if isQuestsTab and questId then
+        nameQuestButtons(questId)
+    end
+    State.frame.resetSettingsButton:Hide()
+    State.frame.doneButton:Hide()
+    State.frame.journalBackButton:Hide()
+    for _, control in ipairs({ State.frame.status, State.frame.tabRowFill, State.frame.tabRowRule }) do
+        control:Show()
+    end
+    placeShownTabs()
+    for tab, button in ipairs(State.frame.tabs) do
+        setTabLook(button, tab == State.selectedTab)
+    end
+    nameTabs(tabCount)
 end
 
 ---A button of the bar with its words, widened when they need more room than it was made with (Czech runs long).
@@ -302,15 +335,10 @@ placeTabHints = function(isPad)
         hint:SetShown(isPad)
     end
 end
-drawWindow = function()
-    if not State.frame or not State.isDocked or not State.frame:IsVisible() then
-        State.isStale = true -- something changed while the window was closed: drawn again as it opens
-        return
-    end
-    State.isStale = false
-    State.drawnPosition = ns.Geometry.getPlayerPosition()
-    State.drawnHeight = State.frame:GetHeight() -- (the height it is drawn for: a size change to it needs no drawing)
-    Log.applyButtonTexts()
+-- The window's drawing (drawWindow, in its steps)
+
+---Puts away what only one view shows; each view shows its own again as it is drawn.
+local function hideViewControls()
     -- The journal's search and dropdowns are frames of its own: shown again only if the journal is what is drawn
     if ns.ChroniclePage and ns.ChroniclePage.hideJournalControls then
         ns.ChroniclePage.hideJournalControls()
@@ -328,8 +356,13 @@ drawWindow = function()
             dropdown:Hide() -- the settings show theirs again as they are drawn
         end
     end
-    -- With the quest details on a page of their own (the setting) the quests show in one pane, the list or a quest's
-    -- page in its place; the settings and the chronicle need both columns, and have the whole width
+end
+
+---With the quest details on a page of their own (the setting) the quests show in one pane, the list or a quest's
+---page in its place; the settings and the chronicle need both columns, and have the whole width.
+---@return boolean isNarrow The quests in one pane
+---@return boolean isSpread In that pane, the page in the list's place
+local function choosePanes()
     local isOnePane = ns.settings.questDetails == "own"
     if State.isNarrow ~= isOnePane then
         State.isNarrow, State.isPageSpread = isOnePane, false
@@ -341,7 +374,11 @@ drawWindow = function()
         State.isPageSpread = false
     end
     local isNarrow = State.isNarrow and State.view == "quests"
-    local isSpread = isNarrow and State.isPageSpread
+    return isNarrow, isNarrow and State.isPageSpread
+end
+
+---Sizes the window for its panes and places the list, the page and the bar in it.
+local function placePanes(isNarrow, isSpread)
     if not (isNarrow and not isSpread) then
         Window.bringPageBack() -- (kept away while the list has the one pane: no showing and hiding it each drawing)
     end
@@ -360,31 +397,29 @@ drawWindow = function()
     State.frame.divider:SetShown(not isNarrow)
     State.frame.listArt:SetShown(not isSpread and State.frame.hasListArt)
     State.frame.backStrip:SetShown(isSpread)
-    if State.view == "quests" then
-        if isSpread then
-            State.frame.placeSplit(0, BACK_STRIP_HEIGHT, -LIST_WIDTH, State.pageBottom) -- the page where the list was
-        else
-            State.frame.placeSplit(LIST_WIDTH, 0, 0, State.pageBottom)
-        end
-    end
-    if State.view == "settings" then
-        SettingsView.refreshSettings()
+    if State.view ~= "quests" then
         return
     end
-    if State.view == "chronicle" then
-        Log.drawChronicle()
-        return
+    if isSpread then
+        State.frame.placeSplit(0, BACK_STRIP_HEIGHT, -LIST_WIDTH, State.pageBottom) -- the page where the list was
+    else
+        State.frame.placeSplit(LIST_WIDTH, 0, 0, State.pageBottom)
     end
-    local wasSettingsDrawn = State.isSettingsDrawn
-    State.isSettingsDrawn = false
+end
+
+---The tab was switched off (or the Spoilers choice took it away) while it was open: My quests instead.
+local function leaveHiddenTab()
     if
         (State.selectedTab == TAB_AVAILABLE and not List.isAvailableTabShown())
         or (State.selectedTab == TAB_DUNGEONS and not List.isDungeonsTabShown())
     then
-        State.selectedTab = TAB_QUESTS -- the tab was switched off (or the Spoilers choice took it away) while it was open
+        State.selectedTab = TAB_QUESTS
     end
-    -- Placed before the list is drawn: its scroll range is measured against the height it has now
-    -- The Dungeons tab has no search row: its list starts under the tabs
+end
+
+---Placed before the list is drawn: its scroll range is measured against the height it has now. The Dungeons tab
+---has no search row: its list starts under the tabs; the Available list ends above the low-level switch.
+local function placeList()
     State.list.frame:SetPoint(
         "TOPLEFT",
         State.frame,
@@ -399,54 +434,63 @@ drawWindow = function()
         6,
         State.selectedTab == TAB_AVAILABLE and LOW_LEVEL_BAR_HEIGHT + 6 or 6
     )
-    State.shownPlace, State.shownTurnInPlace, State.shownDungeon = nil, nil, nil
-    State.selectedRowTop, State.selectedRowBottom = nil, nil
-    setPageHeader(nil) -- a quest's page puts its own header and rewards back while it is drawn
-    setPageRewards(nil)
-    if State.shownTab and not wasSettingsDrawn then
-        listScrollByTab[State.shownTab] = State.list:getScroll() -- each tab keeps its own place in its list
-        detailScrollByTab[State.shownTab] = State.detail:getScroll() -- and in its page
-    end
-    State.list:clear()
-    State.detail:clear()
-    local selected, tabCount
+end
+
+---Draws the selected tab's list and page.
+---@return table? selected What the page shows
+---@return number? tabCount The count the tab shows
+local function drawSelectedTab()
     if State.selectedTab == TAB_QUESTS then
-        selected, tabCount = drawLogTab()
+        return drawLogTab()
     elseif State.selectedTab == TAB_DUNGEONS then
-        selected, tabCount = DungeonsTab.drawDungeonsTab()
+        return DungeonsTab.drawDungeonsTab()
+    end
+    return drawAvailableTab()
+end
+
+---What the selected tab's list is about. Within the Available tab, a list about another location, or the location
+---picker, is another subject.
+local function composeListSubject()
+    if State.selectedTab == TAB_QUESTS then
+        return "quests"
+    elseif State.selectedTab == TAB_DUNGEONS then
+        return "dungeons"
+    elseif State.isPickingZone then
+        return "picker"
+    end
+    return "zone" .. tostring(State.pickedZoneId or ns.Model.getPlayer().zoneId)
+end
+
+---What the page beside the list is about: the list's subject and the quest, zone or dungeon on the page.
+local function composeDetailSubject(listSubject)
+    local pageSubject
+    if State.selectedTab == TAB_QUESTS and State.selectedLogZoneId then
+        pageSubject = "zone" .. State.selectedLogZoneId
+    elseif State.selectedTab == TAB_DUNGEONS then
+        pageSubject = "dungeon" .. tostring(State.selectedDungeonId) .. ":" .. tostring(selectedQuestIds[TAB_DUNGEONS])
     else
-        selected, tabCount = drawAvailableTab()
+        pageSubject = "quest" .. tostring(selectedQuestIds[State.selectedTab])
     end
-    -- Each tab remembers how far its own list was scrolled. Within the Available tab, a list about another
-    -- location, or the location picker, starts at its top.
-    local listSubject = State.selectedTab == TAB_QUESTS and "quests"
-        or State.selectedTab == TAB_DUNGEONS and "dungeons"
-        or (State.isPickingZone and "picker" or ("zone" .. tostring(State.pickedZoneId or ns.Model.getPlayer().zoneId)))
-    local previousSubject = shownSubjectByTab[State.selectedTab]
-    shownSubjectByTab[State.selectedTab] = listSubject
-    if previousSubject ~= nil and previousSubject ~= listSubject then
-        State.list:scrollToTop()
+    return listSubject .. ":" .. pageSubject
+end
+
+---Each tab remembers how far its own list (and its page) was scrolled, and starts at the top when what it is about
+---has changed.
+---@param canvas table State.list or State.detail
+---@param scrollByTab table How far each tab's canvas was scrolled
+---@param subjectByTab table What each tab's canvas was last about
+local function restoreScroll(canvas, scrollByTab, subjectByTab, subject, wasSettingsDrawn)
+    local previousSubject = subjectByTab[State.selectedTab]
+    subjectByTab[State.selectedTab] = subject
+    if previousSubject ~= nil and previousSubject ~= subject then
+        canvas:scrollToTop()
     elseif State.selectedTab ~= State.shownTab or wasSettingsDrawn then
-        State.list:setScroll(listScrollByTab[State.selectedTab] or 0)
+        canvas:setScroll(scrollByTab[State.selectedTab] or 0)
     end
-    -- The page beside the list works the same way: its own place per tab, and the top for another quest or zone
-    local detailSubject = listSubject
-        .. ":"
-        .. (
-            State.selectedTab == TAB_QUESTS and State.selectedLogZoneId and ("zone" .. State.selectedLogZoneId)
-            or State.selectedTab == TAB_DUNGEONS and ("dungeon" .. tostring(State.selectedDungeonId) .. ":" .. tostring(
-                selectedQuestIds[TAB_DUNGEONS]
-            ))
-            or ("quest" .. tostring(selectedQuestIds[State.selectedTab]))
-        )
-    local previousDetailSubject = shownDetailSubjectByTab[State.selectedTab]
-    shownDetailSubjectByTab[State.selectedTab] = detailSubject
-    if previousDetailSubject ~= nil and previousDetailSubject ~= detailSubject then
-        State.detail:scrollToTop()
-    elseif State.selectedTab ~= State.shownTab or wasSettingsDrawn then
-        State.detail:setScroll(detailScrollByTab[State.selectedTab] or 0)
-    end
-    State.shownTab = State.selectedTab
+end
+
+---A quest chosen outside the list is brought into view; on opening, the list starts at its group's heading.
+local function scrollToTargets()
     if
         State.scrollTargetQuestId
         and State.scrollTargetQuestId == selectedQuestIds[State.selectedTab]
@@ -459,11 +503,58 @@ drawWindow = function()
         State.list:setScroll(math.max(listOpening.scrollTop - 2, 0)) -- the group's heading at the top of the list
         listOpening.scrollTop = nil
     end
+end
+
+---The quests' view: the selected tab's list and page, each scrolled where it belongs, and the controls for them.
+local function drawQuestsView(isNarrow, isSpread)
+    local wasSettingsDrawn = State.isSettingsDrawn
+    State.isSettingsDrawn = false
+    leaveHiddenTab()
+    placeList()
+    State.shownPlace, State.shownTurnInPlace, State.shownDungeon = nil, nil, nil
+    State.selectedRowTop, State.selectedRowBottom = nil, nil
+    setPageHeader(nil) -- a quest's page puts its own header and rewards back while it is drawn
+    setPageRewards(nil)
+    if State.shownTab and not wasSettingsDrawn then
+        listScrollByTab[State.shownTab] = State.list:getScroll() -- each tab keeps its own place in its list
+        detailScrollByTab[State.shownTab] = State.detail:getScroll() -- and in its page
+    end
+    State.list:clear()
+    State.detail:clear()
+    local selected, tabCount = drawSelectedTab()
+    local listSubject = composeListSubject()
+    restoreScroll(State.list, listScrollByTab, shownSubjectByTab, listSubject, wasSettingsDrawn)
+    -- The page beside the list works the same way: its own place per tab, and the top for another quest or zone
+    local detailSubject = composeDetailSubject(listSubject)
+    restoreScroll(State.detail, detailScrollByTab, shownDetailSubjectByTab, detailSubject, wasSettingsDrawn)
+    State.shownTab = State.selectedTab
+    scrollToTargets()
     updateControls(selected, tabCount)
     if isSpread then
         Window.putListAway()
     elseif isNarrow then
         Window.putPageAway()
+    end
+end
+
+drawWindow = function()
+    if not State.frame or not State.isDocked or not State.frame:IsVisible() then
+        State.isStale = true -- something changed while the window was closed: drawn again as it opens
+        return
+    end
+    State.isStale = false
+    State.drawnPosition = ns.Geometry.getPlayerPosition()
+    State.drawnHeight = State.frame:GetHeight() -- (the height it is drawn for: a size change to it needs no drawing)
+    Log.applyButtonTexts()
+    hideViewControls()
+    local isNarrow, isSpread = choosePanes()
+    placePanes(isNarrow, isSpread)
+    if State.view == "settings" then
+        SettingsView.refreshSettings()
+    elseif State.view == "chronicle" then
+        Log.drawChronicle()
+    else
+        drawQuestsView(isNarrow, isSpread)
     end
 end
 
@@ -923,21 +1014,19 @@ local function createZoneDropdown()
             )
         end
         -- Zones only: the dungeons have a tab of their own
-        for _, section in ipairs({ { title = "Zones with quests for you", isDungeon = false } }) do
-            local hasTitle = false
-            for _, zone in ipairs(zones) do
-                if zone.isDungeon == section.isDungeon and zone.zoneId ~= player.zoneId then
-                    if not hasTitle then
-                        root:CreateTitle(ns.L(section.title))
-                        hasTitle = true
-                    end
-                    root:CreateRadio(
-                        isCounted and string.format("%s (%d)", zone.zoneName, zone.count) or zone.zoneName,
-                        isSelected,
-                        setSelected,
-                        zone.zoneId
-                    )
+        local hasTitle = false
+        for _, zone in ipairs(zones) do
+            if zone.isDungeon == false and zone.zoneId ~= player.zoneId then
+                if not hasTitle then
+                    root:CreateTitle(ns.L("Zones with quests for you"))
+                    hasTitle = true
                 end
+                root:CreateRadio(
+                    isCounted and string.format("%s (%d)", zone.zoneName, zone.count) or zone.zoneName,
+                    isSelected,
+                    setSelected,
+                    zone.zoneId
+                )
             end
         end
     end)
@@ -1006,14 +1095,11 @@ function Log.closeWindow()
     end
 end
 
----Builds the panels as a child of the world map, joined to its right edge and as tall as it is.
-function Log.create()
-    if State.frame or not WorldMapFrame then
-        return
-    end
-    State.frame = CreateFrame("Frame", "OneMoreQuestLog", WorldMapFrame, "BackdropTemplate")
-    State.frame:SetWidth(PANEL_WIDTH)
-    State.frame.shownWidth = PANEL_WIDTH
+-- The window's making (Log.create, in its steps)
+
+---The window's own scripts: it takes the mouse, is drawn again after a change of height, and is moved by its
+---title strip or edges.
+local function setWindowScripts()
     State.frame:EnableMouse(true) -- clicks must not fall through to the world behind
     -- Nor the wheel: over the window's header, bar and edges it would otherwise zoom the camera
     State.frame:EnableMouseWheel(true)
@@ -1068,8 +1154,10 @@ function Log.create()
             Log.rememberAloneSpot()
         end
     end)
-    State.frame:Hide()
-    -- The frame round the panels, in the look picked in the settings, with the settings and close buttons
+end
+
+---The frame round the panels, in the look picked in the settings, with the settings and close buttons.
+local function createWindowBorder()
     ns.WindowBorder.create(State.frame, {
         listWidth = LIST_WIDTH,
         tabRowHeight = TITLE_HEIGHT,
@@ -1099,12 +1187,14 @@ function Log.create()
         end,
     })
     Log.setMapEdge(WorldMapFrame, -2, 0, 0)
+end
 
+---The window's dark ground, and the strip at its top: the tabs and a status line.
+local function createTabRow()
     local background = createFill(State.frame, "BACKGROUND", BACKGROUND)
     background:SetPoint("TOPLEFT", State.frame, "TOPLEFT", 3, -3)
     background:SetPoint("BOTTOMRIGHT", State.frame, "BOTTOMRIGHT", -3, 3)
 
-    -- Top strip: tabs and a status line
     local titleBar = createFill(State.frame, "BORDER", BAR_BACKGROUND)
     State.frame.tabRowFill = titleBar
     titleBar:SetPoint("TOPLEFT", State.frame, "TOPLEFT", 3, -3)
@@ -1124,8 +1214,10 @@ function Log.create()
     State.frame.status:SetWidth(70)
     State.frame.status:SetJustifyH("LEFT")
     State.frame.status:SetWordWrap(false)
+end
 
-    -- Left: search or the location picker, then the list, down to the bottom edge
+---Left: search or the location picker, then the list, down to the bottom edge.
+local function createListSide()
     State.frame.search = createSearch()
     State.frame.zoneButton = createZoneButton()
     State.frame.availableSearch = Log.createAvailableSearch()
@@ -1156,9 +1248,11 @@ function Log.create()
     divider:SetPoint("TOPLEFT", State.frame, "TOPLEFT", LIST_WIDTH + 1, 0)
     divider:SetPoint("BOTTOMRIGHT", State.frame, "BOTTOMLEFT", LIST_WIDTH + 2, 3)
     State.frame.divider = divider
+end
 
-    -- Right: the quest on parchment, with the actions under it
-    local pageLeft = LIST_WIDTH + 2
+---Right: the quest on parchment (or the settings' dark ground), its header, its rewards and its scroll bar.
+---@param pageLeft number Where the page starts beside the list
+local function createPageSide(pageLeft)
     local parchment = createFill(State.frame, "BORDER", COLORS.parchment)
     parchment:SetPoint("TOPLEFT", State.frame, "TOPLEFT", pageLeft, -PAGE_TOP)
     -- The parchment ends where the scroll bar's strip begins, so the bar stands beside the page, not on it
@@ -1209,7 +1303,10 @@ function Log.create()
             scrollBar:HookScript("OnShow", Window.onPageScrollBarShown) -- (kept away with the page: putPageAway)
         end
     end
+end
 
+---The bar under the page, for the actions, and where the page stands now (placeSplit moves it).
+local function createBar(pageLeft)
     State.frame.bar = CreateFrame("Frame", nil, State.frame)
     State.frame.bar:SetPoint("TOPLEFT", State.frame, "BOTTOMLEFT", pageLeft, BAR_HEIGHT)
     State.frame.bar:SetPoint("BOTTOMRIGHT", State.frame, "BOTTOMRIGHT", -3, 3)
@@ -1218,9 +1315,11 @@ function Log.create()
     -- A page with nothing to scroll has no scroll bar, and takes its strip too: the parchment, the header and the
     -- rewards reach the window's edge. pageExtra is how much wider than with the bar it is now.
     State.frame.pageExtra = 0
-    local pageRight = pageLeft + PAGE_CONTENT_WIDTH
-    -- Over the page in the list's place (a quest clicked, or the controller's A on one): the way back to the list, the
-    -- tab's name after the game's back arrow (with a controller its B), in the tab row's colours. A click goes back.
+end
+
+---Over the page in the list's place (a quest clicked, or the controller's A on one): the way back to the list, the
+---tab's name after the game's back arrow (with a controller its B), in the tab row's colours. A click goes back.
+local function createBackStrip(pageLeft)
     local backStrip = CreateFrame("Button", nil, State.frame)
     backStrip:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     backStrip:SetScript("OnClick", function()
@@ -1238,6 +1337,14 @@ function Log.create()
     backStrip.text:SetPoint("LEFT", backStrip, "LEFT", 8, 0)
     backStrip:Hide()
     State.frame.backStrip = backStrip
+end
+
+---The window's functions that place the page: the split between list and page, the page's width with or without
+---the scroll bar's strip, and its drawing at the right one of the two.
+local function definePagePlacement(pageLeft)
+    local parchment, divider, listArt, backStrip =
+        State.frame.parchment, State.frame.divider, State.frame.listArt, State.frame.backStrip
+    local pageRight = pageLeft + PAGE_CONTENT_WIDTH
 
     ---The page's right edge and foot, where the split, the shift, the scroll bar's strip and the bar put them.
     local function placePageRight()
@@ -1318,7 +1425,10 @@ function Log.create()
             State.detail:finish(draw())
         end
     end
+end
 
+---The bar's ground and its buttons, each shown by updateControls for what the page holds.
+local function createBarButtons()
     local barFill = createFill(State.frame.bar, "BORDER", BAR_BACKGROUND)
     barFill:SetAllPoints(State.frame.bar)
     local barRule = createFill(State.frame.bar, "ARTWORK", COLORS.rule)
@@ -1371,9 +1481,7 @@ function Log.create()
     State.frame.entranceButton = createButton("Show entrance", 110, function()
         local dungeon = State.shownDungeon
         if dungeon and dungeon.entrance then
-            State.isMapFollowPaused = true
-            ns.MapDock.showQuestPlace(dungeon.entrance.mapZoneId or dungeon.entrance.groupZoneId, dungeon.entrance)
-            State.isMapFollowPaused = false
+            Actions.showPlaceOnMap(dungeon.entrance.mapZoneId or dungeon.entrance.groupZoneId, dungeon.entrance)
         end
     end)
     State.frame.entranceButton:SetPoint("LEFT", State.frame.bar, "LEFT", 10, 0)
@@ -1416,7 +1524,27 @@ function Log.create()
         State.frame.journalButton,
         State.frame.journalBackButton,
     }
+end
 
+---Builds the panels as a child of the world map, joined to its right edge and as tall as it is.
+function Log.create()
+    if State.frame or not WorldMapFrame then
+        return
+    end
+    State.frame = CreateFrame("Frame", "OneMoreQuestLog", WorldMapFrame, "BackdropTemplate")
+    State.frame:SetWidth(PANEL_WIDTH)
+    State.frame.shownWidth = PANEL_WIDTH
+    setWindowScripts()
+    State.frame:Hide()
+    createWindowBorder()
+    createTabRow()
+    createListSide()
+    local pageLeft = LIST_WIDTH + 2
+    createPageSide(pageLeft)
+    createBar(pageLeft)
+    createBackStrip(pageLeft)
+    definePagePlacement(pageLeft)
+    createBarButtons()
     State.toggleButton = CreateFrame("Frame", nil, UIParent) -- owns the quest log key's binding
     Log.hookMapClicks()
 end
@@ -1925,7 +2053,9 @@ function Log.getHighlightedAvailableQuestId()
     if not Log.isOpen() or State.selectedTab ~= TAB_AVAILABLE then
         return nil
     end
-    return hoveredQuestIds[TAB_AVAILABLE] or selectedQuestIds[TAB_AVAILABLE]
+    -- (a dungeon's row hovered, its id negative: the quest picked stays the one shown)
+    local hoveredId = hoveredQuestIds[TAB_AVAILABLE]
+    return (hoveredId and hoveredId > 0) and hoveredId or selectedQuestIds[TAB_AVAILABLE]
 end
 
 ---@return number? questId The quest to pick up shown on the page of the Available tab (or of the Dungeons tab), while
@@ -2338,7 +2468,9 @@ ns.registerModule({
         Log.scheduleWarmUp(WARM_UP_TRIES, WARM_UP_SECONDS) -- (made and drawn unseen before the first opening)
     end,
     needsWorldMap = true,
-    refresh = Log.refresh,
+    refresh = function(...) -- (looked up at each refresh: the diagram wraps Log.refresh after this file loads)
+        return Log.refresh(...)
+    end,
     afterCombat = function()
         Log.applyBinding() -- key bindings cannot change in combat
         Log.openMapAfterCombat() -- a window opened alone in the fight joins the map now

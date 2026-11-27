@@ -1,6 +1,6 @@
 # OneMoreQuest
 
-*Just one more quest*
+_Just one more quest_
 
 The game's quest log sorts quests by where you **picked them up**. You grab a quest in the Barrens, it sends
 you to Stonetalon, the turn-in is back in Orgrimmar, and the log files it under the Barrens the whole time.

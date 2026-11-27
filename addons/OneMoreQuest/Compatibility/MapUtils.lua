@@ -84,10 +84,6 @@ MapUtils.onLoginSettled = MapUtils.ask
 -- Its "one map" (on unless switched off): the neighbouring zones drawn round the zone shown, each where the game puts it
 -- in the world. OneMoreQuest's marks of those zones too, then, placed by the game's own reckoning, as far as the view
 -- reaches (MapPins' view; as for OpenMap, whose joining is its own).
-local ZONE_MAP_TYPE = Enum and Enum.UIMapType and Enum.UIMapType.Zone or 3
-local WORLD_MAP_TYPE = Enum and Enum.UIMapType and Enum.UIMapType.World or 1
-local zoneMapIdsByTop = {}
-
 ---A point of one zone's map on the map shown, through the world: anywhere on the continent, past the map's edges too.
 local function project(placeMapId, x, y, mapId)
     if placeMapId == mapId then
@@ -109,43 +105,11 @@ end
 
 ---@return number[] mapIds The zones whose maps reach into the view
 local function getZoneMapIds(mapId, bounds)
-    local mapIds = {}
-    if not (C_Map.GetMapInfo and C_Map.GetMapChildrenInfo) then
-        return mapIds
+    local zoneMapIds = ns.Compatibility.getWorldZoneMapIds(mapId)
+    if not zoneMapIds then
+        return {}
     end
-    local topId, info, steps = mapId, ns.Database.getMapInfo(mapId), 0
-    while
-        info
-        and info.mapType
-        and info.mapType > WORLD_MAP_TYPE
-        and info.parentMapID
-        and info.parentMapID > 0
-        and steps < 10
-    do
-        topId, info, steps = info.parentMapID, ns.Database.getMapInfo(info.parentMapID), steps + 1
-    end
-    if not zoneMapIdsByTop[topId] then
-        local list = {}
-        for _, child in ipairs(C_Map.GetMapChildrenInfo(topId, ZONE_MAP_TYPE, true) or {}) do
-            list[#list + 1] = child.mapID
-        end
-        zoneMapIdsByTop[topId] = list
-    end
-    for _, zoneMapId in ipairs(zoneMapIdsByTop[topId]) do
-        local left, top = project(zoneMapId, 0, 0, mapId)
-        local right, bottom = project(zoneMapId, 1, 1, mapId)
-        if
-            left
-            and right
-            and left <= bounds.right
-            and right >= bounds.left
-            and top <= bounds.bottom
-            and bottom >= bounds.top
-        then
-            mapIds[#mapIds + 1] = zoneMapId
-        end
-    end
-    return mapIds
+    return ns.Compatibility.getZoneMapIdsInView(zoneMapIds, mapId, bounds, project)
 end
 
 ---@return number? mapId The zone whose land is at a point of the map shown, as the game says
