@@ -21,6 +21,7 @@ local AMBER = { 1, 0.69, 0.25 }
 local RED = { 1, 0.3, 0.25 }
 
 local CHAIN_ICON = "Interface\\AddOns\\" .. addonName .. "\\Media\\Chain"
+local UNLOCK_ICON = "Interface\\AddOns\\" .. addonName .. "\\Media\\Unlock" -- a quest that opens others
 local READY_ICON = "Interface\\RaidFrame\\ReadyCheck-Ready"
 local MEDIA = "Interface\\AddOns\\" .. addonName .. "\\Media\\"
 local MARK_SIZE = ns.Widgets.MARK_SIZE -- a map mark's own size; the tracker's is that, scaled down
@@ -153,6 +154,44 @@ local function addChainLines(entry, choice)
     end
 end
 
+---The quests around this one that are not its chain, in the row's tooltip: what it followed, and what it unlocks
+---(by name only where the story may be told).
+local function addLinkLines(entry, canName)
+    local requiredIds, unlockIds = entry.requiredIds or {}, entry.unlockIds or {}
+    local function addQuestLines(questIds, noteText)
+        for _, linkedQuestId in ipairs(questIds) do
+            local name = ns.QuestText.getQuestName(linkedQuestId) or ns.L("Quest %s", linkedQuestId)
+            local line = string.format("[%d] %s", ns.Database.getQuestField(linkedQuestId, "questLevel") or 0, name)
+            local isDone = ns.QuestState.isTurnedIn(linkedQuestId)
+            local color = isDone and GREY or TAN
+            GameTooltip:AddDoubleLine(
+                line,
+                isDone and ns.L("done") or noteText or "",
+                color[1],
+                color[2],
+                color[3],
+                GREY[1],
+                GREY[2],
+                GREY[3]
+            )
+        end
+    end
+    if #requiredIds > 0 then
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine(ns.Chain.composeFollowText(requiredIds), 1, 0.82, 0)
+        if #requiredIds > 1 then
+            addQuestLines(requiredIds)
+        end
+    end
+    if #unlockIds > 0 then
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine(ns.Chain.composeUnlockText(unlockIds, canName), 1, 0.82, 0)
+        if #unlockIds > 1 and canName then
+            addQuestLines(unlockIds)
+        end
+    end
+end
+
 local function showTooltip(row)
     local entry = row.entry
     if not entry then
@@ -266,6 +305,9 @@ local function showTooltip(row)
     end
     if entry.chainIndex and chains ~= "hidden" then
         addChainLines(entry, chains)
+    end
+    if chains ~= "hidden" then
+        addLinkLines(entry, chains == "all" and not (isHolding and ns.Availability.isLaterHidden("quest")))
     end
     -- (what the map cannot show matters only where the map would show it)
     if (entry.unlocatedCount or 0) > 0 and (places == "exact" or places == "rough") then
@@ -574,6 +616,7 @@ local function flushRow()
         place(row.voiceIcon, "RIGHT", voiceTo, "LEFT", want.chain and -4 or -2, 0)
     end
     row.voiceIcon:SetShown(voiceTo ~= nil)
+    row.chainIcon:SetTexture(want.isUnlock and UNLOCK_ICON or CHAIN_ICON)
     row.chainIcon:SetAlpha(want.chain and 0.7 or 1)
     row.chainIcon:SetShown(want.chain)
     -- The left text runs from its indent to whatever stands right of it: the speaker, the chain's icon, the right
@@ -628,6 +671,7 @@ local function addRow(height, indent)
     want.leftText, want.rightText = "", ""
     want.leftFont, want.rightFont, want.leftColor, want.rightColor = nil, nil, nil, nil
     want.mark, want.box, want.tick, want.chain, want.voice = false, false, false, false, false
+    want.isUnlock = false
     want.faces = 0
     want.mouse = currentEntry ~= nil
     openRow = row
@@ -790,6 +834,11 @@ local function addQuestRows(entry, isActive)
         row.want.rightText = ns.L("%d of %d", entry.chainIndex, entry.chainTotal)
         row.want.rightColor = BADGE_TEXT
         row.want.chain = true
+    elseif #(entry.unlockIds or {}) > 0 and questChains ~= "hidden" then
+        -- Not a step of a chain, but other quests wait for it: the branching mark and how many ("+2")
+        row.want.rightText = "+" .. #entry.unlockIds
+        row.want.rightColor = BADGE_TEXT
+        row.want.chain, row.want.isUnlock = true, true
     end
     -- Its narration, only while it plays (the right-click menu plays, queues and stops it)
     if ns.QuestText.getVoiceState(entry.questId) == "playing" then
@@ -1677,7 +1726,7 @@ end
 
 ---@return number? questId The game's own focus (its super-tracked quest), when it is a quest in the log
 function Tracker.create()
-    frame = CreateFrame("Frame", "TrailheadTracker", UIParent)
+    frame = CreateFrame("Frame", "OneMoreQuestTracker", UIParent)
     -- Under every window, as the game's own quest tracker: in one layer a frame's parts sort by level, and the
     -- tracker's rows would draw over the quest window's page when the map is moved over it
     frame:SetFrameStrata("LOW")

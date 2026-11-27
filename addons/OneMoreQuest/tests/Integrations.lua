@@ -84,10 +84,10 @@ test("Spoken's place story and its tab stand beside the docked window, not over 
         end
         return frame
     end
-    local saved = { _G.TrailheadLog, _G.WorldMapFrame, _G.UIParent, hooksecurefunc, _G.SpokenPlaces }
+    local saved = { _G.OneMoreQuestLog, _G.WorldMapFrame, _G.UIParent, hooksecurefunc, _G.SpokenPlaces }
     local window, map, screen = makeFrame(1500), makeFrame(1000), makeFrame(2000)
     local panel, tab = makeFrame(nil, 380), makeFrame(nil, 40)
-    _G.TrailheadLog, _G.WorldMapFrame, _G.UIParent = window, map, screen
+    _G.OneMoreQuestLog, _G.WorldMapFrame, _G.UIParent = window, map, screen
     _G.SpokenPlacesPanel, _G.SpokenPlacesPanelToggle = panel, tab
     tab.isShown = false
     -- Spoken's own folding, as its tab and close button call it: the story shows unless folded
@@ -141,7 +141,7 @@ test("Spoken's place story and its tab stand beside the docked window, not over 
     -- The window undocked: back on the map's edge
     ns.Compatibility.getProvider("Spoken_Places").onDockChanged(false)
     expectEqual(tab.points[1][2], map, "undocked: the tab on the map's edge again")
-    _G.TrailheadLog, _G.WorldMapFrame, _G.UIParent, hooksecurefunc, _G.SpokenPlaces =
+    _G.OneMoreQuestLog, _G.WorldMapFrame, _G.UIParent, hooksecurefunc, _G.SpokenPlaces =
         saved[1], saved[2], saved[3], saved[4], saved[5]
     _G.SpokenPlacesPanel, _G.SpokenPlacesPanelToggle = nil, nil
 end)

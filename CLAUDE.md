@@ -36,6 +36,11 @@ bun addonsim docs [step]           # every scenario step
 - `run` prints what the scenario prints (an audit's measurements), then PASSED/FAILED.
 - OpenMap's cost to OMQ: `bun addonsim run sim/scenarios/audits/openmap-cost.lua` (widget calls, Lua share by
   addon, redraws and who asked for them, per thing done with the map open).
+- The map's marks with many quests tracked on OpenMap: `bun addonsim run sim/scenarios/audits/map-world-cost.lua`
+  (each thing done with the map: time, widget calls, the worst frame, what the kept drawing holds). Its options go
+  in `sim/lib/mapcost.options`, one `NAME=value` a line (the daemon's game does not see a command's environment):
+  `WORLD_RENDERER=classic` the drawing before the kept one, `MAPCOST_TOP=30` OMQ's top functions, `WORLD_IDLE=25`
+  seconds closed first. Pictures to compare: `map-world-look.lua` / `map-plain-look.lua`, then `bun addonsim shot`.
 - After an edit, the daemon boots a fresh game by itself; a command that runs code gets it (and says so).
 - In Git Bash write `bun addonsim slash omq`, not `/omq` (Bash turns `/omq` into a path).
 - Scenario sim work for small visual tweaks: unit tests plus one `run` at the end are enough.

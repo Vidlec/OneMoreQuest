@@ -146,6 +146,8 @@ function MapHover.findQuests(spots, areas, spotX, spotY, areaX, areaY)
         local isUnder
         if area.isPatrol then
             isUnder = MapHover.isOnLine(area.segments, spotX, spotY) -- a line is measured on screen, as the spots are
+        elseif area.isUnder ~= nil then
+            isUnder = area.isUnder -- (the kept drawing's: looked at where it lies, MapMarks.World.findUnder)
         else
             isUnder = ns.MapMarks.isInsideArea(area, areaX, areaY)
         end
@@ -309,6 +311,13 @@ function MapHover.forgetShownMapQuests()
     mapKey = nil
 end
 local mapQuests = {} -- the quests under the cursor on the world map, as last looked (an alt-click takes them)
+-- The pointer resting where it was, over the same drawing at the same zoom: what is under it is what was found there.
+-- Looked at afresh this often all the same (the kept drawing brings spawn marks in under it a little each frame, and
+-- other addons' pins come and go). Twenty looks a second each went over every pin on the map otherwise, four
+-- questions a pin, for as long as the pointer lay on the map.
+local REST_SECONDS = 0.5
+local rest = {}
+local MOVING_SECONDS = 0.15 -- the zoom changed this recently: the map is moving under the pointer
 local isMapClickAdded = false -- (the alt-click's handler joined the map: addMapClick, below)
 local addMapClick
 
@@ -319,6 +328,24 @@ function MapHover.updateMap()
     end
     local drawn, markLayer = ns.MapMarks.getDrawn()
     local map = drawn.map
+    local now = GetTime and GetTime() or 0
+    -- While the map is zooming or being dragged nothing under the pointer is looked for: it would be found anew at
+    -- every look (the map moves under the pointer), for a tooltip nobody reads meanwhile. A tooltip of ours that is
+    -- up goes; the next look once the map is still finds what is there then.
+    if not isReporting and map and map:IsVisible() then
+        local isZooming = drawn.isFollowPending and now - (drawn.zoomMovedAt or 0) < MOVING_SECONDS
+        local isDragging = IsMouseButtonDown ~= nil and IsMouseButtonDown("LeftButton") == true
+        if isZooming or isDragging then
+            if mapKey then
+                if GameTooltip:GetOwner() == markLayer then
+                    GameTooltip:Hide()
+                end
+                mapKey = nil
+            end
+            mapQuests, rest.at = {}, nil
+            return
+        end
+    end
     local quests = {}
     mapQuests = quests
     local container = map and map.ScrollContainer
@@ -345,7 +372,22 @@ function MapHover.updateMap()
         else
             x, y = map:GetNormalizedCursorPosition()
         end
-        if type(x) == "number" and type(y) == "number" and x >= 0 and x <= 1 and y >= 0 and y <= 1 then
+        local canvasScale = map.GetCanvasScale and map:GetCanvasScale()
+        if
+            not isReporting
+            and rest.at
+            and now - rest.at < REST_SECONDS
+            and rest.x == x
+            and rest.y == y
+            and rest.scale == canvasScale
+            and rest.drawId == drawn.drawId
+            and rest.map == map
+        then
+            quests = rest.quests -- (resting: what was found there)
+            mapQuests = quests
+        elseif type(x) == "number" and type(y) == "number" and x >= 0 and x <= 1 and y >= 0 and y <= 1 then
+            rest.at, rest.x, rest.y, rest.scale, rest.drawId, rest.map = now, x, y, canvasScale, drawn.drawId, map
+            rest.quests = quests -- (nothing, unless found below)
             local width, height, scale = drawn.width or 1, drawn.height or 1, drawn.scale or 1
             -- On another addon's pin (or the game's), that pin is what is pointed at, though it may take no mouse
             -- (Leatrix Maps' zone arrows and entrances show their own tooltip from the cursor's place)
@@ -377,8 +419,29 @@ function MapHover.updateMap()
                     areas[#areas + 1] =
                         { isPatrol = true, segments = segments, questId = patrol.questId, note = patrol.note }
                 end
-                quests = MapHover.findQuests(drawn.squares, areas, cursorX, cursorY, x * width, y * height)
+                local spots = drawn.squares
+                if ns.MapMarksWorld.isOn() then
+                    -- The kept drawing's spawn marks and areas under the cursor, beside what this drawing made (the
+                    -- walks, where the quest selected to pick up starts): each spawn mark placed from the cursor, in
+                    -- the units the others are in
+                    local keptSpots, keptAreas = ns.MapMarksWorld.findUnder(map, x, y)
+                    local nowScale = map.GetCanvasScale and map:GetCanvasScale() or scale
+                    local toDrawn = type(nowScale) == "number" and nowScale > 0 and scale / nowScale or 1
+                    if #keptSpots > 0 then
+                        spots = { unpack(drawn.squares) }
+                        for _, spot in ipairs(keptSpots) do
+                            spot.x, spot.y = cursorX + spot.x * toDrawn, cursorY + spot.y * toDrawn
+                            spot.radius = spot.radius * toDrawn
+                            spots[#spots + 1] = spot
+                        end
+                    end
+                    for _, area in ipairs(keptAreas) do
+                        areas[#areas + 1] = area
+                    end
+                end
+                quests = MapHover.findQuests(spots, areas, cursorX, cursorY, x * width, y * height)
                 mapQuests = quests
+                rest.quests = quests
             elseif isReporting then
                 report("map: the cursor is on another addon's or the game's pin; it shows its own tooltip")
             end
@@ -653,10 +716,13 @@ end
 
 ---Puts a quest in focus from the map, as a ctrl-click on its mark does (again on the focused one: let go).
 local function focusFromMap(questId)
+    local wasFocused = ns.Focus.get() == questId
     ns.Log.focusQuest(questId)
     -- Opened in the quest window beside the map too, on My quests whatever was showing there, as a click on its pin
-    -- (not when the click took the focus off: it stays open, no longer shown as focused)
-    if ns.Log.isOpen() and ns.Focus.get() == questId then
+    -- (not when the click took the focus off: it stays open, no longer shown as focused). Told by what the click
+    -- did, not by asking for the focus after it: a quest not tracked until this click is tracked by it, and the
+    -- focus does not say so until the game has, a moment later; the quest was focused and not opened.
+    if ns.Log.isOpen() and not wasFocused and ns.QuestState.isInLog(questId) then
         ns.Log.selectQuest(questId)
     end
     ns.MapPins.queueRefresh()

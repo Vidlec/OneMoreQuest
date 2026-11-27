@@ -143,12 +143,11 @@ test("the areas' two looks: a light wash, and bold shapes with a thicker edge in
     )
     ns.settings.areaStyle = "blob"
     local bold = ns.MapMarks.getAreaLook()
-    expectEqual(bold.style, "blob", "the shapes")
-    expectEqual(bold.focusedFillAlpha > lightFill and bold.fillAlpha > 0.1, true, "filled more plainly")
+    expectEqual(bold.style, "filled", "the bold look there was reads as the one look")
     expectEqual(
-        bold.focusedEdgePixels > lightEdge and bold.focusedEdgePixels > bold.edgePixels,
+        bold.focusedFillAlpha == lightFill and bold.focusedEdgePixels == lightEdge,
         true,
-        "the quest in focus edged thicker"
+        "drawn as it: how strong is the two strengths' to say"
     )
     ns.settings.areaStyle = "something saved by another version"
     expectEqual(ns.MapMarks.getAreaStyle(), "filled", "an unknown look reads as the light one")
@@ -164,7 +163,7 @@ test(
     "the areas' fill and outline: each switched on or off and set in strength, the quest in focus still the strongest",
     function()
         local ns = createAddon()
-        ns.settings.areaStyle = "blob"
+        ns.settings.areaStyle = "filled"
         local look = ns.MapMarks.getAreaLook()
         local fill, focusedFill, edge, rim, version =
             look.fillAlpha, look.focusedFillAlpha, look.edgeAlpha, look.rimAlpha, look.version
@@ -868,9 +867,10 @@ test("spawns are thinned in the world in nested steps: zooming out only takes so
     -- The step for a zoom: finer as the map grows, and held at a step's edge
     local far, near = ns.MapMarks.chooseSpawnSpacing(0.02), ns.MapMarks.chooseSpawnSpacing(1)
     expectEqual(far > near, true, "zoomed far out, a coarser step than zoomed in")
-    local edge = ns.MapMarks.chooseSpawnSpacing(12 / 50 * 1.01, 100)
+    -- (shown spawns two icons apart on screen: 24 pixels at the marks' size)
+    local edge = ns.MapMarks.chooseSpawnSpacing(24 / 50 * 1.01, 100)
     expectEqual(edge, 100, "just past a step's edge: the step shown stays, no flicker")
-    expectEqual(ns.MapMarks.chooseSpawnSpacing(12 / 50 * 1.3, 100), 50, "well past it: the finer step")
+    expectEqual(ns.MapMarks.chooseSpawnSpacing(24 / 50 * 1.3, 100), 50, "well past it: the finer step")
     expectEqual(
         ns.MapMarks.chooseSpawnSpacing(0.1, nil, 0.5) < ns.MapMarks.chooseSpawnSpacing(0.1, nil, 1),
         true,
@@ -897,7 +897,7 @@ test("a walk is drawn as dashes along it, carried on round its bends, with gaps 
 end)
 
 test(
-    "a quest's areas are worked out once on their zone's map and fitted onto any map: the same shape, moved",
+    "a quest's areas are worked out once on their zone's map and fitted onto another zone's map: the same shape, moved",
     function()
         local ns = createAddon()
         -- Three spawns some 50 yards apart in Tirisfal (85, its map 1420, 1000 yards across here): one area
@@ -909,20 +909,21 @@ test(
         expectEqual(#own, 1, "one area on the zone's own map")
         local corner = own[1].triangles[1] and own[1].triangles[1][1]
         expectEqual(corner ~= nil, true, "drawn as triangles")
-        -- On a continent map Tirisfal fills a box from (0.2, 0.1) to (0.4, 0.3): the same shape, fitted into it
+        -- On a neighbouring zone's map (OpenMap joins them) Tirisfal fills a box from (0.2, 0.1) to (0.4, 0.3): the
+        -- same shape, fitted into it
         local savedRect = C_Map.GetMapRectOnMap
         C_Map.GetMapRectOnMap = function()
             return 0.2, 0.4, 0.1, 0.3
         end
         local isFine, problem = pcall(function()
-            local continent = ns.MapMarks.composeFittedShapes(201, 1415, points, true)
-            local fitted = continent[1] and continent[1].triangles[1] and continent[1].triangles[1][1]
+            local neighbour = ns.MapMarks.composeFittedShapes(201, 1421, points, true)
+            local fitted = neighbour[1] and neighbour[1].triangles[1] and neighbour[1].triangles[1][1]
             expectEqual(
                 fitted
                     and math.abs(fitted.x - (0.2 + corner.x * 0.2)) < 1e-9
                     and math.abs(fitted.y - (0.1 + corner.y * 0.2)) < 1e-9,
                 true,
-                "each corner moved into the zone's box on the continent map, nothing worked out again"
+                "each corner moved into the zone's box on the other map, nothing worked out again"
             )
         end)
         C_Map.GetMapRectOnMap = savedRect
@@ -931,6 +932,22 @@ test(
         end
     end
 )
+
+test("on a continent's map a quest's areas are worked out on it, at a grain its screen shows", function()
+    local ns = createAddon()
+    -- Two hundred spawns over a stretch of the continent (as a quest's whose creatures live in many zones), each its
+    -- own zone's detail far finer than the continent's map shows
+    local points = {}
+    for index = 1, 200 do
+        local x, y = 0.3 + (index % 20) * 0.004, 0.4 + math.floor(index / 20) * 0.004
+        points[index] = { x = x, y = y, place = { zoneId = 85, x = x * 100, y = y * 100 } }
+    end
+    local areas = ns.MapMarks.composeFittedShapes(202, 1415, points, true)
+    expectEqual(#areas, 1, "one area for spawns that close on the continent's map")
+    expectEqual(areas[1].reach >= 0.012, true, "reaching at least a dozen pixels' worth of the map, not 50 yards")
+    expectEqual(#areas[1].points < 200, true, "spawns closer than the grid can show traced as one")
+    expectEqual(#areas[1].edges < 200, true, "an outline of a few dozen lines, not a zone's detail")
+end)
 
 test(
     "MapUtils: its quest pins are noticed and switched off on request, its entrances carry our dungeon marks",
@@ -1008,6 +1025,38 @@ test("a zone's map shows only the places that belong to that zone", function()
         "a continent's map shows everything, even with an area of its own"
     )
     C_Map.GetMapInfo = nil
+end)
+
+test("on a joined-up map a spawn listed in two zones near their border is marked once", function()
+    local ns = createAddon()
+    -- A joined-up view: Tirisfal (1420) from 0 to 1 across, Silverpine (1421) overlapping it, from 0.9 to 1.9
+    local view = {
+        project = function(zoneMapId, x, y)
+            if zoneMapId == 1420 then
+                return x, y
+            end
+            if zoneMapId == 1421 then
+                return 0.9 + x, y
+            end
+        end,
+        getZoneMapIdAt = function()
+            error("not asked: copies are told apart by where they land")
+        end,
+        getZoneMapIds = function()
+            return { 1420, 1421 }
+        end,
+    }
+    ns.MapPins.setView(view, { left = -1, top = -1, right = 3, bottom = 2 }, { [1420] = true, [1421] = true })
+    local places = {
+        { zoneId = 85, x = 95, y = 50 }, -- the spawn, as Tirisfal lists it
+        { zoneId = 130, x = 5, y = 50 }, -- the same spawn, as Silverpine lists it: the same spot joined up
+        { zoneId = 85, x = 95.05, y = 50.05 }, -- another creature of Tirisfal's right beside it: its own
+        { zoneId = 130, x = 40, y = 40 }, -- one of Silverpine's own, far from the border
+    }
+    local points = ns.MapMarksCompose.composePoints(places, 1420)
+    ns.MapPins.setView(nil)
+    expectEqual(#points, 3, "the copy left out; the neighbour and the other zone's own kept")
+    expectEqual(points[1].place, places[1], "the first listing kept")
 end)
 
 test("on OpenMap's joined-up map the zones in view are marked too, where OpenMap draws them", function()
@@ -1497,9 +1546,9 @@ test("the followed quest's places draw in every look of the areas and every kind
     ns.MapPins.create()
     for _, look in ipairs({
         { "none", "square" },
-        { "blob", "none" },
+        { "filled", "none" },
         { "filled", "glyph" },
-        { "blob", "plate" },
+        { "filled", "plate" },
         { "none", "game" },
         { "filled", "square" },
         { "none", "none" },
@@ -1559,9 +1608,9 @@ test("icons and areas: one icon to a cell, the quest in focus first, each showin
     end
     expectEqual(hasLoot, true, "the other quest's bags fill the cells left")
     expectEqual(
-        ns.MapMarks.getQuestColor(13),
+        ns.MapMarks.getQuestColor(26),
         ns.MapMarks.getQuestColor(1),
-        "colours go round by the quest's number, twelve of them"
+        "colours go round by the quest's number, twenty-five of them"
     )
     expectEqual(ns.MapMarks.getQuestColor(2) ~= ns.MapMarks.getQuestColor(1), true, "neighbouring numbers differ")
 end)
@@ -1968,12 +2017,25 @@ test("a quest's colour comes from its ID: the same after every reload, nothing s
     watched = { 502, 501 }
     expectEqual(ns.MapMarks.getQuestColor(1, 501), first, "the same colour in any order")
     -- A quest whose own colour another tracked quest already has: the lower ID keeps it, it takes the next free one
-    watched = { 501, 502, 513 } -- 513's own colour is 501's (twelve colours on)
-    local third = ns.MapMarks.getQuestColor(1, 513)
+    watched = { 501, 502, 526 } -- 526's own colour is 501's (twenty-five colours on)
+    local third = ns.MapMarks.getQuestColor(1, 526)
     expectEqual(ns.MapMarks.getQuestColor(1, 501), first, "the lower ID keeps its colour")
     expectEqual(ns.MapMarks.getQuestColor(1, 502), second, "and the others keep theirs")
     expectEqual(third ~= first and third ~= second, true, "the newcomer takes a colour of its own")
     expectEqual(ns.settings.questColors, nil, "nothing is saved")
+    -- As many quests tracked as the game allows (25): each its own colour
+    watched = {}
+    for index = 1, 25 do
+        watched[index] = 700 + index * 3
+    end
+    local seen, distinct = {}, 0
+    for _, questId in ipairs(watched) do
+        local color = ns.MapMarks.getQuestColor(1, questId)
+        if not seen[color] then
+            seen[color], distinct = true, distinct + 1
+        end
+    end
+    expectEqual(distinct, 25, "twenty-five tracked quests, twenty-five colours")
 end)
 test("marks that fall on a dungeon's entrance become one dungeon mark, counting what is inside", function()
     local ns, state = createAddon()
@@ -3144,4 +3206,331 @@ test("a minimap drawing that fails takes off what was drawn before", function()
     ns.MinimapPins.refresh()
     _, shownSpots = ns.MinimapPins.getSpotPool()
     expectEqual(#shownSpots, 0, "the minimap's marks off: none")
+end)
+
+-- The kept drawing (MapMarks\World): a map of the fake game with a canvas of the game's size, for it to draw on
+local function createKeptMap(mapId)
+    local widgetMeta = getmetatable(WorldMapFrame)
+    local canvas = setmetatable({}, widgetMeta)
+    rawset(canvas, "GetWidth", function()
+        return 1002
+    end)
+    rawset(canvas, "GetHeight", function()
+        return 668
+    end)
+    local map = setmetatable({ mapId = mapId, scale = 0.7 }, widgetMeta)
+    rawset(map, "GetCanvas", function()
+        return canvas
+    end)
+    rawset(map, "GetCanvasScale", function(self)
+        return rawget(self, "scale")
+    end)
+    return map
+end
+
+---A quest's spawns in Tirisfal (its map 1,000 yards across): a block of them, `step` yards apart
+local function keptFeature(questId, left, top, columns, rows, step)
+    local places = {}
+    for column = 0, columns - 1 do
+        for row = 0, rows - 1 do
+            places[#places + 1] =
+                { zoneId = 85, groupZoneId = 85, x = left + column * step / 10, y = top + row * step / 10 * 1.5 }
+        end
+    end
+    return {
+        key = "quest:" .. questId,
+        questId = questId,
+        color = { 0.2, 0.6, 1 },
+        isFocused = false,
+        hasNoPatrols = true,
+        sources = { { places = places, glyph = "kill" } },
+        contentKey = questId .. ":" .. #places .. ":" .. left .. ":" .. top,
+    },
+        places
+end
+
+test("the kept drawing: a level of detail for each size on screen, held at a level's edge", function()
+    local ns = createAddon()
+    local World = ns.MapMarksWorld
+    expectEqual(World.chooseLod(700), 0, "a zone at its own map's size: its own grain")
+    expectEqual(World.chooseLod(300), 1, "half the size: a grain twice as coarse")
+    expectEqual(World.chooseLod(150), 2, "a quarter: twice as coarse again")
+    expectEqual(World.chooseLod(5000), 0, "zoomed in: never finer than its own grain")
+    expectEqual(World.chooseLod(495, 0), 0, "just past a level's edge: the level it has is kept")
+    expectEqual(World.chooseLod(400, 0), 1, "well past it: the coarser one")
+    expectEqual(World.chooseLod(505, 1), 1, "and back just past the edge: kept again")
+    expectEqual(World.chooseLod(600, 1), 0, "well back: the finer one")
+    -- The walks' dashes: a level for each doubling of the size, held near an edge
+    local chooseDashLevel = World.internals.chooseDashLevel
+    expectEqual(chooseDashLevel(512), 0, "dashes of level 0 on a space 512 pixels across")
+    expectEqual(chooseDashLevel(1024), 1, "twice as wide: the next level")
+    expectEqual(chooseDashLevel(760, 0), 0, "near the edge between two: the level it has")
+end)
+
+test("the kept drawing thins spawn marks as the marks' own thinning does, one mark to a spot among quests", function()
+    local ns = createAddon()
+    local World = ns.MapMarksWorld
+    -- A row of spawns 10 yards apart: 0 to 600 yards
+    local feature, places = keptFeature(201, 20, 50, 61, 1, 10)
+    World.internals.splitFeature(feature)
+    World.internals.rankFeature(feature)
+    local part = feature.partList[1]
+    expectEqual(#feature.partList == 1 and #part.points == 61, true, "all in the one zone's space")
+    local levelOf, points = {}, {}
+    for index, point in ipairs(part.points) do
+        levelOf[point.place] = point.level
+        points[index] = { x = point.x, y = point.y, place = point.place }
+    end
+    for level, spacing in ipairs(ns.MapMarks.SPAWN_SPACINGS) do
+        local kept, count = {}, 0
+        for _, point in ipairs(ns.MapMarks.thinPoints(points, spacing)) do
+            kept[point.place] = true
+        end
+        local isSame = true
+        for _, place in ipairs(places) do
+            isSame = isSame and ((levelOf[place] >= level) == (kept[place] == true))
+            count = count + (levelOf[place] >= level and 1 or 0)
+        end
+        expectEqual(isSame, true, spacing .. " yards: the very spawns the marks' thinning keeps (" .. count .. ")")
+    end
+    -- Two quests after the same creatures: on every spot one mark, the first quest's; the other's only where the
+    -- first has none
+    local other = keptFeature(301, 20, 50, 61, 1, 10)
+    local alone = keptFeature(401, 20, 80, 3, 1, 200)
+    for _, each in ipairs({ other, alone }) do
+        World.internals.splitFeature(each)
+        World.internals.rankFeature(each)
+    end
+    local space = { key = part.key, mapId = 1420, yards = 1000 }
+    local index = World.internals.buildIndex(space, { feature, other, alone })
+    local byQuest, total = {}, 0
+    for level, byLevel in pairs(index.levels) do
+        for _, tile in pairs(byLevel.tiles) do
+            for position, point in ipairs(tile.points) do
+                local questId = tile.features[position].questId
+                byQuest[questId] = (byQuest[questId] or 0) + 1
+                total = total + 1
+                expectEqual(tile.level, level, "each tile in its level")
+                expectEqual(point.level >= level, true, "a spawn in a tile no coarser than its own thinning allows")
+            end
+        end
+    end
+    expectEqual(byQuest[201], 61, "the first quest: every spawn of its own")
+    expectEqual(byQuest[301], nil, "the second, on the same spots: none")
+    expectEqual(byQuest[401], 3, "a quest elsewhere: all of its own")
+    expectEqual(index.count, total, "counted")
+end)
+
+test("the kept drawing lays a zone's areas and spawn marks out once, and finds them under a point", function()
+    local ns = createAddon()
+    local World = ns.MapMarksWorld
+    World.isForced = true
+    local map = createKeptMap(1420) -- Tirisfal
+    ns.settings.areaStyle, ns.settings.spawnMarker = "filled", "glyph"
+    local feature, places = keptFeature(201, 40, 40, 4, 3, 30)
+    World.draw(map, { feature })
+    local counts = World.getCounts(map)
+    expectEqual(counts.todo, 0, "all of it made (where no frames run, at once)")
+    expectEqual(counts.setsShown, 1, "the quest's areas: one set in the zone's space")
+    expectEqual(counts.fillsShown > 0 and counts.edgesShown > 0, true, "with fill and edge")
+    expectEqual(counts.iconsShown > 0 and counts.iconsShown <= #places, true, "its spawn marks, thinned to the zoom")
+    -- Where the zone's space lies: all of this map (it is the zone's own), at the canvas's size
+    local world = World.worlds[map]
+    local space = world.spaceList[1]
+    expectEqual(space.left == 0 and space.right == 1 and space.isShown, true, "the zone's space covers its own map")
+    expectEqual(math.abs(space.scale - 1.002) < 1e-9, true, "a thousand units across the canvas's 1002")
+    -- Listed as the other drawing lists its own
+    local areas, spots = World.list(map, 0.7)
+    expectEqual(#areas, 1, "one area")
+    expectEqual(areas[1].questId, 201, "its quest's")
+    local first = places[1]
+    local x, y = first.x / 100 * 1002, first.y / 100 * 668
+    expectEqual(ns.MapMarks.isInsideArea(areas[1], x, y), true, "round its spawns, in the canvas's units")
+    expectEqual(#spots, counts.iconsShown, "and its spawn marks")
+    -- Under a point: its area, and the spawn mark on it
+    local underSpots, underAreas = World.findUnder(map, first.x / 100, first.y / 100)
+    expectEqual(#underAreas == 1 and underAreas[1].questId == 201, true, "on a spawn: the quest's area")
+    local isMarkNear = false
+    for _, spot in ipairs(underSpots) do
+        isMarkNear = isMarkNear or (spot.questId == 201 and spot.radius > 0)
+    end
+    expectEqual(isMarkNear, true, "and a spawn mark of its near the point")
+    underSpots, underAreas = World.findUnder(map, 0.9, 0.9)
+    expectEqual(#underSpots + #underAreas, 0, "far from them: nothing")
+    -- The same quest drawn again: nothing made anew
+    local kept = counts.kept
+    World.draw(map, { (keptFeature(201, 40, 40, 4, 3, 30)) })
+    counts = World.getCounts(map)
+    expectEqual(counts.kept == kept and counts.setsShown == 1 and counts.todo == 0, true, "drawn again: all kept")
+    -- In focus: the same set, restyled; its own spawn marks over the others'
+    local focused = keptFeature(201, 40, 40, 4, 3, 30)
+    focused.isFocused = true
+    World.draw(map, { focused })
+    counts = World.getCounts(map)
+    expectEqual(counts.kept >= kept and counts.setsShown == 1, true, "in focus: the same areas (and their dark rim)")
+    local _, focusedSpots = World.list(map, 0.7)
+    local focusedCount = 0
+    for _, spot in ipairs(focusedSpots) do
+        focusedCount = focusedCount + (spot.isFocused and 1 or 0)
+    end
+    expectEqual(focusedCount > 0, true, "and its own spawn marks, over the others'")
+    -- Other spawns (an objective done): its areas made again, the old ones let go
+    World.draw(map, { (keptFeature(201, 60, 60, 3, 3, 30)) })
+    areas = World.list(map, 0.7)
+    expectEqual(#areas, 1, "other spawns: one area again")
+    expectEqual(ns.MapMarks.isInsideArea(areas[1], x, y), false, "no longer round the old spawns")
+    expectEqual(ns.MapMarks.isInsideArea(areas[1], 0.6 * 1002, 0.6 * 668), true, "round the new ones")
+    World.isForced = nil
+end)
+
+test("the kept drawing: another map underneath only shows and hides spaces, a zoom only picks levels", function()
+    local ns = createAddon()
+    local World = ns.MapMarksWorld
+    World.isForced = true
+    local map = createKeptMap(1420)
+    ns.settings.areaStyle, ns.settings.spawnMarker = "filled", "glyph"
+    World.draw(map, { (keptFeature(201, 40, 40, 4, 3, 30)) })
+    local kept = World.getCounts(map).kept
+    -- Silverpine's own map shows Silverpine's places alone
+    rawset(map, "mapId", 1421)
+    World.handleMapChanged(map)
+    World.finish(map)
+    local counts = World.getCounts(map)
+    expectEqual(counts.setsShown == 0 and counts.iconsShown == 0, true, "another zone's map: Tirisfal's are hidden")
+    expectEqual(counts.kept, kept, "and kept")
+    rawset(map, "mapId", 1420)
+    World.handleMapChanged(map)
+    World.finish(map)
+    counts = World.getCounts(map)
+    expectEqual(counts.setsShown == 1 and counts.kept == kept, true, "back: shown again, nothing laid out anew")
+    -- Zoomed in: the same areas (a zone's own grain is its finest), more spawn marks
+    local icons = counts.iconsShown
+    rawset(map, "scale", 2.8)
+    World.follow(map)
+    World.update(map)
+    World.finish(map)
+    counts = World.getCounts(map)
+    expectEqual(counts.setsShown == 1 and counts.kept == kept, true, "zoomed in: the same areas")
+    expectEqual(counts.iconsShown >= icons, true, "and as many spawn marks, or more")
+    -- Zoomed far out: a coarser level of the areas, laid out beside the kept one; fewer spawn marks
+    rawset(map, "scale", 0.2)
+    World.follow(map)
+    World.update(map)
+    World.finish(map)
+    counts = World.getCounts(map)
+    expectEqual(counts.iconsShown <= icons, true, "zoomed out: fewer spawn marks, or as many")
+    expectEqual(World.worlds[map].spaceList[1].lod > 0, true, "and a coarser level of detail")
+    World.isForced = nil
+end)
+
+test("the marks of a quest of many spawns are worked out from a few stand-ins, and stand where they did", function()
+    local ns, state = createAddon()
+    setQuest(state, 201, false, { killObjective(0, 8) })
+    ns.Tracker.create()
+    ns.MapPins.create()
+    -- Two camps of the quest's creature in Tirisfal: forty spawns and ten
+    local places = {}
+    for index = 0, 39 do
+        places[#places + 1] =
+            { zoneId = 85, groupZoneId = 85, x = 30 + (index % 8) * 0.9, y = 30 + math.floor(index / 8) }
+    end
+    for index = 0, 9 do
+        places[#places + 1] =
+            { zoneId = 85, groupZoneId = 85, x = 70 + (index % 5) * 0.9, y = 70 + math.floor(index / 5) }
+    end
+    ns.Location.getObjectiveInfo = function()
+        return places
+    end
+    local function composeObjective(isFocused)
+        ns.Focus.set(isFocused and 201 or nil)
+        local marks = {}
+        for _, mark in ipairs(ns.MapMarks.compose(1420)) do
+            if mark.kind == "objective" then
+                marks[#marks + 1] = mark
+            end
+        end
+        table.sort(marks, function(first, second)
+            return first.x < second.x
+        end)
+        return marks
+    end
+    local whole, wholeFocused = composeObjective(false), composeObjective(true)
+    ns.MapMarksWorld.isForced = true
+    local summed, summedFocused = composeObjective(false), composeObjective(true)
+    ns.MapMarksWorld.isForced = nil
+    expectEqual(#whole == 1 and #summed == 1, true, "out of focus: one mark, either way")
+    expectEqual(
+        math.abs(whole[1].x - summed[1].x) < 1e-9 and math.abs(whole[1].y - summed[1].y) < 1e-9,
+        true,
+        "on the same spawn: the larger camp's anchor"
+    )
+    expectEqual(#wholeFocused == 2 and #summedFocused == 2, true, "in focus: a mark for each camp, either way")
+    for index = 1, 2 do
+        expectEqual(
+            math.abs(wholeFocused[index].x - summedFocused[index].x) < 1e-9
+                and math.abs(wholeFocused[index].y - summedFocused[index].y) < 1e-9,
+            true,
+            "camp " .. index .. ": its mark on the same spawn"
+        )
+        expectEqual(
+            summedFocused[index].spawnCount,
+            #wholeFocused[index].spawnPoints,
+            "camp " .. index .. ": knows how many spawns it has"
+        )
+        expectEqual(
+            #summedFocused[index].spawnPoints < #wholeFocused[index].spawnPoints,
+            true,
+            "though only a few stand in for them"
+        )
+    end
+end)
+
+test(
+    "what the kept drawing shows for the quests: their open objectives' places, as the marks' rules have it",
+    function()
+        local ns, state = createAddon()
+        setQuest(state, 201, false, { killObjective(5, 12) })
+        setQuest(state, 301, true, { killObjective(12, 12) })
+        ns.Tracker.create()
+        ns.MapPins.create()
+        ns.Focus.set(nil)
+        local features = ns.MapMarks.composeFeatures(false)
+        expectEqual(#features, 1, "the quest with something left to do: one feature; the one ready to hand in: none")
+        local feature = features[1]
+        expectEqual(feature.key, "quest:201", "told by its quest")
+        expectEqual(feature.isFocused, false, "out of focus")
+        expectEqual(#feature.sources == 1 and feature.sources[1].glyph == "kill", true, "its kill objective's places")
+        expectEqual(#feature.sources[1].places >= 2, true, "every spawn of its creature, on no map yet")
+        local again = ns.MapMarks.composeFeatures(false)[1]
+        expectEqual(again.contentKey, feature.contentKey, "asked again: the same places, told by the same key")
+        ns.Focus.set(201)
+        expectEqual(ns.MapMarks.composeFeatures(false)[1].isFocused, true, "in focus: said so")
+        -- Its objective done: nothing left to show
+        state.questLog[201].objectives = { killObjective(12, 12) }
+        ns.Model.forgetEntries()
+        expectEqual(#ns.MapMarks.composeFeatures(false), 0, "nothing left to do: no feature")
+    end
+)
+
+test("with the kept drawing chosen, the map's drawing still draws in every look, and follows a zoom", function()
+    local ns, state = createAddon()
+    setQuest(state, 201, false, { killObjective(5, 12) })
+    ns.Tracker.create()
+    ns.Focus.set(201)
+    ns.MapPins.create()
+    ns.MapMarksWorld.isForced = true
+    for _, look in ipairs({ { "none", "square" }, { "filled", "none" }, { "filled", "glyph" }, { "none", "none" } }) do
+        ns.settings.areaStyle, ns.settings.spawnMarker = look[1], look[2]
+        ns.MapMarks.draw(WorldMapFrame)
+        ns.MapMarks.followZoom(WorldMapFrame)
+        ns.MapMarks.draw(WorldMapFrame, true) -- (a zoom alone: the marks as they were worked out)
+    end
+    local drawn = ns.MapMarks.getDrawn(WorldMapFrame)
+    expectEqual(drawn.isPinned, true, "the marks hang on their spots")
+    expectEqual(ns.MapMarksState.pools.marks.usedCount > 0, true, "and are drawn")
+    local areas, spots = ns.MapMarks.listDrawn(WorldMapFrame)
+    expectEqual(type(areas) == "table" and type(spots) == "table", true, "what is drawn can be listed")
+    ns.MapMarksWorld.isForced = nil
+    ns.MapMarks.draw(WorldMapFrame)
+    expectEqual(ns.MapMarks.getDrawn(WorldMapFrame).isPinned, false, "the other drawing chosen again: as before")
 end)

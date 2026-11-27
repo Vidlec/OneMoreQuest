@@ -37,7 +37,7 @@ test("beside a map whose border another addon redrew, the panels are as tall as 
     local createWidget = CreateFrame
     CreateFrame = function(kind, name, ...)
         local widget = createWidget(kind, name, ...)
-        if name == "TrailheadLog" then
+        if name == "OneMoreQuestLog" then
             rawset(widget, "SetPoint", function(_, point, region, _, x, y)
                 points[point] = { region = region, x = x, y = y }
             end)
@@ -127,7 +127,10 @@ test("the arrow on the map folds the quest panels away, and asking for a quest b
     ns.MapDock.apply()
     expectEqual(ns.Log.isOpen(), false, "folded away, the map is alone")
     ns.Log.showAvailable(501)
-    expectEqual(ns.settings.arePanelsHidden, false, "opening a quest brings them back")
+    expectEqual(ns.Log.isOpen(), true, "opening a quest brings them out")
+    expectEqual(ns.settings.arePanelsHidden, true, "for this opening: the arrow's choice stays")
+    -- (the map's and the quest log's keys are played in the simulator, on a map that opens and closes:
+    -- sim/scenarios/map-and-log-keys.lua)
 end)
 
 test("scroll areas use the game's slim scroll bar when the client has it", function()
@@ -215,7 +218,7 @@ test("every switch on the settings page is a real setting with a default", funct
             expectEqual(type(ns.settings[key]), "boolean", "setting " .. key)
         end
     end
-    expectEqual(count, 44, "settings switched on the page")
+    expectEqual(count, 45, "settings switched on the page")
     -- Settings with several values: each one's values are what the code acts on (the options as the page has them:
     -- some are made by a helper, a colour for each kind of quest)
     for _, section in ipairs(ns.SettingsPage.SECTIONS) do
@@ -261,14 +264,14 @@ test("the game's own areas are the map marks switched off, and a part switched o
     expectEqual(gameTile.isChosen(), false, "with this addon's marks on, the game's tile is not the one chosen")
     expectEqual(ns.SettingsPage.getSwitchedOffPart(mapSection), nil, "and the section has nothing switched off to say")
     -- Picking the game's own: the map marks go off, and the look of ours picked before is kept for later
-    ns.settings.areaStyle = "blob"
+    ns.settings.areaStyle = "none"
     gameTile.choose()
     expectEqual(
         ns.settings.shouldShowMapPins == false and ns.settings.shouldHideBuiltInMapPins == false,
         true,
         "the game's tile switches the map marks off"
     )
-    expectEqual(ns.settings.areaStyle, "blob", "the look of ours stays as it was")
+    expectEqual(ns.settings.areaStyle, "none", "the look of ours stays as it was")
     expectEqual(gameTile.isChosen(), true, "and the tile shows it: it mirrors the switch")
     expectEqual(ns.SettingsPage.getSwitchedOffPart(mapSection).name, "Map marks", "the section says which part is off")
     expectEqual(
@@ -352,14 +355,26 @@ test("the game's own areas are the map marks switched off, and a part switched o
     for old, now in pairs({
         icons = { "filled", "glyph" },
         spawns = { "none", "glyph" },
-        shapes = { "blob", "none" },
+        shapes = { "filled", "none" },
         dots = { "none", "square" },
     }) do
         loaded = ns.loadSettings({ areaStyle = old })
         expectEqual(loaded.areaStyle .. " " .. loaded.spawnMarker, now[1] .. " " .. now[2], "the old look " .. old)
     end
-    loaded = ns.loadSettings({ areaStyle = "blob", spawnMarker = "plate" })
-    expectEqual(loaded.areaStyle .. " " .. loaded.spawnMarker, "blob plate", "what is saved in the two choices stays")
+    loaded = ns.loadSettings({ areaStyle = "none", spawnMarker = "plate" })
+    expectEqual(loaded.areaStyle .. " " .. loaded.spawnMarker, "none plate", "what is saved in the two choices stays")
+    -- The bold look there was ("Shapes") is the one look now, as strong as it was: said by the two strengths
+    loaded = ns.loadSettings({ areaStyle = "blob", spawnMarker = "plate", areaOutlineStrength = 1 })
+    expectEqual(
+        loaded.areaStyle .. " " .. loaded.spawnMarker,
+        "filled plate",
+        "the bold look saved becomes the one look"
+    )
+    expectEqual(
+        loaded.areaFillStrength .. " " .. loaded.areaOutlineStrength,
+        "2 1.6",
+        "its fill and outline as strong as the bold look's were"
+    )
     -- The spawn markers' own settings follow the marker chosen
     ns.loadSettings({})
     expectEqual(
@@ -454,10 +469,10 @@ test("the settings open on the quest page, in every border, and opening a quest 
     for sectionIndex in ipairs(ns.SettingsPage.SECTIONS) do
         for _, look in ipairs({
             { "filled", "glyph" },
-            { "blob", "plate" },
+            { "filled", "plate" },
             { "none", "game" },
             { "filled", "square" },
-            { "blob", "none" },
+            { "filled", "none" },
         }) do
             ns.settings.areaStyle, ns.settings.spawnMarker = look[1], look[2]
             ns.Log.openSettings(sectionIndex)
@@ -815,7 +830,9 @@ test("a region that remembers passes on to the game only what differs from what 
     ns.Widgets.place(text, "TOPLEFT", parent, "TOPLEFT", 10, -20)
     expectEqual(count("ClearAllPoints") .. " " .. count("SetPoint"), "1 1", "put where it already is: nothing asked")
     ns.Widgets.place(text, "TOPLEFT", parent, "TOPLEFT", 10, -34)
-    expectEqual(count("ClearAllPoints") .. " " .. count("SetPoint"), "2 2", "another place is set")
+    expectEqual(count("ClearAllPoints") .. " " .. count("SetPoint"), "1 2", "moved on the same point: set, not cleared")
+    ns.Widgets.place(text, "CENTER", parent, "TOPLEFT", 10, -34)
+    expectEqual(count("ClearAllPoints") .. " " .. count("SetPoint"), "2 3", "another point: cleared and set")
     -- Its size: asked of the game once in a frame, once more in a later frame, and kept once the two agree
     local frame = 1
     GetTime = function()

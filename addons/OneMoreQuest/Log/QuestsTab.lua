@@ -436,16 +436,17 @@ local function drawLogTab()
                     isReady = entry.isTurnIn,
                     isTracked = isTracked[entry.questId],
                     canShareWithParty = Log.canShareWithParty(entry.questId),
+                    partyCount = Log.getPartyCount(entry.questId),
                     number = entry.number,
                     progress = ns.MapMarks.getProgress(entry),
                     isFocused = entry.questId == ns.Focus.get(),
                     canFocus = true,
                     itemTexture = entry.item and (entry.item.texture or ITEM_ICON) or nil,
                     subText = progressText ~= "" and progressText or nil,
-                    chainText = entry.chainIndex
-                            and isChainShown
-                            and string.format("%d/%d", entry.chainIndex, entry.chainTotal)
+                    chainText = isChainShown
+                            and (entry.chainIndex and string.format("%d/%d", entry.chainIndex, entry.chainTotal) or (#(entry.unlockIds or {}) > 0 and "+" .. #entry.unlockIds))
                         or nil,
+                    chainIcon = not entry.chainIndex and ns.LogStyle.UNLOCK_ICON or nil,
                     profitText = ns.settings.shouldShowProfit and ns.Profit.format(ns.Profit.get(entry.questId)) or nil,
                 })
             end

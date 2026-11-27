@@ -65,12 +65,12 @@ wait(0.5)
 click("Game's areas")
 wait(1)
 expect(addon.settings.shouldShowMapPins == false, "off again by the tile")
-click("Shapes")
+click("No areas")
 wait(1)
 expect(
-    addon.settings.shouldShowMapPins == true and addon.settings.areaStyle == "blob",
-    "a look of ours switches the marks on"
+    addon.settings.shouldShowMapPins == true and addon.settings.areaStyle == "none",
+    "a choice of ours switches the marks on"
 )
-click("Light areas")
+click("Quest areas")
 wait(1)
-expect(addon.settings.areaStyle == "filled", "back to the light areas")
+expect(addon.settings.areaStyle == "filled", "back to the areas")

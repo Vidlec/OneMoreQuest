@@ -1,9 +1,9 @@
 local _, ns = ...
 local CreateFrame = ns.CreateFrame -- (Core: frames made inside an open gamepad window)
 
--- Trailhead's settings. They are shown on the quest panels' page, opened by the cog in the panels' title (see
+-- OneMoreQuest's settings. They are shown on the quest panels' page, opened by the cog in the panels' title (see
 -- Log\SettingsView); this file holds the list of them and carries a change out everywhere. The game's own settings
--- window (Escape, Options, AddOns) keeps a short Trailhead page that opens them, with the one switch that
+-- window (Escape, Options, AddOns) keeps a short OneMoreQuest page that opens them, with the one switch that
 -- brings the panels back when they are off.
 local SettingsPage = {}
 ns.SettingsPage = SettingsPage
@@ -278,11 +278,30 @@ local function hasAreaLook()
     return ns.settings.areaStyle ~= "none" and ns.settings.shouldShowMapPins == true
 end
 
+---@return boolean isShadows The areas are drawn as soft shadows alone: no fill and outline to set apart
+local function isShadowsOnly()
+    return ns.MapMarks.isShadowsOnly()
+end
+
+local function isNotShadowsOnly()
+    return not isShadowsOnly()
+end
+
 ---An area part's strength, 10% to 200%: greyed out while that part, or the areas, are off.
+---@param partKey string? The setting that switches the part on; nil for a strength with no switch of its own
 local function strengthOption(key, label, note, partKey)
     local option = sizeOption(key, label, note, 0.1, 2)
     option.isAvailable = function()
-        return hasAreaLook() and ns.settings[partKey] ~= false
+        return hasAreaLook() and (partKey == nil or ns.settings[partKey] ~= false)
+    end
+    return option
+end
+
+---An option that is on the page only while something holds (isShown): one that has no meaning otherwise is left
+---out, not greyed.
+local function hiddenUnless(isShown, option)
+    option.isHidden = function()
+        return not isShown()
     end
     return option
 end
@@ -558,6 +577,12 @@ SettingsPage.SECTIONS = {
                         note = "The game puts a quest you accept into focus. Off: the quest you were on stays in focus.",
                         needs = false,
                     },
+                    {
+                        key = "shouldKeepUntracked",
+                        label = "Quests you untrack stay untracked",
+                        note = "The game tracks a quest whenever it moves on (an item picked up, a kill). On: only accepting a quest or tracking it yourself does.",
+                        needs = false,
+                    },
                 },
             },
             {
@@ -763,15 +788,12 @@ SettingsPage.SECTIONS = {
                             setMapMarks(true)
                         end,
                         choices = {
+                            -- (one look of ours: there were two, a light one and a bold one, alike but for how
+                            -- strong each was, which the two strengths below set)
                             {
                                 value = "filled",
-                                label = "Light areas",
-                                note = "Each quest's areas washed lightly in its own colour, so the map under them stays readable. Spawns all in one spot get no area: the quest's mark stands on them.",
-                            },
-                            {
-                                value = "blob",
-                                label = "Shapes",
-                                note = "Bold shapes with a bright edge, after the game's own quest areas, each in its quest's colour; the quest in focus is the strongest.",
+                                label = "Quest areas",
+                                note = "Each quest's areas in its own colour, round where its creatures and things are, so the map under them stays readable. Spawns all in one spot get no area: the quest's mark stands on them.",
                             },
                             {
                                 value = "none",
@@ -791,31 +813,74 @@ SettingsPage.SECTIONS = {
                             },
                         },
                     },
-                    -- What of each area is drawn, and how strongly (a share of the look chosen: 100% is it as it
-                    -- comes); both off is the same as no areas
+                    -- How an area is drawn on the world map (MapMarks/World): ovals and soft shadows are a couple of
+                    -- pictures an area; traced round the spawns, as it was, dozens of pieces
                     {
+                        choiceKey = "areaGeometry",
+                        label = "Drawn as",
+                        note = "How each area is drawn on the map and the minimap.",
+                        needs = false,
+                        isAvailable = hasAreaLook,
+                        choices = {
+                            {
+                                value = "soft",
+                                label = "Shadows",
+                                note = "A soft tinted shadow where each quest's spawns are, no rings and no lines: the quietest on the map and the lightest for the game to draw.",
+                            },
+                            {
+                                value = "ovals",
+                                label = "Ovals",
+                                note = "An oval with a ring round each camp, and soft shadows where a quest's spawns are scattered.",
+                            },
+                            {
+                                value = "traced",
+                                label = "Traced",
+                                note = "Each area traced round its spawns: the most exact, and by far the heaviest for the game to draw with many quests tracked.",
+                            },
+                        },
+                    },
+                    -- Shadows are one thing: how strong they are, and no more (they have no line round them, and
+                    -- switched off they are "No areas")
+                    hiddenUnless(
+                        isShadowsOnly,
+                        strengthOption(
+                            "areaFillStrength",
+                            "Shadow strength",
+                            "How dark the shadows are: 100% is the look as it comes; the quest in focus stays the strongest.",
+                            nil
+                        )
+                    ),
+                    -- Ovals and traced areas: what of each is drawn, and how strongly (a share of the look chosen:
+                    -- 100% is it as it comes); both off is the same as no areas
+                    hiddenUnless(isNotShadowsOnly, {
                         key = "shouldFillAreas",
                         label = "Fill",
                         note = "Each area filled in its quest's colour. Off: the outlines alone.",
                         isAvailable = hasAreaLook,
-                    },
-                    strengthOption(
-                        "areaFillStrength",
-                        "Fill strength",
-                        "100% is the look as it comes; the quest in focus stays the strongest.",
-                        "shouldFillAreas"
+                    }),
+                    hiddenUnless(
+                        isNotShadowsOnly,
+                        strengthOption(
+                            "areaFillStrength",
+                            "Fill strength",
+                            "100% is the look as it comes; the quest in focus stays the strongest.",
+                            "shouldFillAreas"
+                        )
                     ),
-                    {
+                    hiddenUnless(isNotShadowsOnly, {
                         key = "shouldOutlineAreas",
                         label = "Outline",
                         note = "A line round each area in its quest's colour. Off: the fill alone.",
                         isAvailable = hasAreaLook,
-                    },
-                    strengthOption(
-                        "areaOutlineStrength",
-                        "Outline strength",
-                        "100% is the look as it comes.",
-                        "shouldOutlineAreas"
+                    }),
+                    hiddenUnless(
+                        isNotShadowsOnly,
+                        strengthOption(
+                            "areaOutlineStrength",
+                            "Outline strength",
+                            "100% is the look as it comes.",
+                            "shouldOutlineAreas"
+                        )
                     ),
                     {
                         key = "shouldShowFocusedAreasOnly",
@@ -1273,7 +1338,7 @@ function SettingsPage.create()
     if frame or not Settings or not Settings.RegisterCanvasLayoutCategory then
         return
     end
-    frame = CreateFrame("Frame", "TrailheadSettings", UIParent)
+    frame = CreateFrame("Frame", "OneMoreQuestSettings", UIParent)
     frame:Hide()
 
     local title = ns.Widgets.createFontString(frame, "OVERLAY", "GameFontNormalLarge")
@@ -1343,7 +1408,7 @@ function SettingsPage.create()
     end
 end
 
----Opens Trailhead's settings: on the quest panels, or, while the panels are off, the short page in the game's
+---Opens OneMoreQuest's settings: on the quest panels, or, while the panels are off, the short page in the game's
 ---settings window, where they can be switched back on.
 ---@return boolean isOpened False when neither can be shown right now
 function SettingsPage.open()

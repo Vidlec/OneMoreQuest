@@ -40,12 +40,12 @@ end
 
 local LOOKS = {
     { "filled", "glyph" },
-    { "blob", "glyph" },
-    { "blob", "plate" },
+    { "filled", "glyph" },
+    { "filled", "plate" },
     { "filled", "game" },
-    { "blob", "square" },
+    { "filled", "square" },
     { "none", "plate" },
-    { "blob", "none" },
+    { "filled", "none" },
     { "none", "none" },
 }
 for _, look in ipairs(LOOKS) do
@@ -106,7 +106,7 @@ for index, section in ipairs(addon.SettingsPage.SECTIONS) do
         mapSection = index
     end
 end
-addon.settings.areaStyle, addon.settings.spawnMarker = "blob", "plate"
+addon.settings.areaStyle, addon.settings.spawnMarker = "filled", "plate"
 addon.Log.openSettings(mapSection)
 wait(1)
 local pageX, pageY

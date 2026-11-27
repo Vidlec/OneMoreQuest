@@ -1,7 +1,7 @@
 local addonName, ns = ... -- the addon's folder, which its pictures are read from
 local CreateFrame = ns.CreateFrame -- (Core: frames made inside an open gamepad window)
 
--- The frame round Trailhead's quest panels, in the look picked in the settings: the game's metal window frame,
+-- The frame round OneMoreQuest's quest panels, in the look picked in the settings: the game's metal window frame,
 -- a copy of the map's own frame, a thin gold line, or a flat black edge with no title strip. It owns the title
 -- strip and the two buttons in it, settings and close.
 local WindowBorder = {}
@@ -9,7 +9,7 @@ ns.WindowBorder = WindowBorder
 
 local MEDIA = "Interface\\AddOns\\" .. addonName .. "\\Media\\"
 local GAME_STRIP_HEIGHT = 21 -- the title strip of the game's window frame
-local DRAWN_STRIP_HEIGHT = 22 -- a title strip drawn by Trailhead: as tall as Leatrix Maps' title bar
+local DRAWN_STRIP_HEIGHT = 22 -- a title strip drawn by OneMoreQuest: as tall as Leatrix Maps' title bar
 local INSET = 3 -- the panels' content starts this far inside the window's edge
 local MAP_BAR_COLOR = { 0.09, 0.09, 0.09 } -- a map addon's title bar, when its colour cannot be read
 local GOLD = { 0.79, 0.64, 0.15, 0.9 }
@@ -213,7 +213,7 @@ local function resolveStyle(style, mapLook)
     return gameBorder and "game" or "gold"
 end
 
----A title strip drawn by Trailhead: filled, the title in its middle, settings and close at its right end.
+---A title strip drawn by OneMoreQuest: filled, the title in its middle, settings and close at its right end.
 local function placeDrawnStrip(stripHeight, color, hasRule)
     stripFill:Show()
     stripFill:SetColorTexture(color[1], color[2], color[3], 1)

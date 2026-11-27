@@ -172,7 +172,7 @@ expect(Log.getView() == "quests", "B: out of the chronicle")
 Log.closeWindow()
 wait(0.5)
 expect(not omq.isOwn("PADDDOWN"), "the window closed: the pad the game's")
-local tracker = G.TrailheadTracker
+local tracker = G.OneMoreQuestTracker
 expect(tracker:IsVisible() and not G.ObjectiveTrackerFrame:IsShown(), "OneMoreQuest's tracker stands in for the game's")
 local shortcut = G.GamepadMainActionBarFrame.PageUnit.ShortcutsActionBar.dpadTopButton
 shortcut:Click("LeftButton", true)

@@ -1168,3 +1168,62 @@ test("a quest the game offers that the rules hold back is one row, not again amo
     expectEqual(count, 1, "drawn once, not twice")
     C_QuestLine = nil
 end)
+
+test("the Available list groups a quest not yet to be had under what opens it", function()
+    local ns, state = createAddon()
+    state.playerLevel = 12
+    ns.Availability.prepare()
+    local player = ns.Availability.getPlayer()
+    local function getRoot(questId)
+        return ns.Availability.getUnlockRoot(questId, ns.Availability.getBlocker(questId, player), player)
+    end
+    -- Into the Vault (521) follows Rumours of the Vault (520), which can be picked up now
+    local root = getRoot(521)
+    expectEqual(root.kind, "take", "behind a quest to pick up now")
+    expectEqual(root.questId, 520, "which is named")
+    setQuest(state, 520, false)
+    ns.Availability.invalidate()
+    root = getRoot(521)
+    expectEqual(root.kind, "log", "behind a quest in the log, once it is taken")
+    expectEqual(root.questId, 520, "the same one")
+    local blocked
+    for _, quest in ipairs(ns.Availability.getBlockedQuests(TIRISFAL, { shouldShowLowLevel = true })) do
+        blocked = quest.questId == 521 and quest or blocked
+    end
+    expectEqual(blocked and blocked.unlockRoot.kind, "log", "the list's quest carries it")
+    -- A level still to reach is its own kind
+    expectEqual(ns.Availability.getUnlockRoot(521, { kind = "level", level = 20 }, player).level, 20, "a level")
+    expectEqual(
+        ns.Availability.getUnlockRoot(521, { kind = "skill", text = "Needs Cooking" }, player).kind,
+        "other",
+        "else"
+    )
+    -- Drawn: the quest that opens it once as a heading, the quest under it, and the chips over the list
+    local Canvas = getmetatable(ns.Widgets.createCanvas("OneMoreQuestNextListTestCanvas", UIParent, 200, 100))
+    local savedAddText, texts = Canvas.addText, {}
+    Canvas.addText = function(self, text, ...)
+        texts[tostring(text)] = (texts[tostring(text)] or 0) + 1
+        return savedAddText(self, text, ...)
+    end
+    ns.Log.create()
+    ns.MapDock.create()
+    ns.Log.toggle()
+    ns.Log.showAvailable(521)
+    texts = {}
+    ns.Log.refresh()
+    expectEqual(texts["OPENS FROM YOUR LOG"], 1, "the section of what the log opens")
+    expectEqual(texts["Rumours of the Vault"] ~= nil, true, "its heading: the quest in the log, by name")
+    expectEqual(texts["NOT YET AVAILABLE"], nil, "no long list of locked quests")
+    local hasChip = false
+    for text in pairs(texts) do
+        hasChip = hasChip or text:find("^Soon %d") ~= nil
+    end
+    expectEqual(hasChip, true, "the chips say how many are soon")
+    -- The Later chip keeps the list to what is far off: the log's group goes
+    ns.LogState.availableFilter = "later"
+    texts = {}
+    ns.Log.refresh()
+    expectEqual(texts["OPENS FROM YOUR LOG"], nil, "filtered away")
+    ns.LogState.availableFilter = nil
+    Canvas.addText = savedAddText
+end)

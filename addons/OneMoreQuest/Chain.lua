@@ -186,3 +186,180 @@ end
 function Chain.getQuestIds(questId)
     return composeSteps(getLinkedQuestIds(questId))
 end
+
+-- Pre-quests: a quest that has to be done before another can be picked up, without the two being one chain (a
+-- fork, where one quest opens several; a quest that needs several at once; a side quest off a chain's step). Read
+-- from the same fields as the chain, both ways: what a quest needs first, and what needs it.
+
+local MAX_DIAGRAM_DEPTH = 12 -- how far back and how far on the diagram follows a quest's links: all of them, short of
+local MAX_DIAGRAM_SIDE = 60 -- a loop in the data; and how many quests it shows on each side
+
+local function isOneOf(questIds, questId)
+    for _, listedQuestId in ipairs(questIds) do
+        if listedQuestId == questId then
+            return true
+        end
+    end
+    return false
+end
+
+---@return table<number, boolean> isLinked The quests shown as one chain with this one, itself among them
+local function getChainSet(questId)
+    local isLinked = {}
+    for _, linkedQuestId in ipairs(getLinkedQuestIds(questId)) do
+        isLinked[linkedQuestId] = true
+    end
+    return isLinked
+end
+
+---@return number[] questIds The quests this one needs first, as the database lists them: any one of preQuestSingle,
+---else every one of preQuestGroup (the rule a quest becomes available by, Availability.getBlocker)
+---@return boolean isAnyEnough One of several is enough
+function Chain.getPreviousQuestIds(questId)
+    local single = ns.Database.getQuestField(questId, "preQuestSingle")
+    local isSingle = type(single) == "table" and #single > 0
+    local list = isSingle and single or ns.Database.getQuestField(questId, "preQuestGroup")
+    local questIds, seen = {}, { [questId] = true }
+    for _, signedQuestId in ipairs(type(list) == "table" and list or {}) do
+        local previousQuestId = math.abs(signedQuestId)
+        if not seen[previousQuestId] then
+            seen[previousQuestId] = true
+            questIds[#questIds + 1] = previousQuestId
+        end
+    end
+    return questIds, isSingle and #questIds > 1
+end
+
+---@return number[] questIds The quests that need this one first and are this character's to do (not the other
+---faction's or another class's), the lowest level first; with them the next step of its chain. Empty while the
+---quests each one opens are not indexed yet.
+function Chain.getNextQuestIds(questId)
+    local get = ns.Database.getQuestField
+    local questIds, seen, isNameListed = {}, { [questId] = true }, {}
+    local laterQuestId = getLaterQuestId(questId)
+    if laterQuestId then
+        seen[laterQuestId], isNameListed[get(laterQuestId, "name") or ""] = true, true
+        questIds[1] = laterQuestId
+    end
+    local followUps = ns.Availability and ns.Availability.getFollowUps and ns.Availability.getFollowUps(questId)
+    followUps = type(followUps) == "table" and { unpack(followUps) } or {}
+    table.sort(followUps) -- (the same one of a quest's versions whatever order the index was built in)
+    for _, followUpQuestId in ipairs(followUps) do
+        local name = get(followUpQuestId, "name")
+        -- A quest in several versions (one a profession, one a battleground bracket) is one quest opened
+        if
+            not seen[followUpQuestId]
+            and name
+            and not isNameListed[name]
+            and ns.Availability.isForRaceAndClass(followUpQuestId)
+            and isOneOf(Chain.getPreviousQuestIds(followUpQuestId), questId)
+        then
+            seen[followUpQuestId], isNameListed[name] = true, true
+            questIds[#questIds + 1] = followUpQuestId
+        end
+    end
+    local function getLevel(listedQuestId)
+        return get(listedQuestId, "questLevel") or 0
+    end
+    table.sort(questIds, function(first, second)
+        local firstLevel, secondLevel = getLevel(first), getLevel(second)
+        if firstLevel ~= secondLevel then
+            return firstLevel < secondLevel
+        end
+        return first < second
+    end)
+    return questIds
+end
+
+---@return number[] questIds The quests this one opens that are not shown as its chain and are still to do: what
+---"unlocks 2 quests" counts
+function Chain.getUnlockedQuestIds(questId)
+    local isLinked, questIds = getChainSet(questId), {}
+    for _, nextQuestId in ipairs(Chain.getNextQuestIds(questId)) do
+        if not isLinked[nextQuestId] and not ns.QuestState.isTurnedIn(nextQuestId) then
+            questIds[#questIds + 1] = nextQuestId
+        end
+    end
+    return questIds
+end
+
+---@return number[] questIds The quests this one needed first that are not shown as its chain: what it follows
+---@return boolean isAnyEnough One of several was enough
+function Chain.getRequiredQuestIds(questId)
+    local isLinked, questIds = getChainSet(questId), {}
+    local previousQuestIds, isAnyEnough = Chain.getPreviousQuestIds(questId)
+    for _, previousQuestId in ipairs(previousQuestIds) do
+        if not isLinked[previousQuestId] then
+            questIds[#questIds + 1] = previousQuestId
+        end
+    end
+    return questIds, isAnyEnough and #questIds > 1
+end
+
+---Which quests a side of the diagram has room for: the nearest first, each once, however many ways lead to it.
+---@return table<number, number[]> children [quest] = the quests drawn under it
+---@return boolean isCut Some were left out (too far, or too many)
+local function collectTree(rootQuestId, getChildren, seen)
+    local children, isCut, count = {}, false, 0
+    local queue, position = { { rootQuestId, 0 } }, 1
+    while queue[position] do
+        local current, depth = queue[position][1], queue[position][2]
+        position = position + 1
+        children[current] = {}
+        for _, childQuestId in ipairs(getChildren(current)) do
+            if not seen[childQuestId] then
+                if depth < MAX_DIAGRAM_DEPTH and count < MAX_DIAGRAM_SIDE then
+                    seen[childQuestId], count = true, count + 1
+                    table.insert(children[current], childQuestId)
+                    queue[#queue + 1] = { childQuestId, depth + 1 }
+                else
+                    isCut = true
+                end
+            end
+        end
+    end
+    return children, isCut
+end
+
+---@class ChainDiagramNode
+---@field questId number
+---@field children ChainDiagramNode[] Before the quest: what this one needs first; after it: what this one opens
+
+---A quest among the ones around it: what it needs first and what those need, going back, and what it opens and what
+---those open, going on. Chain steps are among them, as any other link; each quest is there once.
+---@return { questId: number, before: ChainDiagramNode[], after: ChainDiagramNode[], isCutBefore: boolean, isCutAfter: boolean } diagram
+function Chain.getDiagram(questId)
+    local seen = { [questId] = true }
+    local before, isCutBefore = collectTree(questId, Chain.getPreviousQuestIds, seen)
+    local after, isCutAfter = collectTree(questId, Chain.getNextQuestIds, seen)
+    local function compose(children, current)
+        local nodes = {}
+        for _, childQuestId in ipairs(children[current]) do
+            nodes[#nodes + 1] = { questId = childQuestId, children = compose(children, childQuestId) }
+        end
+        return nodes
+    end
+    return {
+        questId = questId,
+        before = compose(before, questId),
+        after = compose(after, questId),
+        isCutBefore = isCutBefore,
+        isCutAfter = isCutAfter,
+    }
+end
+
+---@return string text "Unlocks Sting of the Scorpid" for one quest that may be named, else "Unlocks 2 quests"
+function Chain.composeUnlockText(questIds, canName)
+    if #questIds == 1 and canName then
+        return ns.L("Unlocks %s", ns.QuestText.getQuestName(questIds[1]) or ns.L("Quest %s", questIds[1]))
+    end
+    return ns.Lp(#questIds, "Unlocks %d quest", "Unlocks %d quests")
+end
+
+---@return string text "Follows Cutting Teeth" for one quest, else "Follows 2 quests"
+function Chain.composeFollowText(questIds)
+    if #questIds == 1 then
+        return ns.L("Follows %s", ns.QuestText.getQuestName(questIds[1]) or ns.L("Quest %s", questIds[1]))
+    end
+    return ns.Lp(#questIds, "Follows %d quest", "Follows %d quests")
+end

@@ -32,8 +32,8 @@ end
 local function look(where)
     wait(0.5)
     saveScene(where)
-    collectCut(G.TrailheadLog, where)
-    collectCut(G.TrailheadTracker, where)
+    collectCut(G.OneMoreQuestLog, where)
+    collectCut(G.OneMoreQuestTracker, where)
 end
 
 look("quests")

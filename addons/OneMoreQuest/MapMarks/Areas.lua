@@ -7,8 +7,9 @@ local Style, State = ns.MapMarksStyle, ns.MapMarksState
 local Compose, Look, Layout, Shapes, Areas, Draw =
     ns.MapMarksCompose, ns.MapMarksLook, ns.MapMarksLayout, ns.MapMarksShapes, ns.MapMarksAreas, ns.MapMarksDraw
 local composePoints = Compose.composePoints
+local getDetailReach, isBoxInBounds, cullAreas -- (below, with the areas' levels of detail)
 local acquire, createPools = Look.acquire, Look.createPools
-local setTriangle = Shapes.setTriangle
+local setTriangle, setQuad = Shapes.setTriangle, Shapes.setQuad
 local AREA_EDGE_ALPHA, AREA_EDGE_PIXELS, AREA_FILL_ALPHA, AREA_MIN_POINTS, AREA_REACH, AREA_REACH_YARDS =
     Style.AREA_EDGE_ALPHA,
     Style.AREA_EDGE_PIXELS,
@@ -75,7 +76,7 @@ MapMarks.AREA_CELLS_PER_REACH = 3 -- the grid an area is traced on: this many ce
 MapMarks.MIN_AREA_CELL = 0.008 -- but no finer than this much of the map's width: on a vast zone (the Barrens) finer
 -- detail cannot be seen, and every piece more is one more the game moves as the map is dragged
 MapMarks.EDGE_SMOOTHING = 2 -- times the edge's corners are cut (Chaikin), so it curves instead of bending
-MapMarks.EDGE_TOLERANCE = 0.08 -- an edge's points that bend it by less than this much of a cell are left out
+MapMarks.EDGE_TOLERANCE = 0.15 -- an edge's points that bend it by less than this much of a cell are left out (under half a pixel on a zone's map as it opens)
 
 local mapYards = {} -- [uiMapId] = its width in yards, or false when the game cannot say
 
@@ -88,10 +89,10 @@ function MapMarks.getMapYards(uiMapId)
     end
     return mapYards[uiMapId] or nil
 end
--- How a quest's areas are drawn, in each of the two looks (settings.areaStyle): "filled", a light wash in the quest's
--- colour under the spawn markers, the quest in focus stronger; "blob", the shapes, as the game draws its own quest
--- areas: plainly filled, with a bright edge, the quest in focus bolder still. The minimap's fills are a little
--- stronger than the map's: the land under them is darker.
+-- How a quest's areas are drawn (settings.areaStyle "filled", the one look: there was a bolder one, the same but
+-- for its strengths, which the player sets): a wash in the quest's colour under the spawn markers with an edge
+-- round it, the quest in focus stronger. The minimap's fills are a little stronger than the map's: the land under
+-- them is darker.
 local AREA_LOOKS = {
     filled = {
         fillAlpha = AREA_FILL_ALPHA,
@@ -103,17 +104,6 @@ local AREA_LOOKS = {
         rimColor = AREA_RIM_COLOR,
         rimAlpha = AREA_RIM_ALPHA,
         focusedRimAlpha = FOCUSED_AREA_RIM_ALPHA,
-    },
-    blob = {
-        fillAlpha = 0.2,
-        focusedFillAlpha = 0.4,
-        edgeAlpha = 0.8,
-        focusedEdgeAlpha = 1,
-        edgePixels = AREA_EDGE_PIXELS,
-        focusedEdgePixels = AREA_EDGE_PIXELS + 1,
-        rimColor = AREA_RIM_COLOR,
-        rimAlpha = 0.3,
-        focusedRimAlpha = 0.6,
     },
 }
 
@@ -137,6 +127,13 @@ function MapMarks.getAreaLook()
     local style = MapMarks.getAreaStyle()
     local hasFill, hasEdges = settings.shouldFillAreas ~= false, settings.shouldOutlineAreas ~= false
     local fillShare, edgeShare = getStrength(settings.areaFillStrength), getStrength(settings.areaOutlineStrength)
+    -- Drawn as soft shadows alone, an area has no line round it: what stands for its outline is a second, fainter
+    -- shadow on the same spot. So a shadow is one thing with one strength (the fill's), neither part of it to
+    -- switch off by itself: "no areas" is the areas' own choice.
+    -- (hasFill, hasEdges and the two shares say all of it: a change of "Drawn as" shows in them, or changes nothing)
+    if MapMarks.isShadowsOnly() then
+        hasFill, hasEdges, edgeShare = true, true, fillShare
+    end
     local from = shownFrom
     if
         from.style ~= style
@@ -165,15 +162,29 @@ function MapMarks.getAreaLook()
     return shownLook
 end
 
+---@return boolean isShadows Areas are drawn as soft shadows alone (the settings' "Drawn as"): no fill and outline
+---to tell apart
+function MapMarks.isShadowsOnly()
+    return ns.MapMarksWorld ~= nil and ns.MapMarksWorld.getGeometry() == "soft"
+end
+
 ---@return boolean hasAreas Areas are drawn: a look of ours is chosen, with its fill or its outline (or both) on
+---(shadows are always both)
 function MapMarks.hasAreas()
     return MapMarks.getAreaStyle() ~= "none"
-        and (ns.settings.shouldFillAreas ~= false or ns.settings.shouldOutlineAreas ~= false)
+        and (
+            MapMarks.isShadowsOnly()
+            or ns.settings.shouldFillAreas ~= false
+            or ns.settings.shouldOutlineAreas ~= false
+        )
 end
 
 local shapeCache = {} -- [key] = a quest's area shapes on a map, in map widths (x across, y down), with their spawns
 local pendingShapes, shapeJobs = {}, {} -- shapes being worked out, a slice a frame
 local SHAPE_SLICE_MILLISECONDS = 4 -- time each frame may spend on them
+-- ...and slices of the work (each a few hundred spawns' glows, or sixteen rows of the grid: a fifth of a millisecond
+-- or so) at most: the same share on every machine, the clock catching what turns out slower than reckoned
+MapMarks.MAX_SHAPE_SLICES = 16
 local shapeJobFrame, startShapeJobs
 
 ---@return number milliseconds A clock to measure slices by
@@ -183,8 +194,13 @@ end
 
 ---Works on the shapes waiting, a few milliseconds a frame; each one done, the map and minimap are drawn again.
 local function runShapeJobs()
-    local started, isAnyDone = getMilliseconds(), false
-    while shapeJobs[1] and getMilliseconds() - started < SHAPE_SLICE_MILLISECONDS do
+    local started, isAnyDone, slices = getMilliseconds(), false, 0
+    while
+        shapeJobs[1]
+        and getMilliseconds() - started < SHAPE_SLICE_MILLISECONDS
+        and slices < MapMarks.MAX_SHAPE_SLICES
+    do
+        slices = slices + 1
         local job = shapeJobs[1]
         local isRunning, problem = coroutine.resume(job.routine)
         if not isRunning or coroutine.status(job.routine) == "dead" then
@@ -200,9 +216,21 @@ local function runShapeJobs()
         end
     end
     -- Drawn again once every shape waiting is done, not after each: each drawing of the marks costs a frame its time
+    -- The kept drawing lays each shape out as it is done (the quest in focus and the nearest first), the marks standing
+    -- as they are
+    local isKept = ns.MapMarksWorld and ns.MapMarksWorld.isOn()
+    if isAnyDone and isKept then
+        ns.MapMarksWorld.handleShapesReady()
+    end
     if isAnyDone and not shapeJobs[1] then
-        ns.MapPins.queueRefresh()
-        if ns.MinimapPins and ns.MinimapPins.refresh then
+        if not isKept then
+            ns.MapPins.queueRefresh()
+        end
+        -- (the minimap only when it waits for some of them: the kept drawing asks for shapes a few at a time, and each
+        -- lot done drew the minimap again for nothing)
+        local isMinimapWaiting = MapMarks.isMinimapAwaitingShapes or not isKept
+        MapMarks.isMinimapAwaitingShapes = false
+        if isMinimapWaiting and ns.MinimapPins and ns.MinimapPins.refresh then
             ns.MinimapPins.refresh()
         end
     end
@@ -243,10 +271,13 @@ end
 ---@return { shape: table, points: table[] }[] areas In map widths (y measured in widths too)
 ---@param shouldWait boolean? Work it out at once, however long it takes, instead of over the next frames
 ---@return table[]? areas nil while it is still being worked out; the map and minimap are drawn again when it is
-function MapMarks.composeQuestShapes(questId, mapId, points, reach, aspect, shouldWait)
+---@param minCell number? The grid's cell at least this wide (of the map's width) in place of MapMarks.MIN_AREA_CELL:
+---a coarser grain, for a map shown small (the kept drawing's levels of detail)
+function MapMarks.composeQuestShapes(questId, mapId, points, reach, aspect, shouldWait, minCell)
     if #points == 0 then
         return {}
     end
+    minCell = minCell or MapMarks.MIN_AREA_CELL
     local key = table.concat({
         questId or 0,
         mapId or 0,
@@ -257,7 +288,7 @@ function MapMarks.composeQuestShapes(questId, mapId, points, reach, aspect, shou
         points[#points].y,
         reach,
         string.format("%.3f", aspect),
-        MapMarks.MIN_AREA_CELL,
+        minCell,
         MapMarks.AREA_CELLS_PER_REACH,
     }, ":")
     if shapeCache[key] then
@@ -267,11 +298,19 @@ function MapMarks.composeQuestShapes(questId, mapId, points, reach, aspect, shou
         local areas = {}
         for _, group in ipairs(MapMarks.composeAreas(points, 2 * reach)) do
             if #group.points >= AREA_MIN_POINTS and not MapMarks.isOnePlace(group.points, reach, aspect) then
-                local inWidths = {}
-                for index, point in ipairs(group.points) do
-                    inWidths[index] = { x = point.x, y = point.y * aspect }
+                local cell = math.max(reach / MapMarks.AREA_CELLS_PER_REACH, minCell)
+                -- Spawns closer together than half a grid cell traced as one: the shape is the same to the grid, and
+                -- tracing sums every nearby spawn's glow at every grid point (It Takes Guts' 5,600 spawns packed into
+                -- Riverglades were millions of sums); so the work goes by the area's size on the map, not its spawns
+                local inWidths, isTaken, grain = {}, {}, cell / 2
+                for _, point in ipairs(group.points) do
+                    local y = point.y * aspect
+                    local key = math.floor(point.x / grain) * 65536 + math.floor(y / grain)
+                    if not isTaken[key] then
+                        isTaken[key] = true
+                        inWidths[#inWidths + 1] = { x = point.x, y = y }
+                    end
                 end
-                local cell = math.max(reach / MapMarks.AREA_CELLS_PER_REACH, MapMarks.MIN_AREA_CELL)
                 areas[#areas + 1] =
                     { shape = MapMarks.composeAreaShape(inWidths, reach, cell, shouldYield), points = inWidths }
             end
@@ -297,6 +336,118 @@ function MapMarks.composeQuestShapes(questId, mapId, points, reach, aspect, shou
 end
 
 local ZONE_MAP_ASPECT = 2 / 3 -- a zone's map, height against width (the game draws them all at this shape)
+MapMarks.ZONE_MAP_ASPECT = ZONE_MAP_ASPECT
+
+-- A continent's or the world's map: its areas worked out on it, not each zone's fitted on. A zone's shapes are a zone
+-- map's detail, a few pixels across up there: a quest spread over 45 zones (My First Alchemy Set) brought 45 zones'
+-- worth, some 20,000 textures and seconds of work, too small to see. Here the areas reach at least WIDE_REACH (of the
+-- map's width, about a dozen pixels) and are traced on the coarse grid (MIN_AREA_CELL), so they cost what the map
+-- shows, however many spawns and zones there are.
+local WIDE_REACH = 0.012
+MapMarks.WIDE_REACH = WIDE_REACH
+
+-- Levels of detail: a zone's areas traced with a reach of 50 yards (its own map's detail: 3 to 10 pixels on a zone's map
+-- as it opens, the Barrens' fewest), or, zoomed out past that (OpenMap's joined-up map showing many zones), once 50
+-- yards is less than MIN_REACH_PIXELS on screen, 100, 200... up to 1,600: a grain the screen shows, each traced once
+-- for each zone and kept, so a zoom picks a kept one and a pan works nothing out
+MapMarks.MIN_REACH_PIXELS = 2.5
+local MAX_DETAIL_REACH_YARDS = 1600
+
+---@return number yards The reach a zone's areas are traced with, for how many pixels the zone takes on screen
+getDetailReach = function(zoneYards, zonePixels)
+    local reachYards = MapMarks.AREA_REACH_YARDS
+    local pixelsPerYard = zonePixels / zoneYards
+    while reachYards * pixelsPerYard < MapMarks.MIN_REACH_PIXELS and reachYards < MAX_DETAIL_REACH_YARDS do
+        reachYards = reachYards * 2
+    end
+    return reachYards
+end
+
+---@return boolean isIn A box (the map's fractions) reaches into the bounds
+isBoxInBounds = function(left, top, right, bottom, bounds)
+    return right >= bounds.left and left <= bounds.right and bottom >= bounds.top and top <= bounds.bottom
+end
+
+---@return table[] areas The fitted areas reaching into the bounds (all of them without bounds): what is out of view is
+---not laid out, a few hundred textures and lines each
+cullAreas = function(areas, bounds)
+    if not bounds then
+        return areas
+    end
+    local kept = {}
+    for _, area in ipairs(areas) do
+        local left, top, right, bottom = math.huge, math.huge, -math.huge, -math.huge
+        for _, edge in ipairs(area.edges) do
+            for index = 1, 2 do
+                local point = edge[index]
+                left, right = math.min(left, point.x), math.max(right, point.x)
+                top, bottom = math.min(top, point.y), math.max(bottom, point.y)
+            end
+        end
+        if left > right or isBoxInBounds(left, top, right, bottom, bounds) then
+            kept[#kept + 1] = area
+        end
+    end
+    return kept
+end
+
+-- An area fitted onto a map (its zone's shape moved into the zone's box there, or a shape of the map's own brought to
+-- its fractions), kept with the shape for that fitting: worked out at every laying out it was a table for every
+-- corner of every piece, each time. [shape's area] = { [how it is fitted] = fitted }
+local fittedByArea = setmetatable({}, { __mode = "k" })
+
+---@return table fitted { triangles, pieces, edges, points, reach } in the map's fractions; shared, read only
+local function fitArea(area, fitKey, fit, reach)
+    local byKey = fittedByArea[area]
+    if not byKey then
+        byKey = {}
+        fittedByArea[area] = byKey
+    end
+    local fitted = byKey[fitKey]
+    if not fitted then
+        local triangles, pieces, edges, areaPoints = {}, {}, {}, {}
+        for index, triangle in ipairs(area.shape.triangles) do
+            triangles[index] = { fit(triangle[1]), fit(triangle[2]), fit(triangle[3]) }
+        end
+        for index, piece in ipairs(area.shape.pieces or NONE) do
+            local fittedPiece = {}
+            for corner, point in ipairs(piece) do
+                fittedPiece[corner] = fit(point)
+            end
+            pieces[index] = fittedPiece
+        end
+        for index, edge in ipairs(area.shape.edges) do
+            edges[index] = { fit(edge[1]), fit(edge[2]) }
+        end
+        for index, point in ipairs(area.points) do
+            areaPoints[index] = fit(point)
+        end
+        fitted = { triangles = triangles, pieces = pieces, edges = edges, points = areaPoints, reach = reach }
+        byKey[fitKey] = fitted
+    end
+    return fitted
+end
+
+---@return table[] areas, boolean isPending As composeFittedShapes, for a map above the zones
+local function composeWideShapes(questId, mapId, points, shouldWait)
+    local yards = MapMarks.getMapYards(mapId)
+    local reach = math.max(yards and MapMarks.AREA_REACH_YARDS / yards or AREA_REACH, WIDE_REACH)
+    local aspect = State.drawn.height and State.drawn.width and State.drawn.height / State.drawn.width
+        or ZONE_MAP_ASPECT
+    local shapes = MapMarks.composeQuestShapes(questId, mapId, points, reach, aspect, shouldWait)
+    if not shapes then
+        return {}, true
+    end
+    local fitted = {}
+    local function fit(point) -- map widths (y in widths) to the map's fractions
+        return { x = point.x, y = point.y / aspect }
+    end
+    local fitKey = string.format("own:%.6f", aspect)
+    for _, area in ipairs(shapes) do
+        fitted[#fitted + 1] = fitArea(area, fitKey, fit, reach)
+    end
+    return fitted, false
+end
 
 ---A quest's areas, worked out once on each zone's own map and kept (composeQuestShapes, by the zone, not the map
 ---shown), then fitted onto the map shown by where the zone lies on it: a stretch and a shift of each corner. So the
@@ -305,7 +456,15 @@ local ZONE_MAP_ASPECT = 2 / 3 -- a zone's map, height against width (the game dr
 ---@param points table[] The quest's spawns, each with its place (Compose's composePoints)
 ---@return { triangles: table[], edges: table[], points: table[], reach: number }[]? areas In the map's fractions; nil
 ---while a zone's shapes are still being worked out (drawn when they are)
-function MapMarks.composeFittedShapes(questId, mapId, points, shouldWait)
+---@param view { cull: table?, pixelsAcross: number? }? What the world map shows (its drawing passes it; the minimap
+---none): areas wholly outside view.cull (the map's fractions) are left out, zones wholly outside it are not worked
+---out at all, and each zone's areas are traced at the grain the zoom shows (pixelsAcross: the map's width on screen)
+function MapMarks.composeFittedShapes(questId, mapId, points, shouldWait, view)
+    local cull = view and view.cull
+    if mapId and MapMarks.isAboveZones(mapId) then
+        local wide, isWidePending = composeWideShapes(questId, mapId, points, shouldWait)
+        return cullAreas(wide, cull), isWidePending
+    end
     local byZone, order, loose = {}, {}, {}
     for _, point in ipairs(points) do
         local place = point.place
@@ -324,9 +483,16 @@ function MapMarks.composeFittedShapes(questId, mapId, points, shouldWait)
     local fitted, isPending = {}, false
     for _, zoneMapId in ipairs(order) do
         local box = MapMarks.getZoneBox(zoneMapId, mapId)
+        -- (a zone wholly out of view: nothing of it worked out or fitted)
+        if box and cull and not isBoxInBounds(box.left, box.top, box.right, box.bottom, cull) then
+            box = nil
+        end
         if box then
             local yards = MapMarks.getMapYards(zoneMapId)
             local reach = yards and MapMarks.AREA_REACH_YARDS / yards or AREA_REACH
+            if yards and view and view.pixelsAcross then
+                reach = getDetailReach(yards, (box.right - box.left) * view.pixelsAcross) / yards
+            end
             local shapes =
                 MapMarks.composeQuestShapes(questId, zoneMapId, byZone[zoneMapId], reach, ZONE_MAP_ASPECT, shouldWait)
             if not shapes then
@@ -336,19 +502,9 @@ function MapMarks.composeFittedShapes(questId, mapId, points, shouldWait)
                 local function fit(point) -- zone widths (y in widths) to the map shown's fractions
                     return { x = box.left + point.x * width, y = box.top + point.y / ZONE_MAP_ASPECT * height }
                 end
+                local fitKey = string.format("%.6f:%.6f:%.6f:%.6f", box.left, box.top, width, height)
                 for _, area in ipairs(shapes) do
-                    local triangles, edges, areaPoints = {}, {}, {}
-                    for index, triangle in ipairs(area.shape.triangles) do
-                        triangles[index] = { fit(triangle[1]), fit(triangle[2]), fit(triangle[3]) }
-                    end
-                    for index, edge in ipairs(area.shape.edges) do
-                        edges[index] = { fit(edge[1]), fit(edge[2]) }
-                    end
-                    for index, point in ipairs(area.points) do
-                        areaPoints[index] = fit(point)
-                    end
-                    fitted[#fitted + 1] =
-                        { triangles = triangles, edges = edges, points = areaPoints, reach = reach * width }
+                    fitted[#fitted + 1] = fitArea(area, fitKey, fit, reach * width)
                 end
             end
         end
@@ -360,25 +516,16 @@ function MapMarks.composeFittedShapes(questId, mapId, points, shouldWait)
         local aspect = State.drawn.height and State.drawn.width and State.drawn.height / State.drawn.width
             or ZONE_MAP_ASPECT
         local shapes = MapMarks.composeQuestShapes(questId, mapId, loose, reach, aspect)
+        local function fit(point)
+            return { x = point.x, y = point.y / aspect }
+        end
+        local fitKey = string.format("own:%.6f", aspect)
         for _, area in ipairs(shapes or {}) do
-            local function fit(point)
-                return { x = point.x, y = point.y / aspect }
-            end
-            local triangles, edges, areaPoints = {}, {}, {}
-            for index, triangle in ipairs(area.shape.triangles) do
-                triangles[index] = { fit(triangle[1]), fit(triangle[2]), fit(triangle[3]) }
-            end
-            for index, edge in ipairs(area.shape.edges) do
-                edges[index] = { fit(edge[1]), fit(edge[2]) }
-            end
-            for index, point in ipairs(area.points) do
-                areaPoints[index] = fit(point)
-            end
-            fitted[#fitted + 1] = { triangles = triangles, edges = edges, points = areaPoints, reach = reach }
+            fitted[#fitted + 1] = fitArea(area, fitKey, fit, reach)
         end
         isPending = isPending or shapes == nil
     end
-    return fitted, isPending
+    return cullAreas(fitted, cull), isPending
 end
 
 -- The quests' areas are kept on the map between drawings, each quest's by itself (State.drawn.areaSets). An area is
@@ -446,6 +593,7 @@ local function release(free, regions)
     for index = 1, #regions do
         local region = regions[index]
         region:Hide()
+        region:ClearAllPoints() -- (let go of the map: hidden, it would still be laid out at every frame of a drag)
         free[#free + 1] = region
     end
 end
@@ -557,7 +705,20 @@ local function getGeometryKey(group, mapId, mapWidth, mapHeight)
         local point = points[index]
         sum = sum + (point.x or 0) * 7919 + (point.y or 0)
     end
-    return string.format("%s:%.2f:%.2f:%d:%.6f", tostring(mapId), mapWidth, mapHeight, #points, sum)
+    -- (and what of the map is drawn, and at which grain: another view or zoom lays the areas out again)
+    local cull = State.drawn.cullBounds
+    local cullKey = cull and string.format("%.3f:%.3f:%.3f:%.3f", cull.left, cull.top, cull.right, cull.bottom) or ""
+    local grain = State.drawn.scale and math.floor(math.log(math.max(State.drawn.scale, 0.01)) / math.log(2) + 0.5)
+    return string.format(
+        "%s:%.2f:%.2f:%d:%.6f:%s:%s",
+        tostring(mapId),
+        mapWidth,
+        mapHeight,
+        #points,
+        sum,
+        cullKey,
+        tostring(grain)
+    )
 end
 
 ---@return string key Whose areas a group's are: a quest's, or the creatures a quest to pick up starts from
@@ -575,40 +736,71 @@ local function layOutSet(store, set, group, mapId, mapWidth, mapHeight, scale, r
     local edgeAlpha = isFocused and look.focusedEdgeAlpha or look.edgeAlpha
     local edgePixels = isFocused and look.focusedEdgePixels or look.edgePixels
     local questId = group.hoverQuestId or group.questId
-    local fitted, isPending = MapMarks.composeFittedShapes(group.questId, mapId, group.points)
+    local drawn = State.drawn
+    local fitted, isPending = MapMarks.composeFittedShapes(
+        group.questId,
+        mapId,
+        group.points,
+        nil,
+        { cull = drawn.cullBounds, pixelsAcross = mapWidth * scale }
+    )
     local triangles, edges, edgeEnds, areas = {}, {}, {}, {}
-    local first, second, third = {}, {}, {}
+    local first, second, third, fourth = {}, {}, {}, {}
+    -- Of an area reaching into the view, only its pieces in view: a vast one (half a zone) laid out whole was thousands
+    -- of pieces off screen when zoomed in on a corner of it
+    local cull = drawn.cullBounds
+    local function isPieceIn(a, b, c)
+        if not cull then
+            return true
+        end
+        c = c or b
+        return math.max(a.x, b.x, c.x) >= cull.left
+            and math.min(a.x, b.x, c.x) <= cull.right
+            and math.max(a.y, b.y, c.y) >= cull.top
+            and math.min(a.y, b.y, c.y) <= cull.bottom
+    end
     for _, area in ipairs(fitted) do
-        for _, triangle in ipairs(look.hasFill and area.triangles or NONE) do
-            local texture = takeTriangle(store, reserve)
-            texture:SetDrawLayer("ARTWORK", isFocused and FOCUSED_FILL_LEVEL or FILL_LEVEL)
-            texture:SetColorTexture(color[1], color[2], color[3], fillAlpha)
-            -- (the map's fractions to the area layer's units)
-            first.x, first.y = triangle[1].x * mapWidth, triangle[1].y * mapHeight
-            second.x, second.y = triangle[2].x * mapWidth, triangle[2].y * mapHeight
-            third.x, third.y = triangle[3].x * mapWidth, triangle[3].y * mapHeight
-            setTriangle(texture, first, second, third)
-            triangles[#triangles + 1] = texture
+        -- (the fill's triangles paired into pieces of four where they can be: half the textures, MapMarks.pairTriangles)
+        for _, piece in ipairs(look.hasFill and (area.pieces or area.triangles) or NONE) do
+            if isPieceIn(piece[1], piece[2], piece[3]) or (piece[4] and isPieceIn(piece[1], piece[3], piece[4])) then
+                local texture = takeTriangle(store, reserve)
+                texture:SetDrawLayer("ARTWORK", isFocused and FOCUSED_FILL_LEVEL or FILL_LEVEL)
+                texture:SetColorTexture(color[1], color[2], color[3], fillAlpha)
+                -- (the map's fractions to the area layer's units)
+                first.x, first.y = piece[1].x * mapWidth, piece[1].y * mapHeight
+                second.x, second.y = piece[2].x * mapWidth, piece[2].y * mapHeight
+                third.x, third.y = piece[3].x * mapWidth, piece[3].y * mapHeight
+                if piece[4] then
+                    fourth.x, fourth.y = piece[4].x * mapWidth, piece[4].y * mapHeight
+                    setQuad(texture, first, second, third, fourth)
+                else
+                    setTriangle(texture, first, second, third)
+                end
+                triangles[#triangles + 1] = texture
+            end
         end
         for _, edge in ipairs(look.hasEdges and area.edges or NONE) do
-            local fromX, fromY = edge[1].x * mapWidth, edge[1].y * mapHeight
-            local toX, toY = edge[2].x * mapWidth, edge[2].y * mapHeight
-            local line = takeLine(store, reserve)
-            setLine(
-                line,
-                fromX,
-                fromY,
-                toX,
-                toY,
-                color,
-                edgeAlpha,
-                edgePixels,
-                scale,
-                isFocused and FOCUSED_EDGE_LEVEL or EDGE_LEVEL
-            )
-            edges[#edges + 1] = line
-            local count = #edgeEnds
-            edgeEnds[count + 1], edgeEnds[count + 2], edgeEnds[count + 3], edgeEnds[count + 4] = fromX, fromY, toX, toY
+            if isPieceIn(edge[1], edge[2]) then
+                local fromX, fromY = edge[1].x * mapWidth, edge[1].y * mapHeight
+                local toX, toY = edge[2].x * mapWidth, edge[2].y * mapHeight
+                local line = takeLine(store, reserve)
+                setLine(
+                    line,
+                    fromX,
+                    fromY,
+                    toX,
+                    toY,
+                    color,
+                    edgeAlpha,
+                    edgePixels,
+                    scale,
+                    isFocused and FOCUSED_EDGE_LEVEL or EDGE_LEVEL
+                )
+                edges[#edges + 1] = line
+                local count = #edgeEnds
+                edgeEnds[count + 1], edgeEnds[count + 2], edgeEnds[count + 3], edgeEnds[count + 4] =
+                    fromX, fromY, toX, toY
+            end
         end
         -- Kept for hovering: its spawns and reach, in the area layer's units, and whose it is
         local inLayer = {}
@@ -843,6 +1035,7 @@ end
 -- A walk drawn as a dashed line, as a trail on a paper map: a light dash over a faint shadow, no marks at its bends,
 -- its width and dashes kept on screen (pixels) at any zoom
 MapMarks.DASH_PIXELS, MapMarks.DASH_GAP_PIXELS = 7, 6
+MapMarks.MIN_PATROL_PIXELS = 3 * (7 + 6) -- a walk this long on screen at least, or it is not drawn (three dashes)
 MapMarks.DASH_WIDTH, MapMarks.DASH_SHADOW_WIDTH, MapMarks.DASH_SHADOW_ALPHA = 2.2, 4.4, 0.3
 
 ---The dashes along a path: pieces of it dash long with gaps between, carried on round its bends.
@@ -914,10 +1107,23 @@ local function drawPatrols(groups, giverLines, mapWidth, mapHeight, scale, mapId
         return line
     end
     State.drawn.patrols = {} -- each drawn trail's path, in the layer's units, for pointing at it
+    -- A walk shorter on screen than a few dashes says nothing (a creature's beat on a continent's map, a few pixels):
+    -- left out, as its dashes would be hundreds of lines for a quest whose creatures walk all over the world
+    local minExtent = MapMarks.MIN_PATROL_PIXELS / scale
+    local cull = State.drawn.cullBounds -- (walks wholly out of view are not drawn: MapMarks.draw)
     local function drawTrail(patrol, color, alpha, questId)
         local points = {}
+        local minX, maxX, minY, maxY = math.huge, -math.huge, math.huge, -math.huge
         for index, point in ipairs(patrol) do
-            points[index] = { x = point.x * mapWidth, y = point.y * mapHeight }
+            local x, y = point.x * mapWidth, point.y * mapHeight
+            points[index] = { x = x, y = y }
+            minX, maxX, minY, maxY = math.min(minX, x), math.max(maxX, x), math.min(minY, y), math.max(maxY, y)
+        end
+        if math.max(maxX - minX, maxY - minY) < minExtent then
+            return
+        end
+        if cull and not isBoxInBounds(minX / mapWidth, minY / mapHeight, maxX / mapWidth, maxY / mapHeight, cull) then
+            return
         end
         MapMarks.paintDashes(points, makeLine, color, alpha, scale)
         local name = patrol.npcId and ns.Database.getNpcField(patrol.npcId, "name")
@@ -950,6 +1156,9 @@ end
 ---be no bigger than its mark, and icons pushed round it would stand outside the area).
 ---@return { x: number, y: number, glyph: string, color: number[], isFocused: boolean }[] icons In the mark layer's units
 MapMarks.MIN_ICON_SIZE = 7 -- a spawn's icon with the map zoomed out fully; it grows to its full size as the map zooms in
+-- The most spawn icons on the map at once, all quests together (the quest in focus places first): what the screen
+-- can show, whatever the quests ask; past it the spacing grows instead (MapMarks.chooseSpawnSpacing's steps)
+MapMarks.MAX_SPAWN_ICONS = 600
 -- The cells round a spawn's own, nearest first, two deep: far enough to clear a pin the size of Leatrix Maps' arrows
 local NEIGHBOUR_CELLS = {}
 for column = -2, 2 do
@@ -1084,36 +1293,50 @@ local function drawIcons(groups, mapWidth, mapHeight, scale, markRects)
         end
         local squares, radius = {}, glowSize / 2
         State.drawn.squares = squares
+        -- One icon to a spot on screen, whichever quest's: the quests' own thinning keeps each quest's icons apart, but
+        -- twenty quests in one zone stacked twenty icons on a spawn, only the top one seen. The quest in focus places
+        -- first, the others after in their order; and never more than MAX_SPAWN_ICONS in all
+        local isSpotTaken, spot, shownCount = {}, iconSize, 0
+        local cull = State.drawn.cullBounds -- (spawns out of view are not drawn: MapMarks.draw)
         for _, group in ipairs(inOrder) do
             local isShown, isStrong = MapMarks.getSpawnMarkerStrength(group.isFocused == true)
             local shownSize = group.isFocused and iconSize + 2 or iconSize
             for _, point in ipairs(isShown and MapMarks.thinPoints(group.points, State.drawn.spawnSpacing) or NONE) do
+                if shownCount >= MapMarks.MAX_SPAWN_ICONS then
+                    break
+                end
                 local x, y = point.x * mapWidth * scale, point.y * mapHeight * scale
-                local glow = acquire(State.pools.glows, createIconGlow)
-                local glyph = acquire(State.pools.icons, createIconGlyph)
-                local hasUnder = MapMarks.dressSpawnMarker(
-                    glow,
-                    glyph,
-                    kind,
-                    point.glyph or "use",
-                    group.color,
-                    isStrong,
-                    shownSize,
-                    glowSize
-                )
-                glow:SetShown(hasUnder)
-                place(glow, "CENTER", State.markLayer, "TOPLEFT", x, -y)
-                place(glyph, "CENTER", State.markLayer, "TOPLEFT", x, -y)
-                squares[#squares + 1] = {
-                    glow = glow,
-                    glyph = glyph,
-                    x = x,
-                    y = y,
-                    questId = point.questId,
-                    note = point.note,
-                    isFocused = group.isFocused,
-                    radius = radius,
-                }
+                local spotKey = math.floor(x / spot) * 65536 + math.floor(y / spot)
+                local isOutOfView = cull
+                    and (point.x < cull.left or point.x > cull.right or point.y < cull.top or point.y > cull.bottom)
+                if not isSpotTaken[spotKey] and not isOutOfView then
+                    isSpotTaken[spotKey], shownCount = true, shownCount + 1
+                    local glow = acquire(State.pools.glows, createIconGlow)
+                    local glyph = acquire(State.pools.icons, createIconGlyph)
+                    local hasUnder = MapMarks.dressSpawnMarker(
+                        glow,
+                        glyph,
+                        kind,
+                        point.glyph or "use",
+                        group.color,
+                        isStrong,
+                        shownSize,
+                        glowSize
+                    )
+                    glow:SetShown(hasUnder)
+                    place(glow, "CENTER", State.markLayer, "TOPLEFT", x, -y)
+                    place(glyph, "CENTER", State.markLayer, "TOPLEFT", x, -y)
+                    squares[#squares + 1] = {
+                        glow = glow,
+                        glyph = glyph,
+                        x = x,
+                        y = y,
+                        questId = point.questId,
+                        note = point.note,
+                        isFocused = group.isFocused,
+                        radius = radius,
+                    }
+                end
             end
         end
         return

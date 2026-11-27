@@ -21,6 +21,7 @@ local Style, State, Actions = {}, {}, {}
 ns.LogStyle, ns.LogState, ns.LogActions = Style, State, Actions
 ns.LogList, ns.LogQuestPage, ns.LogQuestsTab, ns.LogAvailableTab, ns.LogSettingsView, ns.LogWindow =
     {}, {}, {}, {}, {}, {}
+ns.LogDiagram = {} -- the quest diagram, a window of its own opened from a quest's page
 ns.LogDungeonsTab = {} -- the Dungeons tab: every dungeon with quests for the player, and a dungeon's page
 
 local LIST_WIDTH, PAGE_WIDTH = 330, 330
@@ -316,6 +317,7 @@ Style.BACKGROUND = BACKGROUND
 Style.BAR_BACKGROUND = BAR_BACKGROUND
 Style.BAR_HEIGHT = BAR_HEIGHT
 Style.CHAIN_ICON = CHAIN_ICON
+Style.UNLOCK_ICON = MEDIA .. "Unlock" -- a quest that opens others, where the chain's mark would stand
 Style.COLORS = COLORS
 Style.DOT = DOT
 Style.DUNGEON_NAME = DUNGEON_NAME

@@ -871,7 +871,7 @@ local function setPageRewards(questId)
         and (rewards.money > 0 or rewards.experience > 0 or #rewards.items > 0 or #rewards.choices > 0)
     local height, iconCount, textCount = 0, 0, 0
     if rewards and (hasRewards or rewards.isLoading) then
-        local left, right = 12, PAGE_CONTENT_WIDTH + (State.frame.pageExtra or 0) - 12
+        local left, right = 12, PAGE_CONTENT_WIDTH + (State.frame.pageExtra or 0) + (State.frame.pageStretch or 0) - 12
         local x, y = left, State.rewardsBlock.topHeight + 6
         local function place(region, width)
             if x + width > right and x > left then
@@ -1960,7 +1960,7 @@ local HEADER_FRINGE = 9 -- that fringe, texels and pixels: drawn at its own heig
 local PLAIN_PAGE_GAP = 6 -- between the header's shadow and a page that is not a quest's (settings, Chronicle)
 local HEADER_CORNER = { 28, 23 } -- the gold flourishes in the header's lower corners (small: clear of the facts line)
 local addHeaderOrnaments -- (below)
-local HEADER_BOTTOM_PADDING = 15 -- room under the last line (the facts, or the narration's buttons) to the header art's lower edge
+local HEADER_BOTTOM_PADDING = 20 -- room under the last line (the facts, or the narration's buttons) to the header art's lower edge
 local VOICE_ROW_HEIGHT = 26 -- the narration's buttons under the facts, with the gap above them
 
 ---The page's header in the look of the game's window titles: a dark red bar with the quest's name in gold,
@@ -2653,6 +2653,145 @@ function Log.formatLevelRange(questId, level, isGroup)
     return ns.L("Level %d%s", level or requiredLevel, suffix)
 end
 
+local addLinksAndDiagram
+do
+    local MAX_OPEN_LINKS = 6 -- a quest that opens more than these names the first of them and counts the rest
+
+    local function openDiagram(questId)
+        ns.LogDiagram.show(questId)
+    end
+
+    ---The quests around this one that are not its chain, under their own fold: what it needed first and what it unlocks,
+    ---each a line as a chain's step is, to click as one; then the way to the diagram of them all.
+    ---@param links { requiredIds: number[], unlockIds: number[], isAnyEnough: boolean, canNameLater: boolean, canNameEarlier: boolean }
+    ---@return number y Below them
+    local function addLinks(y, links)
+        local function isNameShared()
+            return false
+        end
+        local function addLabel(text)
+            y = y
+                + State.detail:addText(text, PADDING, y, {
+                    font = "GameFontHighlightSmall",
+                    color = COLORS.softInk,
+                    width = State.detail.width - 2 * PADDING,
+                })
+                + 6
+        end
+        local function addQuests(questIds)
+            for position = 1, math.min(#questIds, MAX_OPEN_LINKS) do
+                local linkedQuestId = questIds[position]
+                local state = ns.QuestState.isTurnedIn(linkedQuestId) and "done" or "upcoming"
+                y = addChainStep(y, linkedQuestId, state, isNameShared())
+            end
+            if #questIds > MAX_OPEN_LINKS then
+                addLabel(ns.Lp(#questIds - MAX_OPEN_LINKS, "and %d more quest", "and %d more quests"))
+            end
+            y = y + 6
+        end
+        if #links.requiredIds > 0 and links.canNameEarlier then
+            addLabel(ns.L(links.isAnyEnough and "Needed first, any one of:" or "Needed first:"))
+            addQuests(links.requiredIds)
+        end
+        if #links.unlockIds > 0 and links.canNameLater then
+            addLabel(ns.L("Unlocks:"))
+            addQuests(links.unlockIds)
+        elseif #links.unlockIds > 0 then
+            addLabel(ns.Chain.composeUnlockText(links.unlockIds, false)) -- (which ones is later in the story)
+        end
+        return y + 6
+    end
+
+    ---What the page says of a quest's links besides its chain, by what the Spoilers choices let tell: nothing with the
+    ---chains held back, the quests it unlocks by name only with every chain step told and the story not held back.
+    ---@param quest table A quest of the log or of the Available tab (unlockIds, requiredIds)
+    ---@return table? links nil when there is nothing to say
+    local function composeLinks(quest, view, isAvailable)
+        if view and view.chains == "hidden" then
+            return nil
+        end
+        local requiredIds, isAnyEnough = ns.Chain.getRequiredQuestIds(quest.questId)
+        local links = {
+            requiredIds = requiredIds,
+            unlockIds = quest.unlockIds or {},
+            isAnyEnough = isAnyEnough,
+            canNameLater = not view or (view.chains == "all" and not view.isStoryHidden),
+            -- (a quest to pick up may still wait for the earlier one: named only where the story is)
+            canNameEarlier = not view or not isAvailable or not view.isStoryHidden,
+        }
+        if #links.unlockIds == 0 and (#requiredIds == 0 or not links.canNameEarlier) then
+            return nil
+        end
+        return links
+    end
+
+    ---The way to the diagram, in the middle of the page: the game's red button, as the ones under the page are,
+    ---with the branching mark before its words; the page's paper button where this client lacks that art.
+    ---@return number y Below it
+    local function addDiagramButton(y, questId)
+        local page = State.detail
+        local text = ns.L("Quest diagram")
+        local hasArt = ns.LogList.hasGameArt("128-RedButton-Left") and ns.LogList.hasGameArt("_128-RedButton-Center")
+        if not hasArt then
+            addPaperButton(page, PADDING + #text * 6.5 + 18, y, text, openDiagram, questId)
+            return y + 28
+        end
+        local height, glyphSize, sidePadding = 28, 14, 26
+        local _, textWidth, fontString =
+            page:addText(text, PADDING, y, { font = "GameFontNormal", color = COLORS.gold, isSingleLine = true })
+        textWidth = math.ceil(textWidth or #text * 7)
+        local width = sidePadding + glyphSize + 6 + textWidth + sidePadding
+        local x = math.floor((page.width - width) / 2)
+        -- The button's art in three pieces, its ends as wide as their pictures at this height
+        local leftWidth, rightWidth = math.floor(height * 114 / 128), math.floor(height * 292 / 128)
+        page:addImage(x, y, leftWidth, height, { atlas = "128-RedButton-Left" })
+        page:addImage(x + leftWidth, y, width - leftWidth - rightWidth, height, { atlas = "_128-RedButton-Center" })
+        page:addImage(x + width - rightWidth, y, rightWidth, height, { atlas = "128-RedButton-Right" })
+        page:addIcon(x + sidePadding, y + (height - glyphSize) / 2 - 1, glyphSize, MEDIA .. "Unlock", COLORS.gold, 2)
+        if fontString then
+            ns.Widgets.place(
+                fontString,
+                "TOPLEFT",
+                page.content,
+                "TOPLEFT",
+                x + sidePadding + glyphSize + 6,
+                -(y + (height - 12) / 2 - 1)
+            )
+        end
+        page:addButton(x, y, width, height, openDiagram, questId)
+        return y + height + 8
+    end
+
+    ---The fold of a quest's links and, under it and the chain, the button that opens the diagram of the quests around
+    ---it (only where their names may be told).
+    ---@return number y Below them
+    function addLinksAndDiagram(y, quest, view, isAvailable)
+        local links = composeLinks(quest, view, isAvailable)
+        if links then
+            local notes = {}
+            if #links.requiredIds > 0 and links.canNameEarlier then
+                notes[#notes + 1] = ns.Lp(#links.requiredIds, "%d before", "%d before")
+            end
+            if #links.unlockIds > 0 then
+                notes[#notes + 1] = ns.Lp(#links.unlockIds, "unlocks %d", "unlocks %d")
+            end
+            local isOpen
+            y, isOpen = addFold(y, "links", quest.questId, ns.L("Before and after"), table.concat(notes, DOT), true)
+            if isOpen then
+                y = addLinks(y + 2, links)
+            end
+        end
+        -- (not on the page the diagram's own window shows: State.isDiagramPage)
+        local canShowDiagram = not State.isDiagramPage
+            and (not view or (view.chains == "all" and not view.isStoryHidden))
+            and (links ~= nil or quest.chainIndex ~= nil)
+        if canShowDiagram then
+            y = addDiagramButton(y + 4, quest.questId)
+        end
+        return y
+    end
+end
+
 ---The quest's page, the things that matter first: what it is, what it gives, what is left to do and where.
 ---The story and the chain follow, each open unless folded.
 ---@return number height
@@ -2750,6 +2889,7 @@ local function drawLogQuest(entry)
             y = addChain(y + 2, entry.questId, true)
         end
     end
+    y = addLinksAndDiagram(y, entry, view, false)
     return y + PADDING + rewardsExtraHeight
 end
 
@@ -3282,6 +3422,7 @@ local function drawAvailableQuest(quest, zoneId)
             y = addChain(y + 2, quest.questId, true)
         end
     end
+    y = addLinksAndDiagram(y, quest, view, true)
     return y + PADDING + rewardsExtraHeight
 end
 
@@ -3292,6 +3433,7 @@ QuestPage.CHECKBOX_TICK = CHECKBOX_TICK
 QuestPage.TO_DO_LEAD = TO_DO_LEAD
 QuestPage.addBody = addBody
 QuestPage.addHeading = addHeading
+QuestPage.addLinksAndDiagram = addLinksAndDiagram
 QuestPage.addSteps = addSteps
 QuestPage.addPaperButton = addPaperButton
 QuestPage.composeProgress = composeProgress

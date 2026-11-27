@@ -13,17 +13,17 @@ click("Available")
 wait(0.3)
 click("My quests")
 wait(0.3)
-local trailhead = require("addons").byName["onemorequest"].private
-local objective = trailhead.QuestState.getQuest(844).objectives[1]
+local omq = require("addons").byName["onemorequest"].private
+local objective = omq.QuestState.getQuest(844).objectives[1]
 print("German objective:", objective.text, "label:", objective.label)
 expect(objective.label and not objective.label:find("%d"), "the objective's label loses its count in German too")
 
 -- A kill objective in German ("… getötet") is still a kill: its mark has the swords
 accept(871) -- Disrupt the Attacks
 wait(0.5)
-trailhead.Focus.set(871)
+omq.Focus.set(871)
 local glyph
-for _, mark in ipairs(trailhead.MapMarks.compose(1413)) do
+for _, mark in ipairs(omq.MapMarks.compose(1413)) do
     if mark.questId == 871 and mark.labels and mark.labels[1] then
         glyph = mark.labels[1].glyph
         break

@@ -1,7 +1,6 @@
 local addonName, ns = ...
 
--- The name players see; the addon's folder is named the same. Inside, the code keeps its first name
--- (TrailheadLog, TrailheadTracker), which players never see.
+-- The name players see; the addon's folder and its frames (OneMoreQuestLog, OneMoreQuestTracker) are named the same.
 ns.ADDON_TITLE = "OneMoreQuest"
 ns.ADDON_FOLDER = addonName -- for asking the game about this addon (its version), whatever the folder is called
 
@@ -49,6 +48,11 @@ local DEFAULT_SETTINGS = {
     trackerWidth = 260, -- how wide the tracker is, set by dragging the grip at its title's left end
     trackerHeightShare = 0, -- the most of the screen's height the tracker takes (the grip under it); 0: as much as fits
     windowScale = 1, -- the quest window's size, text included, beside the map
+    diagramTreeWidth = false, -- the quest diagram's window as the player sized it (its tree's width, its height);
+    diagramHeight = false, -- false: its usual size
+    mapSize = 1, -- the windowed map's size, a share of the game's own (the grip at the quest window's corner)
+    pageStretch = 0, -- how much wider than usual the quest window's page is, set by the grip at its corner
+    windowExtraHeight = 0, -- how much taller than the map beside it the quest window is (the same grip)
     trackerOrder = "number", -- quests in a tracker zone: as tracked ("number"), "distance", "level" or "progress"
     shouldCollapseReady = false, -- a quest ready to hand in is its title alone in the tracker
     shouldHideDoneObjectives = false, -- the tracker lists only objectives still to do
@@ -75,6 +79,7 @@ local DEFAULT_SETTINGS = {
     nameplateIconScale = 1, -- its size
     shouldAutoAccept = false, -- quests offered are accepted (Shift held: the player answers)
     shouldAutoTurnIn = false, -- ready quests are handed in when there is no reward to choose
+    shouldKeepUntracked = false, -- a quest moving on is not tracked by it (the game's way, kept when off): QuestState
     lowLevelGap = 0, -- levels below the player past which a quest is low-level; 0: as the game greys them out
     shouldShowDungeonLeadIns = true, -- low-level quests still offered when their chain leads to a dungeon's (or a raid's) quest in range
     shouldShowAnyLeadIns = false, -- ... or to any quest in range (takes in the one above)
@@ -88,7 +93,8 @@ local DEFAULT_SETTINGS = {
     arePanelsHidden = false, -- the quest panels folded away by the arrow on the map, leaving the map alone
     shouldShowLowLevel = false,
     shouldShowRepeatable = false,
-    areaStyle = "filled", -- the areas round each quest's spawns, in its colour: a light wash ("filled"), bold shapes with a bright edge ("blob"), or "none"
+    areaGeometry = "soft", -- how an area is drawn on the maps: soft shadows alone ("soft"), an oval with a ring round each group of spawns ("ovals"), both a couple of pictures an area; or traced round the spawns, many pieces ("traced")
+    areaStyle = "filled", -- the areas round each quest's spawns, in its colour ("filled"), or "none"
     shouldFillAreas = true, -- the areas filled in the quest's colour (off: their outlines alone)
     shouldOutlineAreas = true, -- a line round each area in the quest's colour (off: the fill alone)
     areaFillStrength = 1, -- how strongly they are filled and outlined, against the look as it comes (0.1 to 2)
@@ -959,7 +965,7 @@ end
 local OLD_AREA_STYLES = {
     icons = { "filled", "glyph" }, -- "Icons and areas"
     spawns = { "none", "glyph" }, -- "Icons only"
-    shapes = { "blob", "none" }, -- "Shapes": areas alone, as they were
+    shapes = { "filled", "none" }, -- "Shapes": areas alone (the bold look there was: its strengths, below)
     dots = { "none", "square" }, -- "Squares"
 }
 
@@ -990,9 +996,17 @@ function ns.loadSettings(savedSettings)
         settings.questIconPvP = "gold"
     end
     local old = OLD_AREA_STYLES[settings.areaStyle]
+    local wasBold = settings.areaStyle == "blob" or settings.areaStyle == "shapes"
     if old then
         settings.areaStyle = old[1]
         settings.spawnMarker = settings.spawnMarker or old[2]
+    end
+    if wasBold then
+        -- "Shapes", the bold look, is the one look of areas now, as strong as it was: its fill and its outline were
+        -- so many times the light look's, and the two strengths say that (up to the most they go to)
+        settings.areaStyle = "filled"
+        settings.areaFillStrength = math.min(2, (tonumber(settings.areaFillStrength) or 1) * 2)
+        settings.areaOutlineStrength = math.min(2, (tonumber(settings.areaOutlineStrength) or 1) * 1.6)
     end
     for key, value in pairs(DEFAULT_SETTINGS) do
         if settings[key] == nil then
@@ -1450,6 +1464,20 @@ local function handleSlashCommand(input)
         ns.MapPins.applyGameFilter(true)
         ns.queueRefresh()
         ns.print(ns.L(ns.settings.shouldShowMapPins and "map pins shown." or "map pins hidden."))
+    elseif command == "ovals" then
+        -- (the settings' "Drawn as", from the chat: for comparing them at one spot of the map)
+        local nextOf = { ovals = "soft", soft = "traced", traced = "ovals" }
+        ns.settings.areaGeometry = nextOf[ns.settings.areaGeometry] or "soft"
+        ns.queueRefresh()
+        if ns.MapPins and ns.MapPins.queueRefresh then
+            ns.MapPins.queueRefresh()
+        end
+        local said = {
+            ovals = "areas drawn as ovals. /omq ovals again for soft shadows.",
+            soft = "areas drawn as soft shadows alone. /omq ovals again for traced shapes.",
+            traced = "areas traced round their spawns (the heaviest). /omq ovals again for ovals.",
+        }
+        ns.print(said[ns.settings.areaGeometry])
     elseif command == "timing" then
         Timing.toggle()
     elseif command == "cpu" then
@@ -1479,6 +1507,24 @@ local function handleSlashCommand(input)
                     and "plain drawing ON after /reload: everything is set anew at every drawing, as before (slower). /omq plain again turns it off."
                 or "plain drawing OFF after /reload: what has not changed is left alone again."
         )
+    elseif command == "drawing" then
+        -- The map's areas and spawn marks: kept on the map and only moved by it (MapMarks\World), or drawn again for
+        -- every view as before, for telling a fault of the kept drawing apart
+        local rest = (input or ""):lower():match("^%S+%s+(%S+)")
+        local isClassic = ns.settings.mapRenderer ~= "classic"
+        if rest == "kept" then
+            isClassic = false
+        elseif rest == "classic" then
+            isClassic = true
+        end
+        ns.settings.mapRenderer = isClassic and "classic" or nil
+        ns.MapMarks.forgetKeptPoints()
+        ns.queueRefresh()
+        ns.print(
+            isClassic
+                    and "map drawing: CLASSIC (every area and spawn mark laid out again for each view; slower). /omq drawing again for the kept one."
+                or "map drawing: KEPT (areas and spawn marks laid out once in the world and moved with the map)."
+        )
     elseif command == "hover" then
         ns.MapHover.toggleReport()
     elseif command == "mapbuiltin" then
@@ -1502,7 +1548,7 @@ local function handleSlashCommand(input)
     else
         ns.print(
             ns.L(
-                "commands: /trailhead (show or hide the tracker), settings, log, available, key, pins, givers, mapbuiltin, lock, reset, builtin"
+                "commands: /omq (show or hide the tracker), settings, log, available, key, pins, givers, mapbuiltin, lock, reset, builtin"
             )
         )
     end
@@ -1520,10 +1566,9 @@ function ns.start()
     ns.handleEvent = handleEvent -- the same, for tests and the simulator to send events through
 
     watchProblems() -- (OneMoreQuest's own Lua errors and refused actions kept from the start: errorLog)
-    SLASH_TRAILHEAD1 = "/omq"
-    SLASH_TRAILHEAD2 = "/onemorequest"
-    SLASH_TRAILHEAD3 = "/trailhead" -- the addon's first name, kept for those used to it
-    SlashCmdList.TRAILHEAD = handleSlashCommand
+    SLASH_ONEMOREQUEST1 = "/omq"
+    SLASH_ONEMOREQUEST2 = "/onemorequest"
+    SlashCmdList.ONEMOREQUEST = handleSlashCommand
 end
 
 if CreateFrame then

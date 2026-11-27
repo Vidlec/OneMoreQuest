@@ -88,20 +88,23 @@ local SQUARE_SHARE = 0.45 -- a square against a glyph's size
 ---@param size number The glyph's size; the other kinds take theirs from it
 ---@param glowSize number The glow's size under a glyph
 ---@param dim number? How much of it shows, 0 to 1 (the minimap's are see-through)
+---@param pixel number? How long a pixel is in the units the sizes are given in (1: they are pixels; the kept drawing
+---gives them in a zone's own units, which grow with the map)
 ---@return boolean hasUnder The texture under is part of it (a glyph with its glow switched off has none): whoever
 ---shows the marker shows it, or keeps it hidden
-function MapMarks.dressSpawnMarker(under, over, kind, glyph, color, isStrong, size, glowSize, dim)
+function MapMarks.dressSpawnMarker(under, over, kind, glyph, color, isStrong, size, glowSize, dim, pixel)
     dim = dim or 1
+    pixel = pixel or 1
     local overAlpha = (isStrong and 1 or FADED_ICON_ALPHA) * dim
     local glowAlpha = (isStrong and FOCUSED_ICON_GLOW_ALPHA or FADED_ICON_GLOW_ALPHA) * dim
     -- (the two are dressed in one kind after another as the player tries them: a picture given after the game's art
     -- would keep that art's part of its sheet, and a plain colour is tinted by what tint was left)
     under:SetTexCoord(0, 1, 0, 1)
     if kind == "square" then
-        local side = math.max(size * SQUARE_SHARE, 3)
+        local side = math.max(size * SQUARE_SHARE, 3 * pixel)
         under:SetColorTexture(SQUARE_EDGE[1], SQUARE_EDGE[2], SQUARE_EDGE[3], 0.85 * overAlpha)
         under:SetVertexColor(1, 1, 1, 1)
-        under:SetSize(side + 2, side + 2)
+        under:SetSize(side + 2 * pixel, side + 2 * pixel)
         over:SetTexCoord(0, 1, 0, 1)
         over:SetColorTexture(color[1], color[2], color[3], math.min(1, overAlpha + 0.2 * dim))
         over:SetVertexColor(1, 1, 1, 1)
@@ -371,7 +374,6 @@ local MARK_KIND_ICONS = {
     event = "minimap-genericevent-hornicon-small",
     repeatable = "questlog-questtypeicon-recurring",
 }
-MapMarks.MARK_KIND_ICONS = MARK_KIND_ICONS
 -- A coin in each colour of the quest icons: its face, its rim and the ink struck on it, darker shades of the face
 local COIN_COLOURS = {
     gold = { face = COIN_FACE, rim = COIN_RIM, ink = COIN_INK },
@@ -407,6 +409,7 @@ local function acquire(pool, create)
         item = create()
         pool[pool.usedCount] = item
     end
+    item.omqLoose = nil -- (let go of the map while unused: Draw; whoever takes it places it)
     item:Show()
     return item
 end
@@ -422,6 +425,24 @@ local function createCircle(parent, layer, level)
     mask:SetAllPoints(circle)
     circle:AddMaskTexture(mask)
     return remember(circle)
+end
+
+-- (a disc's colour: SetColorTexture's four numbers, given to the round picture as its tint)
+local function setDiscColor(self, red, green, blue, alpha)
+    return self:SetVertexColor(red, green, blue, alpha or 1)
+end
+
+---A round piece of one colour (a coin's rim, face and gleam, a ring): the round mask's own picture, a white disc,
+---tinted. Painted as any colour is (SetColorTexture). A colour cut round by a mask looks the same and is the dearest
+---thing there is for the game to draw (each masked picture is drawn apart from all others, every frame): a map of a
+---hundred marks held two hundred of them, there for as long as the map stood open. Only a picture needs the mask (an
+---item's icon: createCircle).
+local function createDisc(parent, layer, level)
+    local disc = parent:CreateTexture(nil, layer, nil, level)
+    disc:SetTexture(CIRCLE_MASK)
+    disc = remember(disc)
+    disc.SetColorTexture = setDiscColor
+    return disc
 end
 
 local WHITE = { 1, 1, 1 }
@@ -676,12 +697,13 @@ local function ensureCoinParts(button)
     if type(button.edge) == "table" then -- (made already)
         return
     end
-    button.edge = createCircle(button, "BORDER", 0)
+    button.omqParts = nil -- (more parts: the map lists them again, Draw's restHiddenParts)
+    button.edge = createDisc(button, "BORDER", 0)
     button.edge:SetPoint("CENTER", button, "CENTER", 0, 0)
-    button.fill = createCircle(button, "ARTWORK", 0)
+    button.fill = createDisc(button, "ARTWORK", 0)
     button.fill:SetPoint("TOPLEFT", button.edge, "TOPLEFT", 1.5, -1.5)
     button.fill:SetPoint("BOTTOMRIGHT", button.edge, "BOTTOMRIGHT", -1.5, 1.5)
-    button.shine = createCircle(button, "ARTWORK", 3)
+    button.shine = createDisc(button, "ARTWORK", 3)
     button.shine:SetColorTexture(1, 0.97, 0.75, 0.55)
     -- Hidden as every part is before a mark is dressed: whoever asked shows what it uses
     button.edge:Hide()
@@ -696,17 +718,18 @@ local function ensureItemParts(button)
     if type(button.itemEdge) == "table" then -- (made already)
         return
     end
-    button.itemEdge = createCircle(button, "ARTWORK", 3)
+    button.omqParts = nil -- (more parts: the map lists them again, Draw's restHiddenParts)
+    button.itemEdge = createDisc(button, "ARTWORK", 3)
     button.itemEdge:SetColorTexture(0, 0, 0, 1)
     button.itemEdge:SetPoint("CENTER", button, "CENTER", 0, 0)
-    button.itemRing = createCircle(button, "ARTWORK", 4)
+    button.itemRing = createDisc(button, "ARTWORK", 4)
     button.itemRing:SetColorTexture(FOCUS_GOLD[1], FOCUS_GOLD[2], FOCUS_GOLD[3], 1)
     button.itemRing:SetPoint("CENTER", button, "CENTER", 0, 0)
     button.itemIcon = createCircle(button, "ARTWORK", 5)
     button.itemIcon:SetPoint("CENTER", button, "CENTER", 0, 0)
-    button.badgeEdge = createCircle(button, "OVERLAY", 5)
+    button.badgeEdge = createDisc(button, "OVERLAY", 5)
     button.badgeEdge:SetColorTexture(FOCUS_GOLD[1], FOCUS_GOLD[2], FOCUS_GOLD[3], 1)
-    button.badgeFace = createCircle(button, "OVERLAY", 6)
+    button.badgeFace = createDisc(button, "OVERLAY", 6)
     button.badgeFace:SetColorTexture(DARK[1], DARK[2], DARK[3], 1)
     button.badgeFace:SetPoint("CENTER", button.badgeEdge, "CENTER", 0, 0)
     button.badgeBang = remember(button:CreateTexture(nil, "OVERLAY", nil, 7))
@@ -739,7 +762,7 @@ function MapMarks.createMarkButton(parent)
     button.glow:SetTexture(SOFT_DOT)
     button.glow:SetPoint("CENTER", button, "CENTER", 0, 0)
     -- The followed quest: a bright gold ring right round the mark, inside its glow
-    button.focusRing = createCircle(button, "BACKGROUND", 2)
+    button.focusRing = createDisc(button, "BACKGROUND", 2)
     -- (A coin's rim, face and gleam, and an item mark's ring and badge, are made when a mark first is one:
     -- ensureCoinParts and ensureItemParts. Each is a texture cut round by a mask, the dearest things to make, and a
     -- quest giver's "!" needs none of them; made with every button they were nine masks a mark.)
@@ -1125,6 +1148,7 @@ function MapMarks.applyDungeonLook(button, mark, size)
         if not orbiting then
             orbiting = MapMarks.createMarkButton(button)
             button.orbiting[index] = orbiting
+            button.omqParts = nil -- (more parts: the map lists them again, Draw's restHiddenParts)
         end
         -- The quest highlighted (selected, or hovered in the list) stands out from the dungeon's others: full size,
         -- with its gold ring and glow, over them; the rest small round the entrance

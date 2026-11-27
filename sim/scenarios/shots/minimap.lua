@@ -29,4 +29,4 @@ wait(1.5)
 addon.Focus.set(869) -- its turn-in off the minimap: the arrow on the rim
 zoomMinimap(0)
 wait(1)
-crop("minimap", { G.MinimapCluster or G.Minimap, G.TrailheadTracker }, 8)
+crop("minimap", { G.MinimapCluster or G.Minimap, G.OneMoreQuestTracker }, 8)

@@ -33,6 +33,8 @@ end
 ---@field direction string?
 ---@field chainIndex number?
 ---@field chainTotal number?
+---@field unlockIds number[] The quests it opens besides its chain, still to do (Chain.getUnlockedQuestIds)
+---@field requiredIds number[] The quests it needed first besides its chain (Chain.getRequiredQuestIds)
 ---@field item table? The quest's usable item, while it is still of use
 ---@field number number? The quest's number on the map, set for tracked quests
 ---@field unlocatedCount number Unfinished objectives the database has no place for
@@ -208,6 +210,7 @@ function Model.composeEntry(questId, player)
     entry.distance, entry.direction, entry.nearestPlace =
         ns.Geometry.getNearest(step.places, player.position, ns.Database.getUiMapId)
     entry.chainIndex, entry.chainTotal = ns.Chain.getStep(questId)
+    entry.unlockIds, entry.requiredIds = ns.Chain.getUnlockedQuestIds(questId), ns.Chain.getRequiredQuestIds(questId)
     local item = ns.QuestState.getItem(questId)
     if item and (not entry.isComplete or item.shouldShowWhenComplete) then
         entry.item = item

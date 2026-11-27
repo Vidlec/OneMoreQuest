@@ -48,10 +48,10 @@ memberProgress("Garra", 1113, 1, 1)
 wait(2)
 expect(G.C_TooltipInfo.GetQuestPartyProgress(1113) == nil, "no party lines from the game inside")
 -- OneMoreQuest heard Garra's addon (exact counts, there inside too), and nothing from Brakka, who has none
-local trailhead = require("addons").byName["onemorequest"].private
-local garra = trailhead.Comms.getRemoteQuest("Garra", 1113)
+local omq = require("addons").byName["onemorequest"].private
+local garra = omq.Comms.getRemoteQuest("Garra", 1113)
 expect(garra and garra.objectives[1].fulfilled == 5, "OneMoreQuest has Garra's count of 5 from her addon")
-expect(trailhead.Comms.getRemoteQuest("Brakka Stone", 1113) == nil, "nothing came from Brakka, who runs no addon")
+expect(omq.Comms.getRemoteQuest("Brakka Stone", 1113) == nil, "nothing came from Brakka, who runs no addon")
 leaveInstance()
 
 -- Walking and the minimap
@@ -75,12 +75,15 @@ expect(G.GetNumGroupMembers() == 2, "Brakka left")
 
 -- A member running Questie: its messages, made by Questie's own code, reach OneMoreQuest through its bridge
 joinParty({ name = "Questa", class = "PRIEST", level = 33, addon = "Questie" })
+-- (a moment for the hellos: OneMoreQuest asks a Questie it hears for its log, and the answer, made as it is asked
+-- for, would otherwise cross with the progress below and land after it)
+wait(1.5)
 memberAccept("Questa", 1113)
 memberProgress("Questa", 1113, 1, 7)
 wait(3)
-local questa = trailhead.Comms.getRemoteQuest("Questa", 1113)
+local questa = omq.Comms.getRemoteQuest("Questa", 1113)
 expect(questa and questa.source == "Questie", "OneMoreQuest heard Questa through Questie's messages")
 expect(questa and questa.objectives[1] and questa.objectives[1].fulfilled == 7, "with her count of 7 hearts")
 memberAbandon("Questa", 1113)
 wait(1)
-expect(trailhead.Comms.getRemoteQuest("Questa", 1113) == nil, "and that she dropped it")
+expect(omq.Comms.getRemoteQuest("Questa", 1113) == nil, "and that she dropped it")

@@ -11,6 +11,10 @@ source = os.path.expanduser(sys.argv[1]) if len(sys.argv) > 1 else os.path.join(
 output = os.path.expanduser(sys.argv[2] if len(sys.argv) > 2 else "~/Desktop/OneMoreQuest-CurseForge")
 toc = open(os.path.join(source, "OneMoreQuest.toc"), encoding="utf-8").read()
 version = re.search(r"^## Version:\s*(\S+)", toc, re.M).group(1)
+# The title shows the version in the game's AddOns list ("OneMoreQuest v0.16.0"): raised with the Version line
+title = re.search(r"^## Title:\s*(.+)$", toc, re.M).group(1)
+if f"v{version}|r" not in title:
+    sys.exit(f"The TOC's Title ({title.strip()}) does not show the version {version}: raise both together")
 target = os.path.join(output, f"OneMoreQuest-{version}.zip")
 os.makedirs(output, exist_ok=True)
 missing = []

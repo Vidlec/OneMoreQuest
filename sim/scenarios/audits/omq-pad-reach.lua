@@ -12,7 +12,7 @@ wait(1)
 gamepadInterface(true)
 key("M")
 wait(1)
-local window, manager, nav = G.TrailheadLog, G.GamepadMode.FrameControlsManager, G.SmartNavigation
+local window, manager, nav = G.OneMoreQuestLog, G.GamepadMode.FrameControlsManager, G.SmartNavigation
 local addon = require("addons").byName["onemorequest"].private
 local scene, W, sim = require("scene"), require("widgets"), require("sim")
 for _ = 1, 4 do

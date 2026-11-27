@@ -318,6 +318,75 @@ if CreateFrame then
     end
 end
 
+-- The game tracks a quest whenever its objectives move on (QuestMapFrame on QUEST_WATCH_UPDATE, while the
+-- autoQuestWatch setting is on, as it is by default): picking up an item for a quest the player had untracked
+-- tracked it again. With "Quests you untrack stay untracked" on (settings.shouldKeepUntracked, off by default: the
+-- game's way), a quest is tracked when it is taken (the game's own, kept) and when the player tracks it; never by
+-- its progress alone: what the game tracks so is untracked again, the next frame, once the game is done.
+local PROGRESS_SECONDS = 0.5 -- a quest tracked this soon after it moved on was tracked for that
+local ACCEPT_SECONDS = 3 -- one taken this recently keeps its tracking (items already carried move it on at once)
+local progressedAt, acceptedAt = {}, {}
+local knownWatched -- [questId] = true: what was tracked as last seen (nil until first looked)
+local isWatchCheckQueued = false
+
+local function readWatchedSet()
+    local watched = {}
+    for index = 1, C_QuestLog.GetNumQuestWatches() or 0 do
+        local questId = C_QuestLog.GetQuestIDForQuestWatchIndex(index)
+        if questId and questId > 0 then
+            watched[questId] = true
+        end
+    end
+    return watched
+end
+
+local function undoProgressWatches()
+    isWatchCheckQueued = false
+    local now = GetTime and GetTime() or 0
+    local watched = readWatchedSet()
+    for questId in pairs(knownWatched and watched or {}) do
+        local isProgress = progressedAt[questId] and now - progressedAt[questId] <= PROGRESS_SECONDS
+        local isJustTaken = acceptedAt[questId] and now - acceptedAt[questId] <= ACCEPT_SECONDS
+        if ns.settings.shouldKeepUntracked and not knownWatched[questId] and isProgress and not isJustTaken then
+            C_QuestLog.RemoveQuestWatch(questId)
+            watched[questId] = nil
+        end
+    end
+    knownWatched = watched
+end
+
+---What the game said of the log or the tracked quests, for keeping progress from tracking a quest (above).
+---@param event string QUEST_WATCH_UPDATE (a quest moved on), QUEST_ACCEPTED or QUEST_WATCH_LIST_CHANGED
+function QuestState.noteWatchEvent(event, questId)
+    local now = GetTime and GetTime() or 0
+    if event == "QUEST_WATCH_UPDATE" and questId then
+        progressedAt[questId] = now
+    elseif event == "QUEST_ACCEPTED" and questId then
+        acceptedAt[questId] = now
+    end
+    if isWatchCheckQueued then
+        return
+    end
+    isWatchCheckQueued = true
+    if C_Timer and C_Timer.After then
+        C_Timer.After(0, undoProgressWatches)
+    else
+        undoProgressWatches()
+    end
+end
+
+if CreateFrame then
+    local watchGuard = CreateFrame("Frame")
+    if watchGuard and watchGuard.RegisterEvent and watchGuard.SetScript then
+        for _, event in ipairs({ "QUEST_WATCH_UPDATE", "QUEST_ACCEPTED", "QUEST_WATCH_LIST_CHANGED" }) do
+            pcall(watchGuard.RegisterEvent, watchGuard, event)
+        end
+        watchGuard:SetScript("OnEvent", function(_, event, questId)
+            QuestState.noteWatchEvent(event, questId)
+        end)
+    end
+end
+
 local function readLogQuestIds()
     local frameNumber = ns.frameNumber
     if frameNumber > 0 and logReadFrame == frameNumber and logQuestIds then
@@ -499,6 +568,9 @@ function QuestState.addWatch(questId)
         return false
     end
     C_QuestLog.AddQuestWatch(questId)
+    if knownWatched then
+        knownWatched[questId] = true -- (the player's own: kept, whatever moved on just before)
+    end
     QuestState.forgetWatches()
     if not QuestState.isWatched(questId) then
         showError(ns.L("The game would not track this quest."))

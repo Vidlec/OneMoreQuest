@@ -33,7 +33,6 @@ local LEVELS_UNDER_GROUP = 6
 local FALLBACK_GROUP_LEVEL = 2765 -- what the game's world map gives group members with an ordinary quest log
 local FALLBACK_QUEST_BLOB_LEVEL = 2007 -- and its own quest areas
 State.frameLevel = FALLBACK_GROUP_LEVEL - LEVELS_UNDER_GROUP
-local MAX_POINTS = 80
 local MERGE_DISTANCE = 0.035 -- marks of the quest in focus closer than this become one mark with several labels
 
 local MEDIA = "Interface\\AddOns\\" .. addonName .. "\\Media\\"
@@ -45,7 +44,6 @@ MapMarks.QUEST_BLUE = QUEST_BLUE -- the minimap's spawn squares are the same blu
 -- Shades of that blue for a quest with several objectives, near enough to read as one family
 local FOCUS_GOLD = { 1, 0.86, 0.2 } -- the followed quest's ring and glow, like the game's highlighted buttons
 local QUEST_SHADES = { { 0.3, 0.62, 1 }, { 0.62, 0.46, 1 }, { 0.2, 0.85, 0.85 }, { 0.5, 0.78, 1 } }
-local SPAWN_PATCH = 0.05 -- a shape's disc on a spawn point, as a fraction of the map's width
 -- A spawn point is a tiny square, on screen, with no edge: round marks are the game's for people (the player's
 -- party), so nothing of a quest's is round and small, and the spawns read as texture under the marks
 local FADED_ICON_ALPHA, FADED_ICON_GLOW_ALPHA = 0.6, 0.4 -- a tracked quest's spawn icons and their glow, fainter
@@ -60,6 +58,8 @@ MapMarks.GLYPHS = GLYPHS
 -- edged in that colour, so where quests overlap their fills add up; on every spawn, one to a cell, an icon of
 -- what to do there with a glow in the quest's colour
 -- Twelve, told apart on the map's greens and browns; none is the gold of quest givers and the quest in focus
+-- As many as the game lets a player track (Constants.QuestWatchConsts.MAX_QUEST_WATCHES, 25): every tracked quest has
+-- a colour of its own. The bright ones first, then deep and pale ones of other hues; none gold (the marks' own)
 local QUEST_COLORS = {
     { 0.3, 0.62, 1 },
     { 1, 0.56, 0.18 },
@@ -73,6 +73,19 @@ local QUEST_COLORS = {
     { 0.88, 0.38, 0.95 },
     { 1, 0.7, 0.55 },
     { 0.55, 0.96, 0.72 },
+    { 0.12, 0.35, 0.85 }, -- deep: royal blue
+    { 0.75, 0.35, 0.05 }, -- burnt orange
+    { 0.1, 0.55, 0.25 }, -- forest green
+    { 0.75, 0.1, 0.45 }, -- crimson
+    { 0.42, 0.25, 0.8 }, -- indigo
+    { 0.05, 0.55, 0.6 }, -- teal
+    { 0.7, 0.1, 0.1 }, -- dark red
+    { 0.8, 0.88, 1 }, -- pale: ice blue
+    { 1, 0.82, 0.86 }, -- blush
+    { 0.86, 1, 0.58 }, -- lime
+    { 0.82, 0.68, 1 }, -- lilac
+    { 0.62, 1, 1 }, -- aqua
+    { 0.97, 0.97, 0.97 }, -- white
 }
 -- A quest's areas are muted, as its spawn icons are, until the quest is focused or highlighted
 local AREA_FILL_ALPHA, FOCUSED_AREA_FILL_ALPHA = 0.08, 0.3
@@ -104,15 +117,15 @@ function MapMarks.setObjectiveIcon(texture, glyph)
 end
 
 -- How the quests' places are shown is two choices of the player's, each on its own (the settings' Map and minimap):
---   the areas round a quest's spawns (settings.areaStyle): "filled", a light wash in the quest's colour; "blob", the
---     shapes, bold as the game draws its own quest areas; "none"
+--   the areas round a quest's spawns (settings.areaStyle): "filled", in the quest's colour, as strong as the player
+--     sets their fill and outline; "none"
 --   the marker on each spawn (settings.spawnMarker): "glyph", what to do there on a glow in the quest's colour;
 --     "plate", the glyph on a small dark plate edged in that colour; "game", the game's own skull, chest and star;
 --     "square", a small square in that colour; "none"
-local AREA_STYLES = { filled = true, blob = true, none = true }
+local AREA_STYLES = { filled = true, none = true }
 local SPAWN_MARKERS = { glyph = true, plate = true, game = true, square = true, none = true }
 
----@return string style "filled", "blob" or "none"
+---@return string style "filled" or "none" (a look saved by another version reads as "filled")
 function MapMarks.getAreaStyle()
     local style = ns.settings.areaStyle
     return AREA_STYLES[style] and style or "filled"
@@ -289,6 +302,8 @@ local function getWorldPlace(place)
     return position
 end
 
+Compose.getWorldPlace = getWorldPlace -- (the kept drawing thins its spawn marks in the world too)
+
 ---@return string key The same for the same list of places, in the same order, cheaply: its length and two sums
 ---over its places, each weighted by its position (two, so that two different lists hardly ever meet)
 local function getPlacesKey(places)
@@ -397,8 +412,11 @@ end
 -- Spawn icons thinned out in the world, as Questie does, but in nested steps of doubling squares (thinPoints): a
 -- coarser step's spawns are always among a finer one's, so zooming in only adds icons and zooming out only takes some
 -- away, none ever moves; and every map, the minimap and every view keep the same ones.
-MapMarks.SPAWN_SPACINGS = { 0, 25, 50, 100, 200, 400 } -- yards between shown spawns, finest first
-local SPAWN_SPACING_PIXELS = ICON_SIZE + 1 -- shown spawns are at least an icon apart on screen (at the marks' size)
+-- (the coarse steps for a continent's and the world's maps, where a quest's spawns spread over dozens of zones)
+MapMarks.SPAWN_SPACINGS = { 0, 25, 50, 100, 200, 400, 800, 1600, 3200 } -- yards between shown spawns, finest first
+-- Shown spawns are two icons apart on screen (at the marks' size): one apart made a carpet of icons over a quest's
+-- area (It Takes Guts: 5,600 spawns, thousands of icons in Riverglades) that said no more than the area does
+local SPAWN_SPACING_PIXELS = 2 * (ICON_SIZE + 1)
 local SPAWN_SPACING_SLACK = 1.15 -- the zoom must go this far past a step's edge to change step: no flicker at the edge
 
 local spawnRanks = setmetatable({}, { __mode = "k" }) -- place -> its fixed rank, from where it is
@@ -414,13 +432,27 @@ local function getSpawnRank(place)
     return rank
 end
 
+Compose.getSpawnRank = getSpawnRank
+
 ---@return table[] points The spawns shown at a spacing (yards): the world cut into squares of that size, in each the
 ---spawn of the lowest rank. Each step's squares are four of the next finer step's, so the spawn kept in a big square
 ---is kept in its small one too: zooming in only adds spawns, never moves one. As a spawn's rank is its own, the
 ---same spawns are kept whichever list they come in: on the map, on the minimap, in every view.
+local thinned = setmetatable({}, { __mode = "k" }) -- [points] = { [spacing] = kept }: a list is kept while it is
 function MapMarks.thinPoints(points, spacing)
     if not spacing or spacing <= 0 or #points < 2 then
         return points
+    end
+    -- (a quest's spawns are kept lists, Compose's getObjectivePoints: thinned once for each step, not at every
+    -- drawing, a key string for each of thousands of spawns each time)
+    local bySpacing = thinned[points]
+    local known = bySpacing and bySpacing[spacing]
+    if known and bySpacing.count == #points then
+        return known
+    end
+    if not bySpacing or bySpacing.count ~= #points then
+        bySpacing = { count = #points }
+        thinned[points] = bySpacing
     end
     local best, bestRank, kept = {}, {}, {}
     for _, point in ipairs(points) do
@@ -448,7 +480,15 @@ function MapMarks.thinPoints(points, spacing)
             kept[#kept + 1] = point
         end
     end
+    bySpacing[spacing] = kept -- (shared: read, never changed)
     return kept
+end
+
+---@return number room How much room a step's spawns have at a zoom: 1 is just enough (the step shows from there),
+---2 enough for the next finer step
+function MapMarks.getSpawnRoom(pixelsPerYard, spacing, markScale)
+    local yards = spacing > 0 and spacing or 12
+    return yards * (pixelsPerYard or 0) / (SPAWN_SPACING_PIXELS * (markScale or 1))
 end
 
 ---@return number spacing Yards between the spawns shown at a zoom (pixels a yard), the finest step whose spawns stand
@@ -491,6 +531,9 @@ end
 ---@return table[] areas Largest first (in the world), each with x, y (its anchor), radiusX, radiusY, centroidX, centroidY, points
 function MapMarks.composeStableAreas(points)
     local places, loose, placeIndexOf = {}, {}, {}
+    -- A long list's stand-ins (getSummary): grouped by the whole list's areas, each area knowing how many spawns it
+    -- has on this map though only a few of them are here
+    local summary = points.summary
     for _, point in ipairs(points) do
         if point.place and getWorldPlace(point.place) then
             places[#places + 1] = point.place
@@ -501,13 +544,21 @@ function MapMarks.composeStableAreas(points)
     end
     local areas = {}
     if #places > 0 then
-        local world = getWorldAreas(places)
-        local groups = {}
+        local world = summary and summary.world or getWorldAreas(places)
+        local groups, counts = {}, {}
         for _, point in ipairs(points) do
-            local index = placeIndexOf[point] and world.areaOf[placeIndexOf[point]]
+            local index
+            if summary then
+                index = summary.areaOf[point.place]
+            else
+                index = placeIndexOf[point] and world.areaOf[placeIndexOf[point]]
+            end
             if index then
                 groups[index] = groups[index] or {}
                 table.insert(groups[index], point)
+                if summary then
+                    counts[index] = (counts[index] or 0) + (summary.weights[point.place] or 0)
+                end
             end
         end
         local order = {}
@@ -523,10 +574,15 @@ function MapMarks.composeStableAreas(points)
         for _, index in ipairs(order) do
             local group = groups[index]
             local anchorIndex = world.anchors[index]
+            local anchorPlace = summary and summary.places[anchorIndex]
             local anchor
             local minX, maxX, minY, maxY, sumX, sumY = math.huge, -math.huge, math.huge, -math.huge, 0, 0
             for _, point in ipairs(group) do
-                anchor = placeIndexOf[point] == anchorIndex and point or anchor
+                if summary then
+                    anchor = point.place == anchorPlace and point or anchor
+                else
+                    anchor = placeIndexOf[point] == anchorIndex and point or anchor
+                end
                 minX, maxX = math.min(minX, point.x), math.max(maxX, point.x)
                 minY, maxY = math.min(minY, point.y), math.max(maxY, point.y)
                 sumX, sumY = sumX + point.x, sumY + point.y
@@ -543,6 +599,7 @@ function MapMarks.composeStableAreas(points)
             end
             areas[#areas + 1] = {
                 points = group,
+                count = summary and math.max(1, math.floor((counts[index] or 0) + 0.5)) or nil, -- (its spawns here, in all)
                 x = anchor.x,
                 y = anchor.y,
                 centroidX = anchor.x,
@@ -610,21 +667,10 @@ local function getListedZones(zoneIds)
     return count > 1 and listed or nil
 end
 
----Whether a place is the other zone's copy of a spawn: its point lies in another zone's land, and that zone lists
----its own copy (listedZones). A place over the border with no copy there (a patrol walking across it) is kept.
-local function isShadowed(zoneId, x, y, mapId, listedZones)
-    if not listedZones or not zoneId then
-        return false
-    end
-    local view = ns.MapPins.getView()
-    if not view or not view.getZoneMapIdAt then
-        return false
-    end
-    local isFine, zoneMapId = pcall(view.getZoneMapIdAt, mapId, x, y)
-    local areaId = isFine and type(zoneMapId) == "number" and ns.Database.getAreaId(zoneMapId)
-    local zoneUnder = areaId and ns.Database.getParentZoneId(areaId)
-    return zoneUnder ~= nil and zoneUnder ~= zoneId and listedZones[zoneUnder] == true
-end
+-- A spawn listed in two zones' maps (near a border) lands, joined up, on one spot twice over, the copies within this
+-- much of the map of each other (each zone's coordinates rounded): one is kept. Told apart by where they land, with
+-- nothing asked of the other addon (where each of thousands of spawns lies in its land was most of a drawing's time)
+local COPY_DISTANCE = 0.0015
 
 local function composePoints(places, mapId)
     local points = {}
@@ -633,13 +679,34 @@ local function composePoints(places, mapId)
         placeZones[index] = getPlaceZone(place)
     end
     local listedZones = getListedZones(placeZones)
+    local landed = listedZones and {} -- [cell] = { x, y, zone } of the first spawn there, for telling copies apart
     for index, place in ipairs(places) do
         local x, y
         if isOnMapZone(place, mapId) then
             x, y = ns.MapPins.getMapPosition(place, mapId)
         end
-        if x and isShadowed(placeZones[index], x, y, mapId, listedZones) then
-            x, y = nil, nil
+        if x and landed then
+            local column, row = math.floor(x / COPY_DISTANCE), math.floor(y / COPY_DISTANCE)
+            local zoneId = placeZones[index]
+            local isCopy = false
+            for stepColumn = -1, 1 do
+                for stepRow = -1, 1 do
+                    local other = landed[(column + stepColumn) * 1048576 + row + stepRow]
+                    if
+                        other
+                        and other[3] ~= zoneId
+                        and math.abs(other[1] - x) <= COPY_DISTANCE
+                        and math.abs(other[2] - y) <= COPY_DISTANCE
+                    then
+                        isCopy = true
+                    end
+                end
+            end
+            if isCopy then
+                x, y = nil, nil
+            elseif not landed[column * 1048576 + row] then
+                landed[column * 1048576 + row] = { x, y, zoneId }
+            end
         end
         if x then
             points[#points + 1] =
@@ -663,6 +730,11 @@ local MAX_KEPT_OBJECTIVES = 300 -- objectives a store keeps (quests tracked over
 local function newKeptStore()
     -- points: [quest:kind:index:map] = { points, areas }; places: [a list of places kept itself (a step's)] = { [map] = areas }
     return { points = {}, count = 0, places = setmetatable({}, { __mode = "k" }) }
+end
+
+---Lets go of every quest's points kept for the maps (the other way of drawing chosen: its marks take other points).
+function MapMarks.forgetKeptPoints()
+    keptByView, keptGeneration, keptDungeons, joinedViewKey = {}, nil, nil, nil
 end
 
 ---@return table? store What is kept for the view the marks are being worked out for; nil when nothing is kept
@@ -689,13 +761,116 @@ local function getKeptStore()
     return store
 end
 
+-- An objective's places, the one list while where quests lead stays what it was: asked of Location each time it is a
+-- new list of the same places (thousands of them for a quest whose item half the world drops), and what is kept by
+-- the list (its areas, its squares, what the kept drawing made of it) was kept for nothing.
+local keptPlaces, keptPlacesGeneration = {}, nil
+
+---@return table[] places An objective's places (Location.getObjectiveInfo's): shared, read only
+function MapMarks.getObjectivePlaces(questId, objectiveType, typeIndex)
+    local generation = tostring(ns.Model.getWordsGeneration()) .. ":" .. tostring(ns.Database.getDungeonsVersion())
+    if generation ~= keptPlacesGeneration then
+        keptPlaces, keptPlacesGeneration = {}, generation
+    end
+    local key = questId .. ":" .. objectiveType .. ":" .. typeIndex
+    local places = keptPlaces[key]
+    if not places then
+        places = (ns.Location.getObjectiveInfo(questId, objectiveType, typeIndex))
+        if ns.frameNumber > 0 then -- (in the tests, where no frames run, the quests' places change under a test)
+            keptPlaces[key] = places
+        end
+    end
+    return places
+end
+
+-- A long list's stand-ins. A quest's marks need its areas, not its spawns: where each area's mark stands (its anchor
+-- spawn), how far the area reaches, how many spawns it has. Worked out from every spawn at every drawing, a quest of
+-- thousands (It Takes Guts: 5,634; My First Alchemy Set: 14,794) was most of a drawing's time, and the kept drawing
+-- (MapMarks\World) draws the spawns and areas themselves from the places, not from the marks. So for the marks a long
+-- list is stood in for by a few of its places: of each area's part in each zone, its anchor, its outermost four and
+-- its first, weighted so that they add up to the part's count. Worked out once for a list.
+MapMarks.SUMMARY_FROM = 24 -- lists longer than this are summed up
+local summaries = setmetatable({}, { __mode = "k" }) -- [places] = summary
+
+---@return { places: table[], reps: table[], world: table, areaOf: table, weights: table } summary
+local function getSummary(places)
+    local summary = summaries[places]
+    if summary and summary.count == #places then
+        return summary
+    end
+    local world = getWorldAreas(places)
+    local reps, areaOf, weights, parts, order = {}, {}, {}, {}, {}
+    for index, place in ipairs(places) do
+        local area = world.areaOf[index]
+        if not area then
+            reps[#reps + 1] = place -- (no place in the world: itself, as before)
+        else
+            -- (told apart as a map tells its places apart: by the zone whose map it is on and the zone it counts for)
+            local key = area
+                .. ":"
+                .. tostring(place.zoneId)
+                .. ":"
+                .. tostring(place.mapZoneId or place.groupZoneId)
+                .. ":"
+                .. tostring(place.dungeonName)
+            local part = parts[key]
+            if not part then
+                part =
+                    { area = area, count = 0, left = place, right = place, top = place, bottom = place, first = place }
+                parts[key] = part
+                order[#order + 1] = part
+            end
+            part.count = part.count + 1
+            if place.x < part.left.x then
+                part.left = place
+            end
+            if place.x > part.right.x then
+                part.right = place
+            end
+            if place.y < part.top.y then
+                part.top = place
+            end
+            if place.y > part.bottom.y then
+                part.bottom = place
+            end
+            if index == world.anchors[area] then
+                part.anchor = place
+            end
+        end
+    end
+    for _, part in ipairs(order) do
+        local own = {}
+        for _, place in ipairs({ part.anchor or part.first, part.first, part.left, part.right, part.top, part.bottom }) do
+            if areaOf[place] == nil then
+                areaOf[place] = part.area
+                own[#own + 1] = place
+                reps[#reps + 1] = place
+            end
+        end
+        for _, place in ipairs(own) do
+            weights[place] = part.count / #own
+        end
+    end
+    summary = { count = #places, places = places, reps = reps, world = world, areaOf = areaOf, weights = weights }
+    summaries[places] = summary
+    return summary
+end
+
 ---@return table[] points, table[] areas An objective's spawns on a map (composePoints) and its areas (composeStableAreas)
 local function getObjectivePoints(questId, objectiveType, typeIndex, mapId)
     local store = getKeptStore()
     local key = store and (questId .. ":" .. objectiveType .. ":" .. typeIndex .. ":" .. mapId)
     local kept = store and store.points[key]
     if not kept then
-        local points = composePoints((ns.Location.getObjectiveInfo(questId, objectiveType, typeIndex)), mapId)
+        local places = MapMarks.getObjectivePlaces(questId, objectiveType, typeIndex)
+        local points
+        if #places > MapMarks.SUMMARY_FROM and ns.MapMarksWorld and ns.MapMarksWorld.isOn() then
+            local summary = getSummary(places)
+            points = composePoints(summary.reps, mapId)
+            points.summary = summary
+        else
+            points = composePoints(places, mapId)
+        end
         kept = { points = points, areas = MapMarks.composeStableAreas(points) }
         if store then
             if store.count >= MAX_KEPT_OBJECTIVES then
@@ -780,6 +955,7 @@ local function addFocusedMark(marks, mark, firstIndex)
             for _, point in ipairs(mark.spawnPoints or {}) do
                 other.spawnPoints[#other.spawnPoints + 1] = point
             end
+            other.spawnCount = (other.spawnCount or 0) + (mark.spawnCount or 0)
             for _, circle in ipairs(mark.roughCircles or {}) do
                 other.roughCircles[#other.roughCircles + 1] = circle -- (a rough mark joins only another: Spoilers)
             end
@@ -1461,6 +1637,7 @@ local function addQuestMarks(marks, entry, mapId, isFocused, number, spoilers)
                         -- Lists of the mark's own, not the area's: a mark joined by another (addFocusedMark) adds
                         -- that one's spawns to each, and one list in both places would hold them twice
                         points = #area.points > 1 and copyList(area.points) or {},
+                        spawnCount = area.count or #area.points, -- (a long list's stand-ins are fewer than its spawns)
                         -- Every spawn, a lone one too: the squares look draws a lone spawn as its circle (areas),
                         -- "icons and areas" needs them all for the quest's area and icons
                         spawnPoints = copyList(area.points),
@@ -1490,7 +1667,7 @@ local function addQuestMarks(marks, entry, mapId, isFocused, number, spoilers)
     -- A quest out of focus is one mark: its largest area
     local largest
     for _, quiet in ipairs(quietAreas) do
-        if not largest or #quiet.area.points > #largest.area.points then
+        if not largest or (quiet.area.count or #quiet.area.points) > (largest.area.count or #largest.area.points) then
             largest = quiet
         end
     end
@@ -1576,6 +1753,81 @@ function MapMarks.composeSourcePoints(zones, mapId, drops)
     return points, labels
 end
 
+local giverQuestsByZone, giverQuestsKey = {}, nil
+MapMarks.GIVER_ZONES_AT_ONCE = 4 -- zones whose quests to pick up are worked out at one drawing (the kept drawing's)
+-- Where a quest to pick up starts, as areas on a map, kept with its places (a quest's own list, while the quests to
+-- pick up stay what they are): hundreds of quests, each worked out again at every drawing. For the kept drawing only,
+-- whose marks are cut to the view when drawn: on a joined-up map each is worked out for every zone, in view or not.
+local giverAreas = setmetatable({}, { __mode = "k" }) -- [places] = { [map and way of placing] = areas }
+local EVERYWHERE = { left = -math.huge, top = -math.huge, right = math.huge, bottom = math.huge }
+
+---@return table[] areas Where a quest starts on a map (composeStableAreas): shared, read only
+local function getGiverAreas(places, mapId)
+    if ns.frameNumber == 0 or not ns.MapMarksWorld.isOn() then
+        return MapMarks.composeStableAreas(composePoints(places, mapId))
+    end
+    local byMap = giverAreas[places]
+    if not byMap then
+        byMap = {}
+        giverAreas[places] = byMap
+    end
+    local view, bounds, zones = ns.MapPins.getView()
+    local key = mapId * 2 + (view and 1 or 0)
+    local areas = byMap[key]
+    if not areas then
+        if view then
+            ns.MapPins.setView(view, EVERYWHERE, nil)
+        end
+        if #places == 1 then
+            -- One place (a quest giver standing somewhere, as most are): its area is that spot. Said outright: the
+            -- grouping of a list takes ten times as long to say the same, and a map shows hundreds of givers
+            local x, y
+            if isOnMapZone(places[1], mapId) then
+                x, y = ns.MapPins.getMapPosition(places[1], mapId)
+            end
+            areas = NONE
+            if x then
+                local place = places[1]
+                local point =
+                    { x = x, y = y, dungeonName = place.dungeonName, zoneId = place.groupZoneId, place = place }
+                areas = {
+                    {
+                        points = { point },
+                        x = x,
+                        y = y,
+                        centroidX = x,
+                        centroidY = y,
+                        shadeX = x,
+                        shadeY = y,
+                        radiusX = MIN_AREA_RADIUS,
+                        radiusY = MIN_AREA_RADIUS,
+                    },
+                }
+            end
+        else
+            areas = MapMarks.composeStableAreas(composePoints(places, mapId))
+        end
+        if view then
+            ns.MapPins.setView(view, bounds, zones)
+        end
+        byMap[key] = areas
+    end
+    return areas
+end
+
+---The zones' quests to pick up are kept while the quests to pick up stay what they are (a joined-up map asks for a
+---dozen zones' at every drawing, each list worked out from the zone's every quest): let go here once they changed.
+---@return table options What Availability.getQuests is asked with
+---@return string changeKey What the lists kept now are for
+local function useGiverLists()
+    local options = { shouldShowLowLevel = ns.settings.shouldShowLowLevel, shouldIncludeEntrances = true }
+    local changeKey = ns.Availability.getChangeKey() .. "|" .. tostring(options.shouldShowLowLevel)
+    if changeKey ~= giverQuestsKey then
+        giverQuestsByZone, giverQuestsKey = {}, changeKey
+    end
+    return options, changeKey
+end
+
 ---The quests to pick up shown on a map: the zone's, and on a map another addon joins its neighbours onto (OpenMap)
 ---those of every zone in view too, each quest once.
 ---@return AvailableQuest[] quests
@@ -1597,17 +1849,87 @@ local function getMapGiverQuests(mapId)
             addZone(ns.Database.getAreaId(zoneMapId))
         end
     end
-    local quests, isQuestListed = {}, {}
-    local options = { shouldShowLowLevel = ns.settings.shouldShowLowLevel, shouldIncludeEntrances = true }
+    local quests, isQuestListed, listedSize, listedZone = {}, {}, {}, {}
+    local options = useGiverLists()
+    -- With the kept drawing, a few zones not worked out yet at a drawing, the rest at the next ones (Draw asks for
+    -- them: MapMarks.areGiversIncomplete): zoomed out to a continent, forty zones' lists at once held the game up
+    local isPaced = ns.frameNumber > 0 and ns.MapMarksWorld.isOn()
+    local workedOut = 0
     for _, zoneId in ipairs(zoneIds) do
-        for _, quest in ipairs(ns.Availability.getQuests(zoneId, options)) do
-            if not isQuestListed[quest.questId] then
-                isQuestListed[quest.questId] = true
+        local zoneQuests = giverQuestsByZone[zoneId]
+        if not zoneQuests then
+            if isPaced and workedOut >= MapMarks.GIVER_ZONES_AT_ONCE then
+                MapMarks.areGiversIncomplete = true
+            else
+                workedOut = workedOut + 1
+                zoneQuests = ns.Availability.getQuests(zoneId, options)
+                if ns.frameNumber > 0 then -- (in the tests, where no frames run, the quests change under a test)
+                    giverQuestsByZone[zoneId] = zoneQuests
+                end
+            end
+        end
+        -- A quest that several zones list (an item dropped by creatures found in two of them: each zone lists the
+        -- spawns it knows of) is taken from the zone that lists the most places for it, the same one whatever map
+        -- is underneath. Taken from the shown map's own zone first, as it was, its mark stood on another spawn
+        -- once a zoom put another zone's map underneath.
+        for _, quest in ipairs(zoneQuests or NONE) do
+            local position = isQuestListed[quest.questId]
+            local size = #(quest.places or NONE)
+            if not position then
                 quests[#quests + 1] = quest
+                isQuestListed[quest.questId] = #quests
+                listedSize[quest.questId], listedZone[quest.questId] = size, zoneId
+            elseif
+                size > listedSize[quest.questId]
+                or (size == listedSize[quest.questId] and zoneId < listedZone[quest.questId])
+            then
+                quests[position] = quest
+                listedSize[quest.questId], listedZone[quest.questId] = size, zoneId
             end
         end
     end
     return quests
+end
+
+local warmedKey, warmedMapId -- every zone round this map is worked out for these quests to pick up (warmGivers)
+
+---Works out one more zone's quests to pick up ahead of its being shown: of every zone joined onto a map (another
+---addon's joined-up world), a zone a call, while the map is open and still. Zooming out to a continent then finds
+---its forty zones' lists made, where the first drawing of it worked them out in a few long frames.
+---@return boolean isWorking A zone was worked out (more may be left)
+function MapMarks.warmGivers(mapId)
+    if not ns.Availability.isReady() or not ns.Availability.isShownOnMap() then
+        return false
+    end
+    local view = ns.MapPins.getView()
+    if not view or not mapId then
+        return false
+    end
+    local options, changeKey = useGiverLists()
+    if warmedKey == changeKey and warmedMapId == mapId then
+        return false -- (all of them, for the quests as they are)
+    end
+    local isFine, mapIds = pcall(view.getZoneMapIds, mapId, EVERYWHERE)
+    for _, zoneMapId in ipairs(isFine and type(mapIds) == "table" and mapIds or NONE) do
+        local areaId = ns.Database.getAreaId(zoneMapId)
+        local zoneId = areaId and ns.Database.getParentZoneId(areaId)
+        if zoneId and not giverQuestsByZone[zoneId] then
+            giverQuestsByZone[zoneId] = ns.Availability.getQuests(zoneId, options)
+            return true
+        end
+    end
+    warmedKey, warmedMapId = changeKey, mapId
+    return false
+end
+
+---Works out a few more zones' quests to pick up for a map (those a drawing left for later), with nothing drawn.
+---@return boolean isComplete Every zone of the map's view is worked out
+function MapMarks.finishGivers(mapId)
+    MapMarks.areGiversIncomplete = false
+    getMapGiverQuests(mapId)
+    local isComplete = not MapMarks.areGiversIncomplete
+    MapMarks.areGiversIncomplete = false
+    return isComplete
 end
 
 local function addGiverMarks(marks, mapId, spoilers)
@@ -1633,7 +1955,7 @@ local function addGiverMarks(marks, mapId, spoilers)
             local hasLabels = quest.questId ~= selectedQuestId
             -- One "!" for each area the quest starts in: a giver is one spot, but a quest that starts from
             -- an item dropped by creatures would otherwise put a "!" on every spawn point
-            for _, area in ipairs(MapMarks.composeStableAreas(composePoints(quest.places, mapId))) do
+            for _, area in ipairs(getGiverAreas(quest.places, mapId)) do
                 -- (only where it starts out of the map's fog and outside a dungeon held back: Spoilers)
                 if not spoilers or isGiverAreaShown(spoilers, quest.questId, area.points) then
                     local mark = {
@@ -1668,6 +1990,11 @@ local function addGiverMarks(marks, mapId, spoilers)
                             )
                             for _, point in ipairs(mark.points or {}) do
                                 point.glyph = "loot" -- the item is looted from them
+                            end
+                            -- The kept drawing shows those spawns and their areas itself, as a tracked quest's
+                            -- (composePickUpFeature): the mark keeps its labels, not a second drawing of them
+                            if MapMarks.getKeptPickUpItemId(quest.questId, spoilers) == quest.itemId then
+                                mark.points = nil
                             end
                         end
                     elseif mark.isFocused and #area.points > 1 then
@@ -2153,6 +2480,201 @@ function MapMarks.compose(mapId, isPeekIgnored)
     return groupDungeonMarks(MapMarks.joinGiversAndTurnIns(MapMarks.mergeTurnIns(marks)), mapId, spoilers)
 end
 
+-- A list's own number, the same while the list is the same table: what is made of a kept list of places (the kept
+-- drawing's areas and spawn marks) is told apart by it at once, not by going over thousands of places
+local listNumbers, listNumberCount = setmetatable({}, { __mode = "k" }), 0
+
+---@return string key What a list of places holds, as one text: a kept list's own number with its length; a short
+---list's places themselves (made anew at every asking, the same places give the same text)
+local function getPlaceListKey(places)
+    if #places <= 64 then
+        return getPlacesKey(places)
+    end
+    local number = listNumbers[places]
+    if not number then
+        listNumberCount = listNumberCount + 1
+        number = listNumberCount
+        listNumbers[places] = number
+    end
+    return "#" .. number .. ":" .. #places
+end
+
+---What one quest shows of its objectives' places, for the kept drawing: nil when it shows none (to hand in, held back,
+---shown roughly: its marks say that).
+local function composeQuestFeature(entry, isFocused, number, spoilers)
+    if entry.isTurnIn or entry.eventText then
+        return nil
+    end
+    local questId = entry.questId
+    local choice = spoilers and getObjectivesChoice(spoilers, entry) or "exact"
+    if choice == "hidden" or choice == "rough" then
+        return nil
+    end
+    local foundNote = choice == "found" and ns.L("Found by you") or nil
+    -- The quest in focus with one item left that several creatures drop: each creature's spawns, named in their notes
+    local dropZones, sourceObjectiveIndex
+    if isFocused then
+        local _, zones, index = MapMarks.getObjectiveShades(entry)
+        if not (spoilers and (foundNote or not isDropNamed(spoilers, questId))) then
+            dropZones, sourceObjectiveIndex = zones, index
+        end
+    end
+    local sources, keys, typeIndexes, placeCount = {}, {}, {}, 0
+    local function add(places, glyph, note)
+        if #places > 0 then
+            sources[#sources + 1] = { places = places, glyph = glyph, note = note }
+            keys[#keys + 1] = glyph .. (note or "") .. getPlaceListKey(places)
+            placeCount = placeCount + #places
+        end
+    end
+    for objectiveIndex, objective in ipairs(entry.objectives or NONE) do
+        typeIndexes[objective.type] = (typeIndexes[objective.type] or 0) + 1
+        if not objective.isFinished then
+            local glyph = MapMarks.getObjectiveGlyph(objective)
+            if objectiveIndex == sourceObjectiveIndex then
+                local drops = MapMarks.getDropsChoice(spoilers, questId)
+                local isChanceShown = drops == nil or drops == "chances"
+                for _, zone in ipairs(dropZones) do
+                    for _, source in ipairs(zone.sources) do
+                        local chance = isChanceShown and source.chance and ns.Drops.formatChance(source.chance)
+                        add(source.places, glyph, source.name .. (chance and (ns.Widgets.MIDDLE_DOT .. chance) or ""))
+                    end
+                end
+            elseif foundNote then
+                add(getFoundPlaces(spoilers, questId, objectiveIndex), glyph, foundNote)
+            else
+                add(MapMarks.getObjectivePlaces(questId, objective.type, typeIndexes[objective.type]), glyph, nil)
+            end
+        end
+    end
+    -- (a quest out of focus with one spawn in all: its mark stands on it, and says it)
+    if #sources == 0 or (not isFocused and placeCount < 2) then
+        return nil
+    end
+    return {
+        key = "quest:" .. questId,
+        questId = questId,
+        color = MapMarks.getQuestColor(number, questId),
+        isFocused = isFocused,
+        -- (where its creatures walk only with its objectives shown exactly: Spoilers)
+        hasNoPatrols = spoilers ~= nil and spoilers.get("objectives", questId) ~= "exact",
+        sources = sources,
+        contentKey = table.concat(keys, "|"),
+    }
+end
+
+---@return number? itemId The item creatures drop that starts the quest selected to pick up, when the kept drawing
+---shows where they are (as it shows a tracked quest's): the quests to pick up are on the map, and the Spoilers
+---choice names what drops it. nil otherwise: the marks' own drawing then shows what it may.
+---Only the quest selected (clicked), not one merely pointed at in the list: every quest the kept drawing gains or
+---loses has it sort all the quests' spawn marks again, which a pointer moving down the list would do at each row.
+function MapMarks.getKeptPickUpItemId(questId, spoilers)
+    if not questId or not ns.MapMarksWorld.isOn() then
+        return nil
+    end
+    if questId ~= (ns.Log.getSelectedAvailableQuestId and ns.Log.getSelectedAvailableQuestId()) then
+        return nil
+    end
+    if not ns.Availability.isReady() or not ns.Availability.isShownOnMap() then
+        return nil
+    end
+    if spoilers and (spoilers.get("pickup") == "none" or not isDropNamed(spoilers, questId)) then
+        return nil
+    end
+    local source = ns.Location.getStartItemSource(questId)
+    return source and not source.isWorldDrop and source.itemId or nil
+end
+
+---The quest selected to pick up, where it starts from an item creatures drop: each creature's spawns, named with
+---its chance in their notes, as the kept drawing's feature. The same areas and spawn marks as a tracked quest's
+---(the player's own look for them), in place of the marks' own older drawing of them.
+---@return table? feature
+local function composePickUpFeature(spoilers)
+    local questId = ns.Log.getHighlightedAvailableQuestId()
+    local itemId = MapMarks.getKeptPickUpItemId(questId, spoilers)
+    if not itemId then
+        return nil
+    end
+    local drops = MapMarks.getDropsChoice(spoilers, questId)
+    local isChanceShown = drops == nil or drops == "chances"
+    local sources, keys = {}, {}
+    for _, zone in ipairs(ns.Drops.getZones(itemId)) do
+        for _, source in ipairs(zone.sources) do
+            if #source.places > 0 then
+                local chance = isChanceShown and source.chance and ns.Drops.formatChance(source.chance)
+                local note = source.name .. (chance and (ns.Widgets.MIDDLE_DOT .. chance) or "")
+                sources[#sources + 1] = { places = source.places, glyph = "loot", note = note }
+                keys[#keys + 1] = "loot" .. note .. getPlaceListKey(source.places)
+            end
+        end
+    end
+    if #sources == 0 then
+        return nil
+    end
+    return {
+        key = "pickup:" .. questId,
+        steadyKey = false, -- (shown only while selected: its marks are the overlay's, not sorted with the quests')
+        questId = questId,
+        color = MapMarks.getQuestColor(nil, questId),
+        isFocused = true,
+        hasNoPatrols = spoilers ~= nil and spoilers.get("objectives", questId) ~= "exact",
+        sources = sources,
+        contentKey = table.concat(keys, "|"),
+    }
+end
+
+---What the kept drawing (MapMarks\World) shows for the quests: each quest's objectives' places as they are in the
+---world, on no map yet, with its colour and whether it is in focus. The same quests, by the same rules, as the
+---marks' (MapMarks.compose): tracked, or ready to hand in, or selected; what the player chose to see (Spoilers).
+---@param isPeekIgnored boolean? (as for MapMarks.compose)
+---@return table[] features In the quests' own order, whatever is in focus: { key, questId, color, isFocused,
+---hasNoPatrols, sources = { { places, glyph, note } }, contentKey }
+function MapMarks.composeFeatures(isPeekIgnored)
+    local spoilers = MapMarks.getSpoilers(isPeekIgnored)
+    local features = {}
+    local player = ns.Model.getPlayer()
+    local focusedQuestId = MapMarks.getFocusedQuestId()
+    local numbers = ns.QuestState.getWatchNumbers()
+    local questIds = ns.QuestState.getShownOnMapQuestIds()
+    if focusedQuestId and not numbers[focusedQuestId] and ns.QuestState.isInLog(focusedQuestId) then
+        questIds[#questIds + 1] = focusedQuestId
+    end
+    -- (the quest in focus shown only because it is: one not tracked, pointed at in the list)
+    local isShownForFocusOnly = false
+    if focusedQuestId and not numbers[focusedQuestId] and ns.QuestState.isInLog(focusedQuestId) then
+        isShownForFocusOnly = true
+    end
+    for _, questId in ipairs(questIds) do
+        local isFocused = questId == focusedQuestId
+        local entry = ns.Model.composeEntry(questId, player)
+        local feature = composeQuestFeature(entry, isFocused, numbers[questId], spoilers)
+        if feature then
+            -- What it shows out of focus (steadyKey): the quest in focus may show other places than it does out of
+            -- focus (each creature that drops its item), or show at all only while in focus. The kept drawing sorts
+            -- every quest's spawn marks together by what the quests show out of focus, so a quest merely pointed
+            -- at in the list does not have all of them sorted and laid out again (they blinked, every quest's).
+            if not isFocused then
+                feature.steadyKey = feature.contentKey
+            elseif isShownForFocusOnly then
+                feature.steadyKey = false
+            else
+                local plain = composeQuestFeature(entry, false, numbers[questId], spoilers)
+                feature.steadyKey = plain and plain.contentKey or false
+            end
+            features[#features + 1] = feature
+        end
+    end
+    -- (and where the quest selected to pick up starts, when creatures drop what starts it)
+    local pickUp = composePickUpFeature(spoilers)
+    if pickUp then
+        features[#features + 1] = pickUp
+    end
+    table.sort(features, function(first, second)
+        return first.questId < second.questId
+    end)
+    return features
+end
+
 -- Shared with the other parts of the window
 Style.AREA_EDGE_ALPHA = AREA_EDGE_ALPHA
 Style.AREA_EDGE_PIXELS = AREA_EDGE_PIXELS
@@ -2184,19 +2706,18 @@ Style.ICON_CELL = ICON_CELL
 Style.ICON_GLOW_SIZE = ICON_GLOW_SIZE
 Style.ICON_SIZE = ICON_SIZE
 Style.LEVELS_UNDER_GROUP = LEVELS_UNDER_GROUP
-Style.MAX_POINTS = MAX_POINTS
 Style.MEDIA = MEDIA
 Style.QUEST_BLUE = QUEST_BLUE
 Style.QUEST_SHADES = QUEST_SHADES
 Style.SOFT_DOT = SOFT_DOT
-Style.SPAWN_PATCH = SPAWN_PATCH
 Style.SPAWN_ROOM = SPAWN_ROOM
-Style.ZONE_MAP_TYPE = ZONE_MAP_TYPE
 ---@return { x: number, y: number }[][] lines The quest's creatures' patrols on a map, each a line of points (fractions
 ---of the map), for those parts of them on it
 function MapMarks.getQuestPatrolLines(questId, mapId)
     return MapMarks.getPatrolLines(ns.Location.getObjectivePatrols(questId), mapId)
 end
+
+local PATROL_COPY_DISTANCE = 0.004 -- how near (of the map's width) two walks start and end to be one walk listed twice
 
 ---@return { x: number, y: number }[][] lines Patrols on a map, each a line of points (fractions of the map)
 function MapMarks.getPatrolLines(patrols, mapId)
@@ -2208,24 +2729,51 @@ function MapMarks.getPatrolLines(patrols, mapId)
     -- The same walk listed in two zones' maps (near a border) is drawn once: the copy whose path lies mostly in
     -- the other zone's land is left out
     local listedZones = getListedZones(patrolZones)
+    -- Told apart by where they land, as spawns' copies are (composePoints): a walk that starts and ends where one of
+    -- another zone's does is that walk again. (Each point was asked of the other addon before, which zone's land it
+    -- lies in: for a quest whose creatures walk all over the world that was a quarter of a drawing's time.)
+    local landed = listedZones and {}
+    local place = {}
     for patrolIndex, patrol in ipairs(patrols) do
-        local line, shadowedCount = {}, 0
+        local line = {}
         local groupZoneId = patrolZones[patrolIndex] -- the zone it belongs to, as spawns' places say
+        place.zoneId, place.groupZoneId = patrol.zoneId, groupZoneId
         for _, point in ipairs(patrol.points) do
-            local place = { zoneId = patrol.zoneId, groupZoneId = groupZoneId, x = point[1], y = point[2] }
+            place.x, place.y = point[1], point[2]
             local x, y
             if isOnMapZone(place, mapId) then
                 x, y = ns.MapPins.getMapPosition(place, mapId)
             end
             if x then
                 line[#line + 1] = { x = x, y = y }
-                if isShadowed(groupZoneId, x, y, mapId, listedZones) then
-                    shadowedCount = shadowedCount + 1
-                end
             end
         end
-        if shadowedCount * 2 > #line then
-            line = {}
+        if landed and #line >= 2 then
+            local first, last = line[1], line[#line]
+            local column, row = math.floor(first.x / PATROL_COPY_DISTANCE), math.floor(first.y / PATROL_COPY_DISTANCE)
+            local isCopy = false
+            for stepColumn = -1, 1 do
+                for stepRow = -1, 1 do
+                    for _, other in ipairs(landed[(column + stepColumn) * 1048576 + row + stepRow] or NONE) do
+                        if
+                            other.zoneId ~= groupZoneId
+                            and math.abs(other.first.x - first.x) <= PATROL_COPY_DISTANCE
+                            and math.abs(other.first.y - first.y) <= PATROL_COPY_DISTANCE
+                            and math.abs(other.last.x - last.x) <= PATROL_COPY_DISTANCE
+                            and math.abs(other.last.y - last.y) <= PATROL_COPY_DISTANCE
+                        then
+                            isCopy = true
+                        end
+                    end
+                end
+            end
+            if isCopy then
+                line = {}
+            else
+                local key = column * 1048576 + row
+                landed[key] = landed[key] or {}
+                table.insert(landed[key], { zoneId = groupZoneId, first = first, last = last })
+            end
         end
         if #line >= 2 then
             line.npcId = patrol.npcId -- whose walk it is, for its tooltip

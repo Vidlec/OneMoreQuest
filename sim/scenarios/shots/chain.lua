@@ -32,4 +32,4 @@ wait(1)
 click("Profit") -- folded, so the whole chain shows
 click("Story")
 wait(1)
-crop("chain", { G.TrailheadLog }, 6, 26)
+crop("chain", { G.OneMoreQuestLog }, 6, 26)

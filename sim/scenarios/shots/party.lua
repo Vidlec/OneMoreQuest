@@ -35,4 +35,4 @@ progress(1113, 1, 3)
 wait(2)
 addon.Focus.set(1113) -- the focused quest shows the party under its title
 wait(1)
-crop("party", { G.TrailheadTracker }, 12)
+crop("party", { G.OneMoreQuestTracker }, 12)

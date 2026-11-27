@@ -37,7 +37,7 @@ for _, size in ipairs(SCREENS) do
         right = G.GetScreenWidth() * G.UIParent:GetScale(),
         top = G.GetScreenHeight() * G.UIParent:GetScale(),
     }
-    local log, map = rect(G.TrailheadLog), rect(G.WorldMapFrame)
+    local log, map = rect(G.OneMoreQuestLog), rect(G.WorldMapFrame)
     expect(log ~= nil, label .. ": the quest window is open")
     if log then
         expect(

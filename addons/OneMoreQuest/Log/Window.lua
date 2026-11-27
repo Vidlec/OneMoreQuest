@@ -345,7 +345,10 @@ drawWindow = function()
     if not (isNarrow and not isSpread) then
         Window.bringPageBack() -- (kept away while the list has the one pane: no showing and hiding it each drawing)
     end
-    Window.setWidth(isNarrow and NARROW_WIDTH or PANEL_WIDTH)
+    -- (the page as much wider as the player dragged the window's grip: not in the one pane)
+    local stretch = isNarrow and 0 or Log.getPageStretch()
+    Window.setWidth(isNarrow and NARROW_WIDTH or PANEL_WIDTH + stretch)
+    State.frame.pageStretch = stretch
     -- With a controller the page's buttons are X's, Y's and B's (Y has them all as a menu): no bar of them, the page
     -- runs to the window's foot (the settings and the chronicle too). With the mouse the bar stands under the page,
     -- in the one pane too (while the list has it, the bar is put away with the page).
@@ -772,7 +775,7 @@ local function createSearch()
     label:Hide()
     State.frame.searchLabel = label
 
-    local search = CreateFrame("EditBox", "TrailheadLogSearch", State.frame, "SearchBoxTemplate")
+    local search = CreateFrame("EditBox", "OneMoreQuestLogSearch", State.frame, "SearchBoxTemplate")
     search:SetSize(LIST_WIDTH - 30, 20)
     search:SetPoint("TOPLEFT", State.frame, "TOPLEFT", 18, -(TITLE_HEIGHT + 7))
     search:SetAutoFocus(false)
@@ -793,7 +796,7 @@ local ZONE_PICKER_WIDTH = 176
 ---The Available tab's search: it filters the quests of the location shown, by title, giver or start item, and the
 ---list names other zones with matches. Kept apart from My quests' search, as the two lists are.
 function Log.createAvailableSearch()
-    local search = CreateFrame("EditBox", "TrailheadAvailableSearch", State.frame, "SearchBoxTemplate")
+    local search = CreateFrame("EditBox", "OneMoreQuestAvailableSearch", State.frame, "SearchBoxTemplate")
     search:SetSize(LIST_WIDTH - 12 - ZONE_PICKER_WIDTH - 6 - 14, 20)
     search:SetPoint("TOPLEFT", State.frame, "TOPLEFT", 12 + ZONE_PICKER_WIDTH + 6 + 6, -(TITLE_HEIGHT + 7))
     search:SetAutoFocus(false)
@@ -1008,7 +1011,7 @@ function Log.create()
     if State.frame or not WorldMapFrame then
         return
     end
-    State.frame = CreateFrame("Frame", "TrailheadLog", WorldMapFrame, "BackdropTemplate")
+    State.frame = CreateFrame("Frame", "OneMoreQuestLog", WorldMapFrame, "BackdropTemplate")
     State.frame:SetWidth(PANEL_WIDTH)
     State.frame.shownWidth = PANEL_WIDTH
     State.frame:EnableMouse(true) -- clicks must not fall through to the world behind
@@ -1137,7 +1140,7 @@ function Log.create()
     State.frame.hasListArt = setAtlasIfKnown(listArt, "QuestLog-main-background") and true or false
     listArt:SetShown(State.frame.hasListArt)
     State.frame.listArt = listArt
-    State.list = ns.Widgets.createCanvas("TrailheadLogList", State.frame, LIST_WIDTH - 6, 400)
+    State.list = ns.Widgets.createCanvas("OneMoreQuestLogList", State.frame, LIST_WIDTH - 6, 400)
     -- The list's scroll bar goes where the list goes: with a controller the list is hidden under a quest's page in
     -- the one pane, and its bar (made beside it, a child of the window) stood on as a second bar on the page
     local listBar = State.list.frame.ScrollBar
@@ -1178,7 +1181,7 @@ function Log.create()
     end
     ironPage:Hide()
     State.frame.ironPage = ironPage
-    State.detail = ns.Widgets.createCanvas("TrailheadLogDetail", State.frame, PAGE_WIDTH - 2, 400, 2)
+    State.detail = ns.Widgets.createCanvas("OneMoreQuestLogDetail", State.frame, PAGE_WIDTH - 2, 400, 2)
     State.detail.frame:ClearAllPoints()
     State.detail.frame:SetPoint("TOPLEFT", State.frame, "TOPLEFT", pageLeft, -PAGE_TOP - 2)
     State.detail.frame:SetPoint("BOTTOMLEFT", State.frame, "BOTTOMLEFT", pageLeft, BAR_HEIGHT + 2)
@@ -1238,13 +1241,16 @@ function Log.create()
 
     ---The page's right edge and foot, where the split, the shift, the scroll bar's strip and the bar put them.
     local function placePageRight()
-        local right, bottom = pageRight + State.frame.pageShift + State.frame.pageExtra, State.frame.pageBottom
+        local stretch = State.frame.pageStretch or 0
+        local right, bottom =
+            pageRight + State.frame.pageShift + State.frame.pageExtra + stretch, State.frame.pageBottom
         parchment:SetPoint("BOTTOMRIGHT", State.frame, "BOTTOMLEFT", right, bottom)
         State.pageHeader:SetPoint("TOPRIGHT", State.frame, "TOPLEFT", right, -PAGE_TOP - State.frame.pageTopInset)
         State.rewardsBlock:SetPoint("BOTTOMRIGHT", State.frame, "BOTTOMLEFT", right, bottom)
         State.detail:setWidth(
-            PAGE_WIDTH - 2 + pageLeft - State.frame.pageLeft + State.frame.pageShift + State.frame.pageExtra
+            PAGE_WIDTH - 2 + pageLeft - State.frame.pageLeft + State.frame.pageShift + State.frame.pageExtra + stretch
         )
+        State.frame.placedStretch = stretch
     end
 
     ---Moves the line between the list and the page: a narrower list gives the page its room. The page's right edge,
@@ -1262,6 +1268,7 @@ function Log.create()
             and State.frame.pageTopInset == topInset
             and State.frame.pageShift == shift
             and State.frame.pageBottom == bottom
+            and State.frame.placedStretch == (State.frame.pageStretch or 0)
         then
             return
         end
@@ -1271,7 +1278,7 @@ function Log.create()
             State.list:setWidth(listWidth - 6) -- (the page in the list's place hides the list: it keeps its width)
         end
         if State.frame.placeScrollBar then
-            State.frame.placeScrollBar(topInset, shift, bottom)
+            State.frame.placeScrollBar(topInset, shift + (State.frame.pageStretch or 0), bottom)
         end
         placePageRight()
         divider:SetPoint("TOPLEFT", State.frame, "TOPLEFT", listWidth + 1, 0)
@@ -1511,12 +1518,12 @@ local function setSpecialFrame(isSpecial)
         return
     end
     for index = #UISpecialFrames, 1, -1 do
-        if UISpecialFrames[index] == "TrailheadLog" then
+        if UISpecialFrames[index] == "OneMoreQuestLog" then
             table.remove(UISpecialFrames, index)
         end
     end
     if isSpecial then
-        table.insert(UISpecialFrames, "TrailheadLog") -- Escape closes it, as the game's own windows
+        table.insert(UISpecialFrames, "OneMoreQuestLog") -- Escape closes it, as the game's own windows
     end
 end
 
@@ -1760,8 +1767,34 @@ function Log.setMapEdge(region, x, topExtra, bottomExtra, mapLook)
         x + layout.shiftX,
         topExtra - layout.stripHeight + layout.outset
     )
-    State.frame:SetPoint("BOTTOMLEFT", region, "BOTTOMRIGHT", x + layout.shiftX, -bottomExtra - layout.outset)
+    -- (taller or shorter than the map by what the player dragged its grip: its foot that much lower or higher)
+    State.frame:SetPoint(
+        "BOTTOMLEFT",
+        region,
+        "BOTTOMRIGHT",
+        x + layout.shiftX,
+        -bottomExtra - layout.outset - Log.getExtraHeight()
+    )
     Log.fitOnScreen()
+end
+
+local MAX_PAGE_STRETCH = 600
+
+---@return number stretch How much wider than usual the page is, as the player dragged the window's grip
+function Log.getPageStretch()
+    return math.max(0, math.min(MAX_PAGE_STRETCH, math.floor(tonumber(ns.settings.pageStretch) or 0)))
+end
+
+local MIN_EXTRA_HEIGHT, MAX_EXTRA_HEIGHT = -200, 900
+
+---@return number height How much taller than the map beside it the window is (shorter: below zero), as the player
+---dragged its grip
+function Log.getExtraHeight()
+    if State.isNarrow then
+        return 0
+    end
+    local extra = math.floor(tonumber(ns.settings.windowExtraHeight) or 0)
+    return math.max(MIN_EXTRA_HEIGHT, math.min(MAX_EXTRA_HEIGHT, extra))
 end
 
 ---@return number scale The quest window's size, text included, as the settings have it
@@ -1795,7 +1828,7 @@ function Log.fitOnScreen()
 end
 
 ---Opens the panels with the settings on the page beside the list.
----@return boolean isOpened False when Trailhead's panels are switched off, so there is nowhere to show them
+---@return boolean isOpened False when OneMoreQuest's panels are switched off, so there is nowhere to show them
 ---@param sectionIndex number? The section to open on; where it was left when nil
 function Log.openSettings(sectionIndex)
     if not State.frame or not ns.settings.shouldReplaceQuestLog then
@@ -1966,8 +1999,36 @@ function Log.handleQuestDropped(questId)
     end
 end
 
----The map turned to another zone: the Available tab follows it.
+local MAP_FOLLOW_SECONDS = 0.25 -- how long after the map turned to another zone the window follows it
+local followedMapId, isFollowedOwn, isMapFollowQueued
+
+local followMap
+
+---The map turned to another zone: the window follows it (the Available tab shows that zone's quests, the My quests
+---tab highlights it). A moment later, and once for the map it has come to rest on: the frame the map changes in is
+---the heaviest there is (the game asks everything on the map anew, every addon's marks with it), and a map
+---dragged across zones (OpenMap's joined-up world) changes over and over; drawn in that same frame, the window
+---made each of them longer.
 function Log.handleMapChanged(uiMapId)
+    -- (a map the window turned itself, a button of its own pressed, is not followed by the Available tab: read
+    -- now, while the window says so)
+    local isOwn = State.isPickingZone or State.isMapFollowPaused
+    if ns.frameNumber == 0 or not (C_Timer and C_Timer.After) then
+        followMap(uiMapId, isOwn) -- (where no frames run: at once)
+        return
+    end
+    followedMapId, isFollowedOwn = uiMapId, isOwn
+    if isMapFollowQueued or not Log.isOpen() then
+        return
+    end
+    isMapFollowQueued = true
+    C_Timer.After(MAP_FOLLOW_SECONDS, function()
+        isMapFollowQueued = false
+        followMap(followedMapId, isFollowedOwn)
+    end)
+end
+
+followMap = function(uiMapId, isOwn)
     -- On the My quests tab the zone the map shows is highlighted in the list
     if Log.isOpen() and State.selectedTab == TAB_QUESTS and State.view == "quests" then
         if List.getShownMapZoneId() ~= State.drawnMapZoneId then
@@ -1975,7 +2036,13 @@ function Log.handleMapChanged(uiMapId)
         end
         return
     end
-    if not Log.isOpen() or State.selectedTab ~= TAB_AVAILABLE or State.isPickingZone or State.isMapFollowPaused then
+    if
+        not Log.isOpen()
+        or State.selectedTab ~= TAB_AVAILABLE
+        or isOwn
+        or State.isPickingZone
+        or State.isMapFollowPaused
+    then
         return
     end
     local areaId = uiMapId and ns.Database.isZoneMap(uiMapId) and ns.Database.getAreaId(uiMapId)
@@ -2017,7 +2084,7 @@ function Log.getPageTitleButton()
     return State.pageHeader and State.pageHeader.titleButton
 end
 
----@return Frame? window The window (TrailheadLog), once made
+---@return Frame? window The window (OneMoreQuestLog), once made
 function Log.getWindow()
     return State.frame
 end

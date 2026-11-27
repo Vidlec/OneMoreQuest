@@ -1217,6 +1217,10 @@ function Availability.prepare(handleReady)
         for _, callback in ipairs(callbacks) do
             callback()
         end
+        -- What each quest in the log unlocks is read off the index (Chain.getUnlockedQuestIds): entries composed
+        -- before it was there are composed again, and the tracker and the log drawn with them
+        ns.Model.forgetEntries()
+        ns.queueRefresh()
     end
     step()
 end
@@ -1316,6 +1320,7 @@ local function composeQuest(questId, zoneId, isHandedInHere, player, position, i
         end
     end
     quest.chainIndex, quest.chainTotal = ns.Chain.getStep(questId)
+    quest.unlockIds, quest.requiredIds = ns.Chain.getUnlockedQuestIds(questId), ns.Chain.getRequiredQuestIds(questId)
     quest.instantStepIds = Availability.getInstantSteps(questId)
     quest.versionCount = 1
     for _, otherQuestId in ipairs(ns.Database.getQuestField(questId, "exclusiveTo") or {}) do
@@ -1558,6 +1563,32 @@ function Availability.describeUnlock(questId, blocker, player)
     return blocker.text, UNLOCK_RANK_OTHER
 end
 
+---What a quest that cannot be taken yet waits for, as the thing to do about it: the quest at the start of what
+---leads to it when that one is in the log ("log") or can be picked up now ("take"), a level to reach ("level"),
+---or anything else ("other": a reputation, a profession, a quest that is itself out of reach). The Available list
+---groups the quests not yet to be had by it.
+---@return { kind: "log"|"take"|"level"|"other", questId: number?, level: number?, text: string?, stepCount: number } root
+function Availability.getUnlockRoot(questId, blocker, player)
+    if blocker.kind == "level" then
+        return { kind = "level", level = blocker.level, stepCount = 0 }
+    elseif blocker.kind ~= "quest" then
+        return { kind = "other", text = blocker.text, stepCount = 0 }
+    end
+    local leadInIds = Availability.getLeadIns(questId, player)
+    local firstQuestId = leadInIds[1] or blocker.questId
+    local stepCount = math.max(#leadInIds, 1)
+    if ns.QuestState.isInLog(firstQuestId) then
+        return { kind = "log", questId = firstQuestId, stepCount = stepCount }
+    end
+    local firstBlocker = Availability.getBlocker(firstQuestId, player)
+    if not firstBlocker then
+        return { kind = "take", questId = firstQuestId, stepCount = stepCount }
+    elseif firstBlocker.kind == "level" then
+        return { kind = "level", level = firstBlocker.level, stepCount = stepCount }
+    end
+    return { kind = "other", text = firstBlocker.text, stepCount = stepCount }
+end
+
 ---@param kind "quest"|"dungeon" What the words would name: a quest of the story, or a dungeon
 ---@return boolean isHidden The Spoilers choice keeps that back (chains not shown whole, or dungeons not shown): a reason
 ---or a lead that names one says only "Later in the story". Always false in Guide.
@@ -1621,6 +1652,7 @@ function Availability.getBlockedQuests(zoneId, options)
                     local quest = composeQuest(questId, zoneId, false, player, position, false, blocker)
                     if quest then
                         quest.unlockText, quest.unlockRank = Availability.describeUnlock(questId, blocker, player)
+                        quest.unlockRoot = Availability.getUnlockRoot(questId, blocker, player)
                     end
                     if quest and quest.isLowLevel and not shouldShowLowLevel then
                         hiddenCount = hiddenCount + 1

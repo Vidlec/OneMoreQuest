@@ -8,10 +8,10 @@ local game = require("game")
 local index = G.C_QuestLog.GetLogIndexForQuestID(868)
 local link = G.GetQuestLogSpecialItemInfo(index)
 expect(link and link:find("Digging Claw", 1, true), "the game offers the Digging Claw as the quest's item")
-local button = G.TrailheadItemButton1
+local button = G.OneMoreQuestItemButton1
 expect(button and button:IsVisible(), "OneMoreQuest's item button is shown beside the tracker")
 if button then
-    hover("TrailheadItemButton1")
+    hover("OneMoreQuestItemButton1")
     wait(0.2)
     expectText("Digging Claw", "hovering it shows the item")
     local casts = 0
@@ -20,7 +20,7 @@ if button then
     listener:SetScript("OnEvent", function()
         casts = casts + 1
     end)
-    click("TrailheadItemButton1")
+    click("OneMoreQuestItemButton1")
     wait(0.2)
     expect(game.lastUsedItemId == 5059 and casts == 1, "clicking it uses the item")
 end

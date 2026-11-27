@@ -68,9 +68,8 @@ files["addons/OneMoreQuest/**"] = {
         "OneMoreQuestDB",
         "SlashCmdList",
         "StaticPopupDialogs",
-        "SLASH_TRAILHEAD1",
-        "SLASH_TRAILHEAD2",
-        "SLASH_TRAILHEAD3",
+        "SLASH_ONEMOREQUEST1",
+        "SLASH_ONEMOREQUEST2",
     },
 }
 files["addons/QuestieProfit/**"] = { globals = { "QuestieProfitDB", "SlashCmdList", "SLASH_QUESTIEPROFIT1" } }

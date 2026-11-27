@@ -15,18 +15,18 @@ local HOMES = { -- where each race starts (uiMapId, x, y), and its capital for t
 local _, race = G.UnitRace("player")
 local _, class = G.UnitClass("player")
 local home = HOMES[race]
-local trailhead = require("addons").byName["onemorequest"].private
+local omq = require("addons").byName["onemorequest"].private
 
 setProfile({ level = 1 })
 moveTo(home[1], home[2], home[3])
 -- The addon prepares its quest lists in the background after login: wait for it, as a player would
 for _ = 1, 120 do
-    if trailhead.Availability.isReady() then
+    if omq.Availability.isReady() then
         break
     end
     wait(0.5)
 end
-expect(trailhead.Availability.isReady(), "the quest lists are ready within a minute of logging in")
+expect(omq.Availability.isReady(), "the quest lists are ready within a minute of logging in")
 key("M")
 wait(0.3)
 for _, level in ipairs({ 1, 30, 60 }) do
@@ -39,9 +39,9 @@ for _, level in ipairs({ 1, 30, 60 }) do
     click("Available")
     wait(0.2)
     if level == 1 then
-        local zoneId = trailhead.Model.getPlayer().zoneId
+        local zoneId = omq.Model.getPlayer().zoneId
         local toPickUp = 0
-        for _, quest in ipairs(zoneId and trailhead.Availability.getQuests(zoneId, {}) or {}) do
+        for _, quest in ipairs(zoneId and omq.Availability.getQuests(zoneId, {}) or {}) do
             if not quest.availableAtLevel then
                 toPickUp = toPickUp + 1
             end

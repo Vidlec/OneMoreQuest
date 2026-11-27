@@ -97,6 +97,9 @@ local pins, spots, members = {}, {}, {}
 local gamePins = {} -- the turn-ins in view, drawn as the game's own "?"
 local areaFrame, areaMask
 local isAreaMasked = true -- a round minimap: fills cut by a round mask; any other shape: by the frame's square
+-- The areas when not traced (the settings' "Drawn as"): their discs, rings and shadows, and what places them
+-- (kept on the module: this file has all the locals a file may)
+MinimapPins.ovals = { pieces = { usedCount = 0 } }
 local triangles, lines = { usedCount = 0 }, { usedCount = 0 } -- lines: areas' edges and patrols' dashes
 local shownAreas = {} -- { questId, number, isFocused, outline }: outlines in yards ({ x = west, y = north })
 local drawnSpots, drawnAreas = {}, {} -- what is on the minimap now, in pixels from its middle (up positive)
@@ -316,6 +319,15 @@ local function getZoneMapId(uiMapId)
     return uiMapId
 end
 
+-- (the places' squares and sums (below) share one local: the file is near the 200 locals a Lua chunk may have)
+local Squares = {
+    YARDS = 500,
+    MIN_PLACES = 64,
+    NONE = {},
+    byPlaces = setmetatable({}, { __mode = "k" }),
+    sums = setmetatable({}, { __mode = "k" }), -- [places] = { count, sum } (MinimapPins.composeQuestAreas)
+}
+
 ---A quest's areas where the player is, exactly the shapes the world map draws for the player's zone: its places
 ---put on that zone's map as the map puts them (sub-zones included), the same shapes that follow them, placed in
 ---the world.
@@ -330,12 +342,19 @@ function MinimapPins.composeQuestAreas(questId, places, position, kind)
     end
     -- Kept by what they are made from (the quest, the zone map, the places themselves), so a redraw that changed
     -- none of that gets the very same tables again: the fills laid out for them on the minimap's canvas stay
-    local sum = 0
-    for index = 1, #places do
-        local place = places[index]
-        sum = sum + (place.x or 0) * 7919 + (place.y or 0) * 31 + (place.zoneId or 0)
+    -- (the places' sum kept with their list: worked out for every one of thousands at every composing before)
+    local summed = Squares.sums[places]
+    if not summed or summed[1] ~= #places then
+        local sum = 0
+        for index = 1, #places do
+            local place = places[index]
+            sum = sum + (place.x or 0) * 7919 + (place.y or 0) * 31 + (place.zoneId or 0)
+        end
+        summed = { #places, sum }
+        Squares.sums[places] = summed
     end
-    local cacheKey = string.format("%s:%s:%d:%d:%.4f", kind or "objectives", tostring(questId), uiMapId, #places, sum)
+    local cacheKey =
+        string.format("%s:%s:%d:%d:%.4f", kind or "objectives", tostring(questId), uiMapId, #places, summed[2])
     if areaCache[cacheKey] then
         return areaCache[cacheKey]
     end
@@ -351,6 +370,9 @@ function MinimapPins.composeQuestAreas(questId, places, position, kind)
     -- The world map's very shapes (worked out once on each zone's own map), fitted onto this zone's map, then put in
     -- the world: the minimap's areas are the map's
     local shapes, isPending = ns.MapMarks.composeFittedShapes(questId, uiMapId, points)
+    if isPending then
+        ns.MapMarks.isMinimapAwaitingShapes = true -- (drawn again when they are worked out: Areas' job)
+    end
     local function toYards(point) -- the zone map's fractions to the world's yards
         return { x = world.west - point.x * world.width, y = world.north - point.y * world.height }
     end
@@ -410,16 +432,55 @@ end
 
 ---@return number? distance How far a place is from the player, in yards; nil for one not on their continent. A
 ---place keeps its world position from the first time it is measured.
-local function getPlaceDistance(place, player)
+
+function Squares.locate(place)
     if place.north == nil then
         local continentId, north, west =
             ns.Geometry.getWorldPosition(ns.Database.getUiMapId(place.zoneId), place.x, place.y)
         place.continentId, place.north, place.west = continentId, north or false, west
     end
+end
+
+local function getPlaceDistance(place, player)
+    Squares.locate(place)
     if place.north and place.continentId == player.continentId then
         return ns.Geometry.getDistance(player.north, player.west, place.north, place.west)
     end
     return nil
+end
+
+-- A long list of places (a quest's spawns: thousands, all over the world) sorted into squares of the world once,
+-- so what is near the player is found in the squares round them, not by measuring every place at every composing
+-- (My First Alchemy Set's 14,794, twice at a focus change). Squares.YARDS across; lists shorter than MIN_PLACES are
+-- measured place by place. byPlaces: [places] = { count, squares = { [square] = places } }
+function Squares.key(continentId, column, row)
+    return ((continentId or 0) * 4096 + column + 2048) * 4096 + row + 2048
+end
+
+function Squares.of(places)
+    local index = Squares.byPlaces[places]
+    if index and index.count == #places then
+        return index.squares
+    end
+    local squares = {}
+    for _, place in ipairs(places) do
+        Squares.locate(place)
+        if place.north then
+            local key = Squares.key(
+                place.continentId,
+                math.floor(place.north / Squares.YARDS),
+                math.floor(place.west / Squares.YARDS)
+            )
+            local square = squares[key]
+            if not square then
+                square = {}
+                squares[key] = square
+            end
+            square[#square + 1] = place
+        end
+    end
+    Squares.byPlaces[places] = { count = #places, squares = squares }
+    return squares
 end
 
 ---The places within a distance of the player, each a candidate for a mark or a spawn icon.
@@ -427,6 +488,29 @@ end
 ---@return number nearestBeyond How near the nearest place left out is (math.huge when none was)
 local function addPlaces(candidates, places, data, player, isSpawnOnly, limitYards)
     local nearestBeyond = math.huge
+    if limitYards and #places >= Squares.MIN_PLACES and player.north then
+        -- The squares within the limit and one square more: the places in any other square are further off than that
+        local span = math.ceil(limitYards / Squares.YARDS) + 1
+        local column, row = math.floor(player.north / Squares.YARDS), math.floor(player.west / Squares.YARDS)
+        local squares = Squares.of(places)
+        for columnStep = -span, span do
+            for rowStep = -span, span do
+                local square = squares[Squares.key(player.continentId, column + columnStep, row + rowStep)]
+                for _, place in ipairs(square or Squares.NONE) do
+                    local distance = getPlaceDistance(place, player)
+                    if distance then
+                        if distance <= limitYards then
+                            candidates[#candidates + 1] =
+                                { place = place, data = data, distance = distance, isSpawnOnly = isSpawnOnly }
+                        elseif distance < nearestBeyond then
+                            nearestBeyond = distance
+                        end
+                    end
+                end
+            end
+        end
+        return math.min(nearestBeyond, span * Squares.YARDS)
+    end
     for _, place in ipairs(places) do
         local distance = getPlaceDistance(place, player)
         if distance then
@@ -2415,11 +2499,13 @@ local function applyAreaClip()
         return
     end
     isAreaMasked = isRound
-    for _, triangle in ipairs(triangles) do
-        if isRound then
-            triangle:AddMaskTexture(areaMask)
-        else
-            triangle:RemoveMaskTexture(areaMask)
+    for _, pool in ipairs({ triangles, MinimapPins.ovals.pieces }) do
+        for _, piece in ipairs(pool) do
+            if isRound then
+                piece:AddMaskTexture(areaMask)
+            else
+                piece:RemoveMaskTexture(areaMask)
+            end
         end
     end
     if areaFrame.SetClipsChildren then
@@ -2767,7 +2853,8 @@ local function getAreasKey(position, viewRadius, radius, facing, clear)
         return "-"
     end
     local key = string.format(
-        "%s:%.2f:%.2f:%s:%.2f:%.2f:%s:%s",
+        "%s:%s:%.2f:%.2f:%s:%.2f:%.2f:%s:%s",
+        ns.MapMarksWorld.getGeometry(),
         tostring(shownAreas),
         position.north,
         position.west,
@@ -2783,6 +2870,71 @@ local function getAreasKey(position, viewRadius, radius, facing, clear)
     return key
 end
 
+do
+    local Ovals = MinimapPins.ovals
+    Ovals.corners, Ovals.vertex = { {}, {}, {}, {} }, {}
+
+    function Ovals.createPiece()
+        return ns.Widgets.remember(glide(areaFrame:CreateTexture(nil, "ARTWORK", nil, 1)))
+    end
+
+    ---A picture of an oval, placed on the corners worked out for it (Ovals.corners).
+    function Ovals.place(picture, level, color, alpha)
+        local corners = Ovals.corners
+        local piece = acquire(Ovals.pieces, Ovals.createPiece)
+        if piece.picture ~= picture then
+            piece.picture = picture
+            piece:SetTexture(picture)
+        end
+        if piece.level ~= level then
+            piece.level = level
+            piece:SetDrawLayer("ARTWORK", level)
+        end
+        piece:SetVertexColor(color[1], color[2], color[3], alpha)
+        ns.MapMarks.setQuad(piece, corners[1], corners[2], corners[3], corners[4], areaFrame)
+    end
+
+    ---An area as the map draws it when not traced (the settings' "Drawn as"): soft shadows, or an oval round its
+    ---spawns (a disc and a ring); fitted once to the area's spawns (in the world's yards) and placed at every move,
+    ---two pictures each where the traced area was a dozen pieces of fill and two lines a leg of its edge. What an
+    ---oval is (its corners, its pictures, how strong) is the map's to say (MapMarks/World).
+    function Ovals.draw(area, geometry, position, viewRadius, radius, facing, look, color)
+        local World = ns.MapMarksWorld
+        if area.ovalsFor ~= geometry then
+            area.ovalsFor = geometry
+            area.ovals = World.fitGroupOvals(area.points, ns.MapMarks.AREA_REACH_YARDS, geometry == "soft")
+        end
+        local corners, vertex = Ovals.corners, Ovals.vertex
+        local pixelsPerYard = radius / viewRadius
+        local fillAlpha = area.isFocused and look.focusedFillAlpha or look.fillAlpha
+        local edgeAlpha = area.isFocused and look.focusedEdgeAlpha or look.edgeAlpha
+        local edgePixels = area.isFocused and look.focusedEdgePixels or look.edgePixels
+        for _, oval in ipairs(area.ovals) do
+            local left, right, bottom, top = math.huge, -math.huge, math.huge, -math.huge
+            for corner = 1, 4 do
+                vertex.x, vertex.y = World.getOvalCorner(oval, corner)
+                local x, y = toMinimap(vertex, position, viewRadius, radius, facing)
+                left, right, bottom, top = math.min(left, x), math.max(right, x), math.min(bottom, y), math.max(top, y)
+                -- (from the minimap's upper left corner, y down)
+                corners[corner].x, corners[corner].y = x + radius, radius - y
+            end
+            -- Only ovals on the minimap; the mask (or the square frame) cuts those across its edge
+            if right > -radius and left < radius and top > -radius and bottom < radius then
+                local picture, fillShare, edgeShare = World.getOvalLook(oval)
+                if look.hasFill then
+                    Ovals.place(picture, 1, color, fillAlpha * fillShare)
+                end
+                if look.hasEdges and oval.isSoft then
+                    Ovals.place(picture, 2, color, edgeAlpha * edgeShare)
+                elseif look.hasEdges then
+                    local across = (oval.along + oval.across) * pixelsPerYard
+                    Ovals.place(World.getOvalRing(across, edgePixels), 3, color, edgeAlpha)
+                end
+            end
+        end
+    end
+end
+
 ---The areas placed piece by piece at every move: a round minimap (its fills cut by a mask, its edges at its rim
 ---here) and a turning one.
 local function drawAreasMoveByMove(position, viewRadius, radius, facing, clear)
@@ -2792,7 +2944,8 @@ local function drawAreasMoveByMove(position, viewRadius, radius, facing, clear)
         return
     end
     drawnAreasKey = key
-    triangles.usedCount, lines.usedCount = 0, 0
+    triangles.usedCount, lines.usedCount, MinimapPins.ovals.pieces.usedCount = 0, 0, 0
+    local geometry = ns.MapMarksWorld.getGeometry()
     local look = ns.MapMarks.getAreaLook()
     local reachYards = ns.MapMarks.AREA_REACH_YARDS
     local function toCorner(x, y)
@@ -2804,8 +2957,13 @@ local function drawAreasMoveByMove(position, viewRadius, radius, facing, clear)
         if isAreaNear(area, position, viewRadius, reachYards) then
             local color = area.color or ns.MapMarks.getQuestColor(area.number, area.questId)
             local alpha = area.isFocused and look.focusedFillAlpha or look.fillAlpha
+            -- (shadows or an oval in place of the traced area's fill and edge; a walk and a rough circle as they are)
+            local isOval = geometry ~= "traced" and not area.isPatrol and not area.isRough and area.points ~= nil
+            if isOval then
+                MinimapPins.ovals.draw(area, geometry, position, viewRadius, radius, facing, look, color)
+            end
             -- (a fill or an outline switched off: none of its pieces placed)
-            for _, triangle in ipairs(look.hasFill and area.triangles or NO_PIECES) do
+            for _, triangle in ipairs(look.hasFill and not isOval and area.triangles or NO_PIECES) do
                 local ax, ay = toMinimap(triangle[1], position, viewRadius, radius, facing)
                 local bx, by = toMinimap(triangle[2], position, viewRadius, radius, facing)
                 local cx, cy = toMinimap(triangle[3], position, viewRadius, radius, facing)
@@ -2826,7 +2984,7 @@ local function drawAreasMoveByMove(position, viewRadius, radius, facing, clear)
             end
             if area.isPatrol then
                 drawPatrol(area, position, viewRadius, radius, facing, clear)
-            else
+            elseif not isOval then
                 local rimAlpha, edgeAlpha = Rough.getEdgeAlphas(area, look)
                 -- (the focused quest's edge thicker where the map's is: in the shapes look)
                 local thicker = area.isFocused and look.focusedEdgePixels - look.edgePixels or 0
@@ -2852,11 +3010,13 @@ local function drawAreasMoveByMove(position, viewRadius, radius, facing, clear)
             end
         end
     end
-    for index = triangles.usedCount + 1, #triangles do
-        local triangle = triangles[index]
-        if triangle.isShownNow ~= false then -- (only those not hidden already)
-            triangle:Hide()
-            triangle.isShownNow = false
+    for _, pool in ipairs({ triangles, MinimapPins.ovals.pieces }) do
+        for index = pool.usedCount + 1, #pool do
+            local piece = pool[index]
+            if piece.isShownNow ~= false then -- (only those not hidden already)
+                piece:Hide()
+                piece.isShownNow = false
+            end
         end
     end
     hideUnusedLines()
@@ -3099,6 +3259,7 @@ function MinimapPins.drawAreas(position, viewRadius, radius, facing, clear)
         and fillCanvas ~= nil
         and not isAreaMasked
         and not facing
+        and ns.MapMarksWorld.getGeometry() == "traced" -- (shadows and ovals: a few pictures, placed at each move)
         and MinimapPins.isCanvasOff ~= true -- (off: every piece placed at every move, to compare the two ways)
     lastMove.isAreaCanvas = isOnCanvas
     if not isOnCanvas then

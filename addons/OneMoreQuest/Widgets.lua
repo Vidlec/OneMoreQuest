@@ -195,7 +195,10 @@ function Widgets.place(region, point, relativeTo, relativePoint, x, y)
     then
         return
     end
-    raw.ClearAllPoints(region)
+    -- (the same point against the same thing, only moved: set again, it takes the old one's place; nothing to clear)
+    if region.omqPoint ~= point or region.omqRelativeTo ~= relativeTo or region.omqRelativePoint ~= relativePoint then
+        raw.ClearAllPoints(region)
+    end
     raw.SetPoint(region, point, relativeTo, relativePoint, x, y)
     region.omqPoint, region.omqRelativeTo, region.omqRelativePoint, region.omqX, region.omqY =
         point, relativeTo, relativePoint, x, y

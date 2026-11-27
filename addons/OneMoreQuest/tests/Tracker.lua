@@ -147,6 +147,44 @@ test("without QuestieDB quests still list, under an unknown location", function(
     expectEqual(model.groups[1].zoneName, "Unknown location", "zone name")
 end)
 
+test("with the setting on, a quest moving on is not tracked by it: only taking it or tracking it does", function()
+    local ns, state = createAddon()
+    local isWatched = function(questId)
+        for _, watchedQuestId in ipairs(state.watchedQuestIds) do
+            if watchedQuestId == questId then
+                return true
+            end
+        end
+        return false
+    end
+    for _, questId in ipairs({ 501, 502, 503 }) do
+        state.questLog[questId] = { isComplete = false, objectives = { killObjective(0, 5) } }
+    end
+    ns.QuestState.noteWatchEvent("QUEST_WATCH_LIST_CHANGED") -- (what is tracked, first seen: nothing)
+    -- Off (as it comes): the game's way, a quest that moves on is tracked
+    expectEqual(ns.settings.shouldKeepUntracked, false, "off unless the player turns it on")
+    C_QuestLog.AddQuestWatch(501)
+    ns.QuestState.noteWatchEvent("QUEST_WATCH_UPDATE", 501)
+    expectEqual(isWatched(501), true, "off: the game's tracking of a quest that moved on stays")
+    C_QuestLog.RemoveQuestWatch(501)
+    ns.QuestState.noteWatchEvent("QUEST_WATCH_LIST_CHANGED")
+    -- On: an item picked up for an untracked quest, the game tracks it (autoQuestWatch), then says it moved on
+    ns.settings.shouldKeepUntracked = true
+    C_QuestLog.AddQuestWatch(501)
+    ns.QuestState.noteWatchEvent("QUEST_WATCH_UPDATE", 501)
+    expectEqual(isWatched(501), false, "on: tracked by the game for moving on, untracked again")
+    -- The player tracks a quest that just moved on: kept
+    ns.QuestState.noteWatchEvent("QUEST_WATCH_UPDATE", 502)
+    expectEqual(ns.QuestState.addWatch(502), true, "the player tracks it")
+    ns.QuestState.noteWatchEvent("QUEST_WATCH_LIST_CHANGED")
+    expectEqual(isWatched(502), true, "the player's own tracking stays")
+    -- A quest just taken, tracked by the game as it is taken, moving on at once (its items already carried): kept
+    ns.QuestState.noteWatchEvent("QUEST_ACCEPTED", 503)
+    C_QuestLog.AddQuestWatch(503)
+    ns.QuestState.noteWatchEvent("QUEST_WATCH_UPDATE", 503)
+    expectEqual(isWatched(503), true, "a quest just taken keeps the tracking it was taken with")
+end)
+
 test(
     "tracking past the game's limit is refused with the game's message, and unfocusing keeps the quest open",
     function()
@@ -957,7 +995,7 @@ test("the tracker stays where it was put across logins at any size", function()
         local savedCreate = CreateFrame
         CreateFrame = function(kind, name, ...)
             local widget = savedCreate(kind, name, ...)
-            if name == "TrailheadTracker" then
+            if name == "OneMoreQuestTracker" then
                 local scale = 1
                 rawset(widget, "SetScale", function(_, value)
                     scale = value

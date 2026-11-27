@@ -25,7 +25,8 @@ local PARTS = {
 }
 local function apply(part)
     local settings = addon.settings
-    settings.areaStyle, settings.spawnMarker = "blob", "glyph"
+    settings.areaStyle, settings.spawnMarker = "filled", "glyph"
+    settings.areaGeometry = "ovals" -- (drawn as shadows alone an area has no parts to switch: one strength)
     settings.shouldFillAreas, settings.shouldOutlineAreas, settings.areaFillStrength, settings.areaOutlineStrength =
         part[2], part[3], part[4], part[5]
     addon.SettingsPage.apply()

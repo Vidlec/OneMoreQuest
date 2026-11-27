@@ -54,6 +54,11 @@ end
 
 ---The focus changes here and in the windows (FOCUS_CHANGED); the game's own is left as it is.
 local function follow(questId)
+    if questId == pickedQuestId then
+        -- (told already: setting the game's focus makes the game say so at once, which is followed, and the one who
+        -- set it follows too. Told twice, the quest window and the minimap were drawn twice for every focus)
+        return
+    end
     formerQuestId, changedAt = pickedQuestId, getNow()
     pickedQuestId = questId
     ns.settings.focusedQuestIds[getCharacterKey()] = questId

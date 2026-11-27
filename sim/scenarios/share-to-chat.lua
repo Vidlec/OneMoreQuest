@@ -27,7 +27,7 @@ local function closeChat()
 end
 
 -- The tracker: shift-click opens the chat with the link; the quest stays tracked
-local tracker = G.TrailheadTracker
+local tracker = G.OneMoreQuestTracker
 local function trackerRow(questId, frame)
     for _, child in ipairs({ (frame or tracker):GetChildren() }) do
         if child.entry and child.entry.questId == questId and child:IsVisible() then
@@ -85,7 +85,7 @@ if entry then
     closeChat()
     click(entry) -- opens its page
     wait(0.3)
-    local title = G.TrailheadLog and addon.Log.getPageTitleButton and addon.Log.getPageTitleButton()
+    local title = G.OneMoreQuestLog and addon.Log.getPageTitleButton and addon.Log.getPageTitleButton()
     if title then
         click(title, "LeftButton", { shift = true })
         expect(hasLink(869), "shift-click on the quest page's title links it")

@@ -362,6 +362,16 @@ end)
 test("only what changed is sent, on this addon's channel and Questie's", function()
     local ns, state = createAddon()
     local sent = installGroup(state)
+    -- Mira runs Questie: she was heard on its channel (nothing goes out on it before that)
+    receive(
+        ns,
+        "questie",
+        ns.QuestieBridge.serialize({ ver = "12.15.0", msgVer = 5, msgId = 2, id = 999 }),
+        "Mira Dawnfield"
+    )
+    for index = #sent, 1, -1 do
+        sent[index] = nil
+    end
     setQuest(state, 301, false, { killObjective(5, 12), itemObjective(1, 4) })
     ns.Comms.sendChanges()
     local ours, questies = 0, 0
@@ -469,7 +479,7 @@ test("a Questie player's progress is read, in one message or several, in either 
         "Mira Dawnfield"
     )
     expectEqual(ns.Comms.getRemoteQuest("Mira Dawnfield", 302).objectives[1].fulfilled, 2, "from the flat format")
-    -- A request for the log is answered with a whisper, in Questie's first format
+    -- A request for the log is answered with a whisper, in the flat list Questie itself sends
     setQuest(state, 301, false, { killObjective(5, 12), itemObjective(1, 4) })
     receive(ns, "questie", ns.QuestieBridge.serialize({ ver = "9.4.1", msgVer = 5, msgId = 11 }), "Mira Dawnfield")
     local answer
@@ -478,11 +488,109 @@ test("a Questie player's progress is read, in one message or several, in either 
             answer = ns.QuestieBridge.deserialize(ns.QuestieBridge.joinMessage(message.text, "me"))
         end
     end
-    expectEqual(answer and answer.msgId, 10, "the log, as Questie asks for it")
-    expectEqual(answer.rawQuestList[301].objectives[1].ful, 5, "with the counts")
+    expectEqual(answer and answer.msgId, 12, "the log, as Questie itself sends it")
+    expectEqual(table.concat(answer[1], ","), "1,301,2,5001,109,5,12,7001,105,1,4", "its flat list, no gaps")
     -- A stranger's message is ignored
     receive(ns, "questie", update, "Somebody Else")
     expectEqual(ns.Comms.getRemoteQuest("Somebody Else", 301), nil, "only the group's")
+    removeGroup()
+end)
+
+test("nothing is sent on Questie's channel that a Questie in the group is not known to read", function()
+    local ns, state = createAddon()
+    local sent = installGroup(state)
+    local function countQuesties()
+        local count, ids = 0, {}
+        for _, message in ipairs(sent) do
+            if message.prefix == "questie" then
+                count = count + 1
+                local whole = ns.QuestieBridge.joinMessage(message.text, "me")
+                ids[#ids + 1] = whole and ns.QuestieBridge.deserialize(whole).msgId or "part"
+            end
+        end
+        return count, table.concat(ids, ",")
+    end
+    local function clear()
+        for index = #sent, 1, -1 do
+            sent[index] = nil
+        end
+    end
+    local function hear(sender, packet)
+        receive(ns, "questie", ns.QuestieBridge.serialize(packet), sender)
+    end
+    setQuest(state, 301, false, { killObjective(5, 12), itemObjective(1, 4) })
+    -- Nobody was heard on Questie's channel: the group may have no Questie at all, so not a word on it
+    ns.Comms.handleGroupChange()
+    ns.Comms.sendChanges()
+    ns.Comms.sendRemoval(301)
+    expectEqual(countQuesties(), 0, "silent until someone is heard")
+    expectEqual(ns.QuestieBridge.canSend(11), false, "not even a request for logs")
+
+    -- A Questie as new as the one tested is heard: its log is asked for and ours sent, in the packets it has
+    clear()
+    hear("Mira Dawnfield", { ver = "12.15.0", msgVer = 5, msgId = 1, quest = { id = 302, objectives = {} } })
+    local _, ids = countQuesties()
+    expectEqual(ids, "11,12", "a request for her log, and our own as the flat list")
+    for _, packetId in ipairs({ 10, 13, 14 }) do
+        expectEqual(
+            ns.QuestieBridge.canSend(packetId),
+            false,
+            "never packet " .. packetId .. ", which it does not have"
+        )
+    end
+    clear()
+    hear("Mira Dawnfield", { ver = "12.15.0", msgVer = 5, msgId = 1, quest = { id = 302, objectives = {} } })
+    expectEqual(countQuesties(), 0, "heard again: nothing new to say")
+
+    -- A Questie newer than the tested one: only what it was heard to send itself
+    ns.QuestieBridge.reset()
+    ns.settings.questiePackets = nil
+    clear()
+    hear("Olen Rusk", { ver = "13.0.0", msgVer = 5, msgId = 12, [1] = { 1, 302, 1, 7001, 105, 2, 6 } })
+    _, ids = countQuesties()
+    expectEqual(ids, "12", "it sends flat lists, so it reads ours; no request, which it was not heard to make")
+    expectEqual(ns.QuestieBridge.canSend(12), true, "the kind it sent")
+    expectEqual(ns.QuestieBridge.canSend(1), false, "not a kind it was not heard to send")
+    clear()
+    state.questLog[301].objectives[1] = killObjective(6, 12)
+    ns.Comms.sendChanges()
+    _, ids = countQuesties()
+    expectEqual(ids, "12", "a change goes as a flat list of the one quest")
+    clear()
+    ns.Comms.sendRemoval(301)
+    expectEqual(countQuesties(), 0, "and a removal not at all, until it is heard to send one")
+    -- A packet under a known number that holds something else is not taken for the known kind
+    hear("Olen Rusk", { ver = "13.0.0", msgVer = 5, msgId = 2, id = "not a quest" })
+    expectEqual(ns.QuestieBridge.canSend(2), false, "a reshaped packet teaches nothing")
+    hear("Olen Rusk", { ver = "13.0.0", msgVer = 5, msgId = 2, id = 302 })
+    expectEqual(ns.QuestieBridge.canSend(2), true, "a sound one does")
+    -- What a version was heard to send is kept for the next session
+    ns.QuestieBridge.reset()
+    hear("Olen Rusk", { ver = "13.0.0", msgVer = 5, msgId = 11 })
+    expectEqual(ns.QuestieBridge.canSend(12), true, "remembered with the settings")
+    -- With two Questies in the group, a packet goes only if both read it
+    hear("Mira Dawnfield", { ver = "14.2.0", msgVer = 5, msgId = 11 })
+    expectEqual(ns.QuestieBridge.canSend(12), false, "one of them is not known to read it")
+    expectEqual(ns.QuestieBridge.canSend(11), true, "both sent this kind")
+    -- An old Questie within the versions read from their source is spoken to as the newest of them is
+    ns.QuestieBridge.reset()
+    ns.settings.questiePackets = nil
+    clear()
+    hear("Mira Dawnfield", { ver = "9.4.1", msgVer = 5, msgId = 1, quest = { id = 302, objectives = {} } })
+    _, ids = countQuesties()
+    expectEqual(ids, "11,12", "an old Questie: asked for its log, sent ours as the flat list it reads too")
+    -- One older than any that was read: only what it sends itself
+    ns.QuestieBridge.reset()
+    clear()
+    hear("Mira Dawnfield", { ver = "5.2.0", msgVer = 5, msgId = 1, quest = { id = 302, objectives = {} } })
+    expectEqual(countQuesties(), 0, "a Questie older than any read: nothing on a guess")
+    expectEqual(ns.QuestieBridge.canSend(1), true, "but the update it sent itself, it reads")
+    -- Another message version altogether is left alone
+    ns.QuestieBridge.reset()
+    ns.settings.questiePackets = nil
+    clear()
+    hear("Mira Dawnfield", { ver = "20.0.0", msgVer = 6, msgId = 11 })
+    expectEqual(countQuesties(), 0, "a message version this does not speak: silent")
     removeGroup()
 end)
 

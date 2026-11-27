@@ -30,7 +30,7 @@ local function showTooltip(button)
 end
 
 local function createButton(index)
-    local button = CreateFrame("Button", "TrailheadItemButton" .. index, UIParent, "SecureActionButtonTemplate")
+    local button = CreateFrame("Button", "OneMoreQuestItemButton" .. index, UIParent, "SecureActionButtonTemplate")
     button:SetFrameStrata("LOW") -- (with the tracker they stand beside: under every window)
     button:RegisterForClicks("AnyDown", "AnyUp")
     button:SetAttribute("type", "item")

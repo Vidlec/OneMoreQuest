@@ -5,7 +5,7 @@ moveTo(1413, 0.52, 0.31)
 accept(844)
 wait(1)
 local addon = require("addons").byName["onemorequest"].private
-local tracker = G.TrailheadTracker
+local tracker = G.OneMoreQuestTracker
 local function top()
     return math.floor(tracker:GetTop() + 0.5)
 end

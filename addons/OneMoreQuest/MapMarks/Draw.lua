@@ -171,6 +171,8 @@ function MapMarks.updateParty()
                     y = y * State.drawn.height * State.drawn.scale,
                     radius = radius,
                     isMember = unit ~= "player",
+                    mapX = x,
+                    mapY = y,
                 }
             end
         end
@@ -191,6 +193,9 @@ function MapMarks.updateParty()
         return
     end
     State.drawn.partyKey = key
+    if MapMarks.World.isOn() then
+        MapMarks.World.clearNear(map, clear) -- (the kept drawing's spawn marks: each where it is on the map)
+    end
     State.pools.halos.usedCount = 0
     for _, point in ipairs(clear) do
         if point.isMember then
@@ -247,13 +252,21 @@ local MIN_MARK_SCALE = 0.4 -- with no pills to gather them, far out they are dra
 ---@return number scale How large the marks are drawn on a map at its zoom: 1 at a zone's own size, smaller zoomed out
 ---@param pixelsAcross number The map's whole width on screen
 function MapMarks.getMarkScale(mapId, pixelsAcross)
-    -- Times the size the player chose for map marks
-    local chosen = math.max(0.5, math.min(2, tonumber(ns.settings.mapMarkScale) or 1))
     local yards = mapId and MapMarks.getMapYards(mapId)
     if not yards or yards <= 0 or not pixelsAcross or pixelsAcross <= 0 then
+        return MapMarks.getMarkScaleAt(nil)
+    end
+    return MapMarks.getMarkScaleAt(pixelsAcross / yards)
+end
+
+---@return number scale As MapMarks.getMarkScale, for a map drawn at so many pixels a yard on screen (measured off the
+---screen itself, whatever map is underneath)
+function MapMarks.getMarkScaleAt(pixelsPerYard)
+    -- Times the size the player chose for map marks
+    local chosen = math.max(0.5, math.min(2, tonumber(ns.settings.mapMarkScale) or 1))
+    if not pixelsPerYard or pixelsPerYard <= 0 then
         return chosen
     end
-    local pixelsPerYard = pixelsAcross / yards
     return chosen * math.max(MIN_MARK_SCALE, math.min(1, math.sqrt(pixelsPerYard / FULL_SIZE_PIXELS_PER_YARD)))
 end
 
@@ -274,12 +287,328 @@ function MapMarks.hideUntilDrawn(map)
     if State.areaLayer then
         State.areaLayer:Hide()
     end
+    if State.drawn.pinLayer then
+        State.drawn.pinLayer:Hide()
+        State.drawn.glowLayer:Hide()
+    end
+end
+
+---The layers of marks held to their spots (with the kept drawing): the marks' own, and under it their glows'. Both
+---lie on the map and are sized against its zoom as a whole, each mark placed on its layer in the layer's units (a
+---mark's own). Nothing of them is touched while the map is dragged or zooms: they grow with it through a zoom, as
+---all of the kept drawing does, and are sized and placed for the zoom once it has settled (MapMarks.followZoom).
+---(They hung on anchors of the map before, one a mark, to keep their size through a zoom: every anchor was one
+---more thing the game laid out again at every frame of a drag.)
+local function ensurePinLayers(map, canvas)
+    local drawn = State.drawn
+    if not drawn.pinLayer then
+        for _, name in ipairs({ "glowLayer", "pinLayer" }) do
+            local layer = ns.CreateFrame("Frame", nil, canvas)
+            layer:SetPoint("TOPLEFT", canvas, "TOPLEFT", 0, 0)
+            layer:SetSize(1, 1)
+            drawn[name] = layer
+        end
+    end
+    MapMarks.setLayerLevel(drawn.glowLayer, MapMarks.getAreaFrameLevel(map) + 5)
+    MapMarks.setLayerLevel(drawn.pinLayer, State.frameLevel + 1)
+    MapMarks.showLayer(drawn.glowLayer)
+    MapMarks.showLayer(drawn.pinLayer)
+end
+
+-- A mark is a dozen regions (its glow, ring, text, icon, a coin's rim, face and gleam...), most of them hidden for
+-- any one kind of mark: a quest giver's "!" shows one. The game lays out again, on every frame of a drag or a zoom,
+-- whatever hangs from the map, hidden or not; so a mark's parts that do not show let go of it (their anchors kept
+-- aside), and hang back as they were the moment they are shown or placed again, whoever does it: while a part
+-- rests, its own showing and placing are stood in for (RESTING_METHODS), and what Widgets.place knows of its place
+-- is watched (Widgets.place sets a part's points past its own methods).
+local RESTING_METHODS = { "Show", "SetShown", "ClearAllPoints", "SetPoint", "SetAllPoints" }
+local standIns = {}
+
+---@return function own A resting part's own method under the one standing in for it: its remembering one
+---(Widgets.remember), or the game's
+local function getOwn(part, saved, name)
+    return saved[name] or getmetatable(part).__index[name]
+end
+
+---@return boolean isKept What Widgets.place knows of a resting part's place is what it knew as the part went to
+---rest: Widgets.place has not placed it since
+local function isPlaceKept(part, saved)
+    return part.omqPoint == saved.keptPoint
+        and part.omqRelativeTo == saved.keptRelativeTo
+        and part.omqRelativePoint == saved.keptRelativePoint
+        and part.omqX == saved.keptX
+        and part.omqY == saved.keptY
+end
+
+---Gives a resting part its anchors back, unless it was placed anew meanwhile (it stands where it was put then).
+local function hangBack(part, saved)
+    if not saved.isLetGo then
+        return
+    end
+    saved.isLetGo = false
+    if saved.count > 0 and isPlaceKept(part, saved) then
+        local raw = part.omqRaw
+        local setPoint = type(raw) == "table" and raw.SetPoint or getOwn(part, saved, "SetPoint")
+        for position = 1, saved.count * 5, 5 do
+            setPoint(
+                part,
+                saved[position],
+                saved[position + 1],
+                saved[position + 2],
+                saved[position + 3],
+                saved[position + 4]
+            )
+        end
+    end
+end
+
+local function wakePart(part)
+    local saved = part.omqRest
+    if not saved or not saved.isResting then
+        return
+    end
+    saved.isResting = false
+    for index = 1, #RESTING_METHODS do
+        local name = RESTING_METHODS[index]
+        part[name] = saved[name] -- (its own again; nil: the game's)
+    end
+    hangBack(part, saved)
+end
+
+function standIns.Show(self)
+    local saved = self.omqRest
+    wakePart(self)
+    return getOwn(self, saved, "Show")(self)
+end
+
+function standIns.SetShown(self, isShown)
+    local saved = self.omqRest
+    if isShown then
+        wakePart(self)
+    end
+    return getOwn(self, saved, "SetShown")(self, isShown)
+end
+
+-- (cleared by its owner while it rests: there is nothing to hang back)
+function standIns.ClearAllPoints(self)
+    local saved = self.omqRest
+    saved.isLetGo = false
+    return getOwn(self, saved, "ClearAllPoints")(self)
+end
+
+-- (a point set while it rests: set among the points it had, as its owner means it; let go again at the next
+-- drawing if it still does not show)
+function standIns.SetPoint(self, ...)
+    local saved = self.omqRest
+    hangBack(self, saved)
+    return getOwn(self, saved, "SetPoint")(self, ...)
+end
+
+function standIns.SetAllPoints(self, ...)
+    local saved = self.omqRest
+    saved.isLetGo = false -- (takes the place of every point it had)
+    return getOwn(self, saved, "SetAllPoints")(self, ...)
+end
+
+---Lets a hidden part go of what it hangs from, its anchors kept for when it shows again. At rest already and not
+---placed since, nothing is asked of the game.
+local function restPart(part)
+    local saved = part.omqRest
+    if saved and saved.isResting and saved.isLetGo and isPlaceKept(part, saved) then
+        return
+    end
+    local count = part:GetNumPoints()
+    if type(count) ~= "number" then
+        return
+    end
+    if not saved then
+        saved = { count = 0 }
+        part.omqRest = saved
+    end
+    if not saved.isResting then
+        saved.isResting = true
+        for index = 1, #RESTING_METHODS do
+            local name = RESTING_METHODS[index]
+            saved[name] = rawget(part, name)
+            part[name] = standIns[name]
+        end
+    end
+    if count > 0 or not saved.isLetGo then
+        saved.count = count
+        for position = 1, count do
+            local point, relativeTo, relativePoint, x, y = part:GetPoint(position)
+            local base = (position - 1) * 5
+            saved[base + 1], saved[base + 2], saved[base + 3], saved[base + 4], saved[base + 5] =
+                point, relativeTo, relativePoint, x, y
+        end
+        local raw = part.omqRaw
+        if type(raw) == "table" then
+            -- The game's own clearing: what Widgets.place knows of the part's place is kept, not forgotten, so
+            -- placing it where it was asks nothing and leaves it at rest. Set point by point and held by one, that
+            -- point is what is known of it from now on (it is where the part stands again when it wakes).
+            raw.ClearAllPoints(part)
+            if count == 1 and type(part.omqPoint) ~= "string" then
+                part.omqPoint, part.omqRelativeTo, part.omqRelativePoint, part.omqX, part.omqY =
+                    saved[1], saved[2], saved[3], saved[4], saved[5]
+            end
+        elseif count > 0 then
+            getOwn(part, saved, "ClearAllPoints")(part)
+        end
+    end
+    saved.isLetGo = true
+    saved.keptPoint, saved.keptRelativeTo, saved.keptRelativePoint, saved.keptX, saved.keptY =
+        part.omqPoint, part.omqRelativeTo, part.omqRelativePoint, part.omqX, part.omqY
+end
+
+---@return boolean isHidden A part does not show (a remembering part knows without asking the game)
+local function isPartHidden(part)
+    if type(part.omqRaw) == "table" and not part.omqHideWaits then
+        local isShown = part.omqShown
+        if isShown == nil then
+            isShown = part:IsShown() == true -- (never shown or hidden through its own methods yet: asked once)
+            part.omqShown = isShown
+        end
+        return not isShown
+    end
+    return not part:IsShown()
+end
+
+local needStamp = 0
+
+---Marks what a part hangs from, of its own mark's parts, as needed: a part that shows needs those it hangs from to
+---keep their place, hidden or not (a coin's face is set against its rim).
+local function needAnchorsOf(part, button)
+    local function need(target)
+        if type(target) == "table" and target.omqPartOf == button and target.omqNeededAt ~= needStamp then
+            target.omqNeededAt = needStamp
+            needAnchorsOf(target, button)
+        end
+    end
+    if type(part.omqPoint) == "string" then
+        need(part.omqRelativeTo) -- (placed by Widgets.place: its one point)
+    else
+        local saved = part.omqRest
+        if saved and saved.isResting and saved.isLetGo then
+            for position = 2, saved.count * 5, 5 do
+                need(saved[position])
+            end
+        else
+            for index = 1, #(part.omqHeldBy or {}) do
+                need(part.omqHeldBy[index])
+            end
+        end
+    end
+end
+
+---Lists a mark's parts: its own regions, its glow (which lies on the glows' layer) and the frames within it (a
+---dungeon's mark's quests). Listed again when Look makes more of them (it lets go of button.omqParts then).
+local function listParts(button)
+    local regionCount = button.GetNumRegions and button:GetNumRegions()
+    if type(regionCount) ~= "number" then
+        return false -- (the tests' stand-ins)
+    end
+    local parts = {}
+    local function add(part)
+        -- (a mask shows nothing by itself, and hangs from its picture; a line has no anchors to let go this way)
+        if not part then
+            return
+        end
+        local isListed = rawget(part, "omqIsListed") -- (what it is never changes: asked of the game once)
+        if isListed == nil then
+            isListed = not part:IsObjectType("MaskTexture") and not part:IsObjectType("Line")
+            part.omqIsListed = isListed
+        end
+        if isListed then
+            parts[#parts + 1] = part
+            part.omqPartOf = button
+        end
+    end
+    for _, region in ipairs({ button:GetRegions() }) do
+        add(region)
+    end
+    for _, child in ipairs({ button:GetChildren() }) do
+        add(child)
+    end
+    if button.glow and button.glow:GetParent() ~= button then
+        add(button.glow)
+    end
+    -- What each is held by as it was made (point by point; Widgets.place's one point is read from what it keeps)
+    for _, part in ipairs(parts) do
+        local saved = part.omqRest
+        if not (saved and saved.isResting and saved.isLetGo) then
+            local heldBy
+            for position = 1, part:GetNumPoints() or 0 do
+                local _, relativeTo = part:GetPoint(position)
+                if type(relativeTo) == "table" and relativeTo ~= button then
+                    heldBy = heldBy or {}
+                    heldBy[#heldBy + 1] = relativeTo
+                end
+            end
+            part.omqHeldBy = heldBy
+        end
+    end
+    parts.glow = button.glow
+    return parts
+end
+
+---Lets a drawn mark's hidden parts go of it (restPart), but for those a part that shows hangs from.
+local function restHiddenParts(button)
+    local parts = rawget(button, "omqParts") -- (its own field: the tests' stand-ins answer any name)
+    if parts == nil or (parts and parts.glow ~= button.glow) then
+        parts = listParts(button)
+        button.omqParts = parts
+    end
+    if not parts then
+        return
+    end
+    needStamp = needStamp + 1
+    for index = 1, #parts do
+        local part = parts[index]
+        part.omqIsHidden = isPartHidden(part)
+        if not part.omqIsHidden then
+            needAnchorsOf(part, button)
+        end
+    end
+    for index = 1, #parts do
+        local part = parts[index]
+        if part.omqIsHidden then
+            if part.omqNeededAt == needStamp then
+                local saved = part.omqRest
+                if saved and saved.isResting then
+                    hangBack(part, saved) -- (hidden still, and at its place again: a part that shows hangs from it)
+                end
+            else
+                restPart(part)
+            end
+        end
+    end
 end
 
 -- The spawn marks on the mark layer: each keeps its size on screen as the map zooms (all anchored by their middle)
 local FOLLOWED_POOLS = { "dots", "icons", "glows" }
 
+local finishGivers, keepButtons -- (below, with the drawing)
+
+---@return boolean isNothing The last drawing put no mark on the map, and the view is still inside the ground it was
+---drawn for (zoomed in on a part of the map with nothing of the quests): laying the marks out again for another zoom
+---would lay out none. Zoomed out or dragged past that ground, marks may have come into view: laid out then.
+local function isNothingToLayOut(map)
+    MapMarks.useMap(map)
+    local pools, drawn = State.pools, State.drawn
+    if pools.marks.usedCount > 0 or (pools.pills and pools.pills.usedCount > 0) then
+        return false
+    end
+    -- (drawn for the whole map: there is no mark on it)
+    return drawn.viewBounds == nil or ns.MapPins.isViewWithin(map, drawn.viewBounds)
+end
 local ZOOM_STILL_SECONDS = 0.12 -- how long the zoom stays put before the lines and spawn marks catch up with it
+-- What is drawn reaches this far past the view on each side (of its width and height): a pan finds marks there, and
+-- once it shows past them they are drawn again for the new view (MapPins.isViewCovered)
+MapMarks.CULL_MARGIN = 0.25
+local EASE_SECONDS = 0.15 -- how long the marks take to reach the size a settled zoom gives them
+local WARM_SECONDS = 0.05 -- a zone's quests to pick up are worked out ahead this often at most (warmGivers)
+local PAN_CHECK_SECONDS = 0.25 -- how often a pan of the game's own map is looked at (OpenMap's says so itself)
+local MARKS_AGAIN_RATIO = 1.2 -- with the kept drawing, the quests' marks are laid out again once the zoom changed by this much
 
 ---The map zoomed a step: every mark keeps its spot on the map and its size on screen, at once and cheaply, with
 ---nothing laid out again (that waits until the zoom settles, MapPins). The mark layer scales with the map, so each
@@ -287,7 +616,10 @@ local ZOOM_STILL_SECONDS = 0.12 -- how long the zoom stays put before the lines 
 ---@param isMoving boolean? The zoom is still on its way (a wheel step, OpenMap's glide over several frames): only the
 ---quest marks follow it now; the spawn marks, the areas' lines and the walks' dashes scale with the map meanwhile and
 ---catch up once the zoom has stayed put (MapMarks' OnUpdate), each once rather than at every frame of the glide
-function MapMarks.followZoom(map, isMoving)
+---@param isStill boolean? Said with isMoving: the zoom has stayed put, but the rest is not to catch up yet (a drawing
+---is coming); the marks held to their spots are placed for it whatever their number
+---@param easedMarkScale number? The marks' size for this frame, on its way to the settled zoom's (the easing below)
+function MapMarks.followZoom(map, isMoving, isStill, easedMarkScale)
     MapMarks.useMap(map)
     local drawn = State.drawn
     local scale = map and map.GetCanvasScale and map:GetCanvasScale()
@@ -302,6 +634,56 @@ function MapMarks.followZoom(map, isMoving)
         markScale = MapMarks.getMarkScale(map:GetMapID(), drawn.width * scale)
     end
     local glowScale = ratio * markScale / (drawn.markScale or 1)
+    local isPinned = drawn.isPinned == true
+    -- While the zoom is on its way the marks keep the very size on screen they have (the size the new zoom gives
+    -- them waits for it to stay put): a mark whose size on screen changes has its text drawn anew by the game, every
+    -- letter of it, and through a zoom that was every mark's at every frame, whatever else the map showed
+    local isHeld = isMoving and not isStill
+    if isHeld then
+        markScale = drawn.pinMarkScale or drawn.markScale or markScale
+        drawn.ease = nil
+    elseif easedMarkScale then
+        markScale = easedMarkScale
+    elseif
+        isPinned
+        and drawn.pinMarkScale
+        and drawn.pinnedScale == scale
+        and math.abs(markScale / drawn.pinMarkScale - 1) > 0.02
+        and GetTime
+    then
+        -- The zoom has stayed put and gives the marks another size: they glide to it over a few frames (the
+        -- markLayer's OnUpdate), where they jumped. Their texts are drawn anew for those few frames, once a zoom,
+        -- not at every frame of it.
+        drawn.ease = { from = drawn.pinMarkScale, to = markScale, startedAt = GetTime() }
+        markScale = drawn.pinMarkScale
+    end
+    if
+        isPinned
+        and drawn.pinLayer
+        and (drawn.pinnedScale ~= scale or (not isHeld and drawn.pinMarkScale ~= markScale))
+    then
+        -- Held to their spots: the two layers sized against the zoom, and each mark placed on its spot again, by as
+        -- far as the laying out moved it from there (one call a mark), at every frame of a zoom: they keep their
+        -- size and spot all through it
+        local pinScale = markScale / scale
+        drawn.pinScale, drawn.pinnedScale, drawn.pinMarkScale = pinScale, scale, markScale
+        drawn.pinLayer:SetScale(pinScale)
+        drawn.glowLayer:SetScale(pinScale)
+        local marks = State.pools.marks
+        for index = 1, marks.usedCount do
+            local button = marks[index]
+            if button.pinX then
+                ns.Widgets.place(
+                    button,
+                    "CENTER",
+                    drawn.pinLayer,
+                    "TOPLEFT",
+                    (button.pinX * scale + button.pinLeft) / markScale,
+                    -(button.pinY * scale + button.pinTop) / markScale
+                )
+            end
+        end
+    end
     local function rememberSize(region)
         if region.followDrawId ~= drawn.drawId then
             region.followDrawId = drawn.drawId
@@ -309,7 +691,7 @@ function MapMarks.followZoom(map, isMoving)
         end
     end
     local pools = State.pools
-    for index = 1, pools.marks.usedCount do
+    for index = 1, (isPinned and 0 or pools.marks.usedCount) do
         local button = pools.marks[index]
         local place = button.mark and button.mark.place
         if place then
@@ -345,8 +727,11 @@ function MapMarks.followZoom(map, isMoving)
             ns.Widgets.place(pill, "CENTER", State.markLayer, "TOPLEFT", place.left / ratio, -place.top / ratio)
         end
     end
+    drawn.isPinSizeSettled = not isHeld
     if isMoving then
-        drawn.isFollowPending, drawn.zoomMovedAt = true, GetTime and GetTime() or 0
+        if not isStill then
+            drawn.isFollowPending, drawn.zoomMovedAt = true, GetTime and GetTime() or 0
+        end
         return
     end
     drawn.isFollowPending = false
@@ -450,6 +835,24 @@ local function drawRoughCircles(marks, width, height, scale)
     end
 end
 
+---@return table[] areas, table[] spots The quest areas and spawn marks a map shows now, whichever drawing made them
+---(this one's State.drawn.areas and .squares, the kept drawing's own): for the tests and the simulator's scenarios
+function MapMarks.listDrawn(map)
+    MapMarks.useMap(map or WorldMapFrame)
+    local drawn = State.drawn
+    if not MapMarks.World.isOn() then
+        return drawn.areas, drawn.squares
+    end
+    local areas, spots = MapMarks.World.list(map or WorldMapFrame, drawn.scale or 1)
+    for _, area in ipairs(drawn.areas) do
+        areas[#areas + 1] = area
+    end
+    for _, square in ipairs(drawn.squares) do
+        spots[#spots + 1] = square
+    end
+    return areas, spots
+end
+
 ---@return number[] questIds The quests the world map's marks show now, each once: for counting a peek (Alt held over
 ---the map, MapHover) as a hint for each
 function MapMarks.getDrawnQuestIds()
@@ -479,12 +882,181 @@ function MapMarks.getDrawnQuestIds()
     return questIds
 end
 
-function MapMarks.draw(map)
+---@return string key What a mark is, whatever map it is drawn on and wherever it is laid out: its kind, its quest,
+---and who or what it stands for (the giver, the dungeon, which of the quest's objectives, its picture)
+local function getMarkKey(mark)
+    return tostring(mark.kind)
+        .. ":"
+        .. tostring(mark.questId)
+        .. ":"
+        .. tostring(mark.handsKey or mark.dungeonId or mark.number or "")
+        .. ":"
+        .. tostring(mark.itemIcon or mark.glyph or "")
+end
+
+---The buttons for the marks of a drawing, each mark on the button that showed it at the last drawing where one did.
+---A button's parts remember what they show (Widgets.remember), so a mark drawn again on its own button asks nothing
+---of the game but its place. Handed out by their place in the list instead, as they were, a zoom or a pan that
+---brought one mark into view or took one out put every mark after it on another's button, each dressed anew from
+---nothing: most of what a drawing of the marks cost. The pool is put in the new order (its used buttons first).
+---@param marksBefore number How many of the pool's buttons the last drawing used
+---@return table[] buttons One for each mark, in the marks' order
+keepButtons = function(marks, marksBefore)
+    local pool = State.pools.marks
+    local byKey = {}
+    for index = 1, math.min(marksBefore, #pool) do
+        local button = pool[index]
+        local key = rawget(button, "omqMarkKey")
+        if key then
+            local list = byKey[key]
+            if not list then
+                list = {}
+                byKey[key] = list
+            end
+            list[#list + 1] = button
+        end
+    end
+    local buttons, isTaken = {}, {}
+    for index, mark in ipairs(marks) do
+        local key = getMarkKey(mark)
+        mark.buttonKey = key
+        local list = byKey[key]
+        local button = list and table.remove(list, 1)
+        if button then
+            buttons[index], isTaken[button] = button, true
+        end
+    end
+    -- The marks new to this drawing: on the buttons no mark kept, those of the last drawing's first
+    local free = {}
+    for index = 1, #pool do
+        if not isTaken[pool[index]] then
+            free[#free + 1] = pool[index]
+        end
+    end
+    local nextFree = 1
+    for index, mark in ipairs(marks) do
+        local button = buttons[index]
+        if not button then
+            button = free[nextFree]
+            nextFree = nextFree + 1
+            if not button then
+                button = MapMarks.createMarkButton()
+            end
+            buttons[index] = button
+        end
+        button.omqMarkKey = mark.buttonKey
+        if button.omqLoose ~= false then
+            button.omqLoose = false -- (let go of the map while unused; whoever takes it places it)
+            button:Show()
+        end
+    end
+    for index = 1, #marks do
+        pool[index] = buttons[index]
+    end
+    for index = nextFree, #free do
+        pool[#marks + index - nextFree + 1] = free[index]
+    end
+    pool.usedCount = #marks
+    return buttons
+end
+
+local SPARE_MARKS, SPARE_AT_ONCE = 150, 2 -- marks made ahead on a joined-up map, in all and at a time
+local SPARE_MARK = { kind = "giver", questId = 0, lines = { "" }, isFocused = false }
+
+---Makes a couple of marks ahead, while a joined-up map is open and still, until the map has some to spare: each made,
+---dressed as a quest to pick up (what most of a far view's marks are), its hidden parts let go, and put away. Zooming
+---out to a continent asks for a hundred marks at once; made and dressed in that one drawing they were most of its
+---longest frame. A mark made ahead and then given a quest to pick up asks almost nothing of the game.
+---@return boolean isMade
+function MapMarks.makeSpareButtons(map)
     MapMarks.useMap(map)
+    local pool, drawn = State.pools.marks, State.drawn
+    if #pool >= SPARE_MARKS or not drawn.isPinned or not drawn.pinLayer then
+        return false
+    end
+    for _ = 1, SPARE_AT_ONCE do
+        local button = MapMarks.createMarkButton()
+        button.omqParent = drawn.pinLayer
+        button:SetParent(drawn.pinLayer)
+        button.glowScale = 1
+        MapMarks.applyMarkLook(button, SPARE_MARK)
+        if button.glow and button.glowLayer ~= drawn.glowLayer then
+            button.glowLayer = drawn.glowLayer
+            button.glow:SetParent(drawn.glowLayer)
+            button.glow:SetDrawLayer("OVERLAY")
+        end
+        button:SetScale(1)
+        restHiddenParts(button)
+        button.mark = nil -- (no quest's mark: nothing points at it or reads it until a drawing takes it)
+        button.omqLoose = true
+        button:Hide()
+        button:ClearAllPoints()
+        if button.glow then
+            button.glow:Hide()
+        end
+        pool[#pool + 1] = button
+    end
+    return true
+end
+
+local isFinishingGivers = false
+
+---A drawing left some zones' quests to pick up for later (Compose's pacing: MapMarks.areGiversIncomplete). They are
+---worked out a few zones each frame, for whatever map shows by then, and the marks drawn again once: drawn again
+---after every few zones, a continent's forty were ten drawings of every mark in a row.
+finishGivers = function(map)
+    if not C_Timer or map ~= WorldMapFrame then
+        ns.MapPins.queueRefresh()
+        return
+    end
+    if isFinishingGivers then
+        return
+    end
+    isFinishingGivers = true
+    local function step()
+        MapMarks.useMap(map)
+        local drawn = State.drawn
+        local mapId = map:IsShown() and map:GetMapID()
+        if not mapId then
+            isFinishingGivers = false -- (closed: the map's next drawing asks again)
+            return
+        end
+        if drawn.mapId == mapId then
+            ns.MapPins.setView(drawn.view, drawn.viewBounds, drawn.viewZones) -- (the zones the drawing was for)
+        end
+        if MapMarks.finishGivers(mapId) then
+            isFinishingGivers = false
+            ns.MapPins.queueRefresh()
+        else
+            C_Timer.After(0, step)
+        end
+    end
+    C_Timer.After(0, step)
+end
+
+local MAX_KEPT_MAPS = 6 -- how many maps' worked-out marks are kept at once
+
+---What was worked out for the maps a view passed over is let go: the quests changed in something they show.
+function MapMarks.forgetKeptMarks(map)
+    MapMarks.useMap(map)
+    State.drawn.keptMarks = nil
+end
+
+---@param isSwapOnly boolean? Nothing changed but the map underneath the view (OpenMap's, as it is zoomed and dragged
+---across zones): where this map's marks were worked out before, since the last drawing asked for by anything else,
+---they are drawn as they are. Zooming in and out over the same ground puts the same two or three maps underneath
+---over and over, each working out a hundred marks from the quests each time.
+---@param isZoomOnly boolean? Nothing changed but the zoom (the kept drawing's marks, laid out again once a zoom
+---settles): the marks worked out at the last drawing are laid out as they are, nothing worked out anew
+function MapMarks.draw(map, isZoomOnly, isSwapOnly)
+    MapMarks.useMap(map)
+    if not isZoomOnly and not isSwapOnly then
+        State.drawn.keptMarks = nil -- (drawn for a change of the quests, or of what the player wants shown)
+    end
     local canvas, mapId = map:GetCanvas(), map:GetMapID()
     ensureLayers(map, canvas)
-    State.markLayer:Show()
-    State.areaLayer:Show()
+    MapMarks.showLayer(State.markLayer)
+    MapMarks.showLayer(State.areaLayer)
     State.drawn.drawId = (State.drawn.drawId or 0) + 1 -- what the zoom follows (followZoom) is this drawing's
     if State.pools.pills then
         for index = 1, #State.pools.pills do
@@ -492,7 +1064,7 @@ function MapMarks.draw(map)
         end
     end
     if not State.markLayer:GetScript("OnUpdate") then
-        local elapsedSeconds = 0
+        local elapsedSeconds, sincePanCheck, sinceWarmed = 0, 0, 0
         local follow
         State.markLayer:SetScript("OnUpdate", function(_, elapsed)
             ns.Timing.measure("marks follow the map (each frame)", follow, elapsed)
@@ -505,11 +1077,30 @@ function MapMarks.draw(map)
             local canvasScale = map.GetCanvasScale and map:GetCanvasScale()
             if map.GetMapID and drawn.mapId and map:GetMapID() ~= drawn.mapId then
                 MapMarks.hideUntilDrawn(map)
-                ns.MapPins.queueRefresh()
+                ns.MapPins.queueRefresh(map == WorldMapFrame) -- (another map underneath, nothing else)
                 return
             end
             if type(canvasScale) == "number" and canvasScale ~= drawn.followedScale then
                 MapMarks.followZoom(map, true)
+            elseif drawn.ease then
+                -- The marks on their way to the size the settled zoom gives them (followZoom): a smooth step
+                local ease = drawn.ease
+                local share = math.min(1, ((GetTime and GetTime() or 0) - ease.startedAt) / EASE_SECONDS)
+                if share >= 1 then
+                    drawn.ease = nil
+                end
+                local smooth = share * share * (3 - 2 * share)
+                MapMarks.followZoom(map, true, true, ease.from + (ease.to - ease.from) * smooth)
+            elseif
+                drawn.isFollowPending
+                and drawn.isPinned
+                and not drawn.isPinSizeSettled
+                and (GetTime and GetTime() or 0) - (drawn.zoomMovedAt or 0) >= ZOOM_STILL_SECONDS
+            then
+                -- The zoom has stayed put with the marks at the size they had before it: the size this zoom gives
+                -- them now, once, whether or not they are about to be laid out again (on a joined-up map that waits
+                -- most of a second, for the map that may come underneath)
+                MapMarks.followZoom(map, true, true)
             elseif
                 drawn.isFollowPending
                 and (GetTime and GetTime() or 0) - (drawn.zoomMovedAt or 0) >= ZOOM_STILL_SECONDS
@@ -526,22 +1117,67 @@ function MapMarks.draw(map)
                         and MapMarks.getMarkScale(drawn.mapId, drawn.width * canvasScale)
                     or 1
                 liveMarkScale = liveMarkScale * MapMarks.getSpawnMarkerRoom(ns.settings.spawnMarkerScale) -- (as the drawing reckons it)
-                if
-                    mapYards
-                    and drawn.width
-                    and MapMarks.chooseSpawnSpacing(
-                            drawn.width * canvasScale / mapYards,
-                            drawn.spawnSpacing,
-                            liveMarkScale
-                        )
-                        ~= drawn.spawnSpacing
-                then
+                local isRedrawDue
+                if MapMarks.World.isOn() then
+                    -- The kept drawing shows the spawns and areas of the new zoom by itself. Only the quests' marks
+                    -- are laid out again, and only after a real change of zoom: which stand side by side, which
+                    -- zones' gather into pills
+                    local ratio = drawn.scale and canvasScale / drawn.scale or 1
+                    isRedrawDue = ratio > MARKS_AGAIN_RATIO or ratio < 1 / MARKS_AGAIN_RATIO
+                else
+                    isRedrawDue = mapYards
+                        and drawn.width
+                        and MapMarks.chooseSpawnSpacing(
+                                drawn.width * canvasScale / mapYards,
+                                drawn.spawnSpacing,
+                                liveMarkScale
+                            )
+                            ~= drawn.spawnSpacing
+                end
+                if isRedrawDue and MapMarks.World.isOn() and map == WorldMapFrame and isNothingToLayOut(map) then
+                    isRedrawDue = false -- (no mark where the view is, and none can have come into it)
+                end
+                if isRedrawDue and MapMarks.World.isOn() and map == WorldMapFrame then
+                    -- (the marks alone, as they were worked out: laid out for this zoom. On a joined-up view once
+                    -- another map can have come underneath it, which draws them anyway: laid out before that, every
+                    -- zoom across a zone's edge laid them out twice, a third of a second apart)
+                    if drawn.view then
+                        ns.MapPins.queueSettledRefresh(true, drawn.zoomMovedAt)
+                    else
+                        ns.MapPins.queueRearrange()
+                    end
+                elseif isRedrawDue then
                     -- (on a joined-up view, once another map can have come underneath it: drawn once, for that)
                     if drawn.view and map == WorldMapFrame then
                         ns.MapPins.queueSettledRefresh()
                     else
                         ns.MapPins.queueRefresh()
                     end
+                end
+            end
+            -- A joined-up map open and still: the quests to pick up of the zones round it worked out ahead, a zone at
+            -- a time and twenty a second at most (MapMarks.warmGivers), never in a fight
+            sinceWarmed = sinceWarmed + elapsed
+            if
+                sinceWarmed >= WARM_SECONDS
+                and map == WorldMapFrame
+                and drawn.view
+                and not drawn.isFollowPending
+                and not ns.MapPins.isRedrawComing()
+                and not (InCombatLockdown and InCombatLockdown())
+            then
+                sinceWarmed = 0
+                ns.MapPins.setView(drawn.view, drawn.viewBounds, drawn.viewZones)
+                if not ns.Timing.measure("quests to pick up worked out ahead", MapMarks.warmGivers, drawn.mapId) then
+                    ns.Timing.measure("marks made ahead", MapMarks.makeSpareButtons, map)
+                end
+            end
+            -- The game's own map dragged past what was drawn: drawn again for the new view once it stays put
+            sincePanCheck = sincePanCheck + elapsed
+            if sincePanCheck >= PAN_CHECK_SECONDS then
+                sincePanCheck = 0
+                if map == WorldMapFrame and drawn.cullBounds and not drawn.view then
+                    ns.MapPins.handleViewMoved()
                 end
             end
             elapsedSeconds = elapsedSeconds + elapsed
@@ -552,6 +1188,7 @@ function MapMarks.draw(map)
             end
         end
     end
+    local marksBefore = State.pools.marks.usedCount -- (the marks drawn last: each keeps its button, keepButtons)
     for _, pool in pairs(State.pools) do
         pool.usedCount = 0
     end
@@ -560,7 +1197,7 @@ function MapMarks.draw(map)
     scale = type(scale) == "number" and scale > 0 and scale or 1
     local width, height = canvas:GetWidth(), canvas:GetHeight()
     width, height = type(width) == "number" and width or 1, type(height) == "number" and height or 1
-    State.markLayer:SetScale(1 / scale)
+    MapMarks.setLayerScale(State.markLayer, 1 / scale)
     State.drawn.map, State.drawn.width, State.drawn.height, State.drawn.scale = map, width, height, scale
     State.drawn.mapId, State.drawn.followedScale = mapId, scale -- what the marks stand for; the zoom is followed from here
     State.drawn.isFollowPending = false -- (laid out at this zoom: nothing to catch up)
@@ -583,6 +1220,38 @@ function MapMarks.draw(map)
     local viewZones = view and ns.MapPins.getViewZones(view, mapId, viewBounds) or nil
     State.drawn.view, State.drawn.viewBounds, State.drawn.viewZones = view, viewBounds, viewZones
     ns.MapPins.setView(view, viewBounds, viewZones)
+    -- What is drawn: the part of the map in view and a margin round it (CULL_MARGIN of the view on each side), the
+    -- areas, spawns and walks out there left out; drawn again once a pan or zoom shows past it (MapPins). Kept from
+    -- the last drawing while the view is still inside it, so a drawing that moved nothing lays nothing out again.
+    -- Zoomed out to where the whole map shows, nothing is left out.
+    local cull
+    local visible = map == WorldMapFrame and ns.MapPins.getVisibleBounds(map, 0) or nil
+    if visible and (visible.left > 0 or visible.top > 0 or visible.right < 1 or visible.bottom < 1 or view) then
+        local kept = State.drawn.cullBounds
+        if
+            kept
+            and State.drawn.cullMapId == mapId
+            and State.drawn.cullScale == scale
+            and visible.left >= kept.left
+            and visible.right <= kept.right
+            and visible.top >= kept.top
+            and visible.bottom <= kept.bottom
+        then
+            cull = kept
+        else
+            cull = ns.MapPins.getVisibleBounds(map, MapMarks.CULL_MARGIN)
+        end
+    end
+    -- The kept drawing (World) draws the tracked quests' areas and spawn marks: laid out once in the world and only
+    -- moved by the map, so nothing of them is cut to the view here or drawn again for it. What is left to this
+    -- drawing (the quests' marks, the walks, where the quest selected to pick up starts) is little, and drawn whole.
+    local isKept = MapMarks.World.isOn()
+    if isKept then
+        cull = nil
+    else
+        MapMarks.World.hide(map)
+    end
+    State.drawn.cullBounds, State.drawn.cullMapId, State.drawn.cullScale = cull, mapId, scale
     State.drawn.squares = {} -- filled again by whichever look draws spawns
     State.drawn.areas = {} -- filled by "icons and areas"
 
@@ -591,14 +1260,69 @@ function MapMarks.draw(map)
     -- What the player chose to see (Spoilers; nil in Guide): Alt held over the world map shows it everything
     local isPeekIgnored = map ~= WorldMapFrame
     local spoilers = MapMarks.getSpoilers(isPeekIgnored)
-    local marks = mapId
-            and ns.settings.shouldShowMapPins
-            and not isHiddenHere
-            and MapMarks.compose(mapId, isPeekIgnored)
-        or {}
+    local marks
+    local composedKey = tostring(mapId) .. "|" .. tostring(ns.MapPins.getViewKey()) .. "|" .. tostring(isHiddenHere)
+    local keptMarks = State.drawn.keptMarks
+    if not keptMarks then
+        keptMarks = { count = 0, byKey = {} }
+        State.drawn.keptMarks = keptMarks
+    end
+    local kept = isSwapOnly and State.drawn.features and keptMarks.byKey[composedKey]
+    if kept then
+        -- This map's marks as they were worked out when it was last underneath: drawn as a zoom's are, below
+        State.drawn.composed, State.drawn.composedKey = kept, composedKey
+        isZoomOnly = true
+    end
+    if isZoomOnly and State.drawn.composed and State.drawn.composedKey == composedKey then
+        -- The same marks as last drawn, where they were worked out to stand (an entrance icon's mark is set on its
+        -- icon again below)
+        marks = State.drawn.composed
+        for _, mark in ipairs(marks) do
+            mark.x, mark.y, mark.entrancePin = mark.composedX, mark.composedY, nil
+        end
+    else
+        isZoomOnly = false
+        marks = mapId and ns.settings.shouldShowMapPins and not isHiddenHere and MapMarks.compose(mapId, isPeekIgnored)
+            or {}
+        for _, mark in ipairs(marks) do
+            mark.composedX, mark.composedY = mark.x, mark.y
+        end
+        State.drawn.composed, State.drawn.composedKey = marks, composedKey
+        if MapMarks.areGiversIncomplete then
+            -- (the quests to pick up of the zones not worked out yet: a few more each frame with nothing drawn, then
+            -- drawn once with all of them)
+            MapMarks.areGiversIncomplete = false
+            State.drawn.composedKey = nil
+            finishGivers(map)
+        elseif not keptMarks.byKey[composedKey] then
+            if keptMarks.count >= MAX_KEPT_MAPS then
+                keptMarks.count, keptMarks.byKey = 0, {}
+            end
+            keptMarks.count = keptMarks.count + 1
+            keptMarks.byKey[composedKey] = marks
+        else
+            keptMarks.byKey[composedKey] = marks
+        end
+    end
     if map == WorldMapFrame then
         -- Zoomed out past where a mark's spot means anything: a pill for each zone too small on screen
         marks = MapMarks.gatherZonePills(marks, mapId, width * scale)
+    end
+    if isKept and viewBounds then
+        -- (with the kept drawing, a quest to pick up is worked out for every zone it starts in, in view or not: those
+        -- that stand outside what is drawn are left out here)
+        local inBounds = {}
+        for _, mark in ipairs(marks) do
+            if
+                mark.x >= viewBounds.left
+                and mark.x <= viewBounds.right
+                and mark.y >= viewBounds.top
+                and mark.y <= viewBounds.bottom
+            then
+                inBounds[#inBounds + 1] = mark
+            end
+        end
+        marks = inBounds
     end
     local attachedEntrances = MapMarks.attachToEntrances(marks, MapMarks.getEntrancePins(map, canvas))
     local markRects = {}
@@ -612,7 +1336,11 @@ function MapMarks.draw(map)
             mark.isFocused
             and mark.kind ~= "giver"
             and not mark.isPreview
-            and (not mainFocused or #(mark.points or {}) > #(mainFocused.points or {}))
+            and (
+                not mainFocused
+                or (mark.spawnCount or #(mark.points or {}))
+                    > (mainFocused.spawnCount or #(mainFocused.points or {}))
+            )
         then
             mainFocused = mark
         end
@@ -622,6 +1350,22 @@ function MapMarks.draw(map)
     -- size: their names must stay readable)
     local markScale = map == WorldMapFrame and MapMarks.getMarkScale(mapId, width * scale) or 1
     State.drawn.markScale = markScale
+    -- With the kept drawing the marks are held to their spots too (ensurePinLayers)
+    local isPinned = isKept
+    State.drawn.isPinned = isPinned
+    if isPinned then
+        ensurePinLayers(map, canvas)
+        State.drawn.pinScale, State.drawn.pinnedScale = markScale / scale, scale
+        State.drawn.pinMarkScale, State.drawn.isPinSizeSettled, State.drawn.ease = markScale, true, nil
+        MapMarks.setLayerScale(State.drawn.pinLayer, State.drawn.pinScale)
+        MapMarks.setLayerScale(State.drawn.glowLayer, State.drawn.pinScale)
+    elseif State.drawn.pinLayer then
+        State.drawn.pinLayer:Hide()
+        State.drawn.glowLayer:Hide()
+    end
+    local markParent = isPinned and State.drawn.pinLayer or State.markLayer
+    local glowParent = isPinned and State.drawn.glowLayer or State.areaLayer
+    local pinnedButtons = {}
     for index, mark in ipairs(marks) do
         local markWidth, markHeight, raise = MapMarks.getFootprint(mark)
         if mark.kind ~= "zonePill" then
@@ -713,7 +1457,30 @@ function MapMarks.draw(map)
             order[#order + 1] = mark
         end
     end
-    local questGroups, groupByQuest, giverAreaGroups = {}, {}, {}
+    local questGroups, groupByQuest, giverAreaGroups, featureByQuest = {}, {}, {}, {}
+    -- With the kept drawing: what the quests show, worked out here (a zoom alone keeps the last drawing's), and each
+    -- quest's own for its mark's glow in its area's colour
+    local features
+    if isKept then
+        features = isZoomOnly and State.drawn.features
+        -- (a map left clean, a continent's by the player's choice or with the marks off: the kept drawing is hidden
+        -- there as it is, and shown again on the next map as it was)
+        local isShownHere = mapId and ns.settings.shouldShowMapPins and not isHiddenHere
+        if isShownHere then
+            MapMarks.World.show(map)
+        else
+            MapMarks.World.hide(map)
+        end
+        if not features then
+            isZoomOnly = false
+            features = isShownHere and MapMarks.composeFeatures(isPeekIgnored) or NONE
+        end
+        State.drawn.features, State.drawn.isKeptShown = features, isShownHere
+        for _, feature in ipairs(features) do
+            featureByQuest[feature.questId] = feature
+        end
+    end
+    local markButtons, buttonIndex = nil, 0
     for _, mark in ipairs(order) do
         -- (on continent and world maps too: areas are fitted onto them cheaply, the spawns thinned to the zoom)
         -- Each spawn knows its quest, for its tooltip
@@ -749,9 +1516,11 @@ function MapMarks.draw(map)
                 group.points[#group.points + 1] = point
             end
         end
-        -- Each tracked quest's places together, in the quest's colour, for "icons and areas"
+        -- Each tracked quest's places together, in the quest's colour, for "icons and areas" (the kept drawing takes
+        -- them from the quests themselves: MapMarks.composeFeatures)
         if
-            mark.questId
+            not isKept
+            and mark.questId
             and mark.kind == "objective"
             and not mark.isRough
             and (mark.spawnPoints or mark.points or mark.fadedPoints)
@@ -779,13 +1548,19 @@ function MapMarks.draw(map)
         if mark.kind == "dungeon" and not mark.entrancePin then
             mark.orbitAngles = MapMarks.chooseOrbitAngles(mark, mark.place, pinRects)
         end
-        local button = acquire(State.pools.marks, MapMarks.createMarkButton)
+        markButtons = markButtons or keepButtons(order, marksBefore)
+        buttonIndex = buttonIndex + 1
+        local button = markButtons[buttonIndex]
+        if button.omqParent ~= markParent then
+            button.omqParent = markParent
+            button:SetParent(markParent)
+        end
         -- A quest with a coloured area: its mark's glow, the same size as the gold one, is in the area's colour,
         -- tying the two together while the mark itself stays gold; faint out of focus, as strong as the gold glow
         -- when highlighted, its gold ring saying it is the one highlighted
         local areaGroup = MapMarks.hasQuestColours()
             and (
-                mark.kind == "objective" and groupByQuest[mark.questId]
+                mark.kind == "objective" and (featureByQuest[mark.questId] or groupByQuest[mark.questId])
                 or mark.kind == "giver" and giverAreaGroups[mark.questId]
             )
         if areaGroup then
@@ -797,17 +1572,37 @@ function MapMarks.draw(map)
         end
         -- The focused quest's glow lies with the areas, under every mark and every other pin, never over one; that
         -- layer is not scaled against the zoom, so the glow's size is turned into its units
-        button.glowScale = markScale / scale
+        button.glowScale = isPinned and 1 or markScale / scale -- (the glows' own layer is sized as the marks' is)
         local drawnWidth, drawnHeight = MapMarks.applyMarkLook(button, mark)
-        if button.glow and button.glowLayer ~= State.areaLayer then
-            button.glowLayer = State.areaLayer
-            button.glow:SetParent(State.areaLayer)
+        if button.glow and button.glowLayer ~= glowParent then
+            button.glowLayer = glowParent
+            button.glow:SetParent(glowParent)
             button.glow:SetDrawLayer("OVERLAY")
         end
         local place = mark.place
-        -- Drawn at the zoom's size; its place is in the layer's units, so it is given in the scaled mark's own
-        button:SetScale(markScale)
-        ns.Widgets.place(button, "CENTER", State.markLayer, "TOPLEFT", place.left / markScale, -place.top / markScale)
+        if isPinned then
+            -- On the marks' own layer, which lies on the map and is sized against its zoom: its place in the layer's
+            -- units (the mark's own size's). Kept: its spot on the map (in the map's units) and how far the laying
+            -- out moved it from there (in pixels), for placing it again once a zoom has settled (followZoom)
+            button:SetScale(1)
+            button.zoomScale = nil
+            button.pinX, button.pinY = mark.x * width, mark.y * height
+            button.pinLeft, button.pinTop = place.left - button.pinX * scale, place.top - button.pinY * scale
+            ns.Widgets.place(button, "CENTER", markParent, "TOPLEFT", place.left / markScale, -place.top / markScale)
+            pinnedButtons[#pinnedButtons + 1] = button
+        else
+            -- Drawn at the zoom's size; its place is in the layer's units, so it is given in the scaled mark's own
+            button.pinX = nil
+            button:SetScale(markScale)
+            ns.Widgets.place(
+                button,
+                "CENTER",
+                State.markLayer,
+                "TOPLEFT",
+                place.left / markScale,
+                -place.top / markScale
+            )
+        end
         -- What the mark covers, so no spawn mark is drawn under it: the mark as drawn, with its gold ring when in
         -- focus, and a little room; its soft glow may lie under spawn marks, which then sit close round it
         local coverWidth = math.max((drawnWidth or place.width) * markScale, place.width) + 2 * SPAWN_ROOM
@@ -838,22 +1633,40 @@ function MapMarks.draw(map)
     if MapMarks.getSpawnMarker() ~= "none" then
         drawIcons(questGroups, width, height, scale, markRects)
     end
-    drawPatrols(questGroups, MapMarks.getGiverPatrolLines(mapId, isPeekIgnored), width, height, scale, mapId) -- in every look
+    local patrolGroups = questGroups
+    if isKept then
+        patrolGroups = NONE -- (the tracked quests' walks are the kept drawing's too; the givers' stay here)
+        if not isZoomOnly and State.drawn.isKeptShown then -- (a zoom it follows by itself)
+            MapMarks.World.draw(map, features)
+        end
+    end
+    drawPatrols(patrolGroups, MapMarks.getGiverPatrolLines(mapId, isPeekIgnored), width, height, scale, mapId) -- in every look
     if spoilers then
         drawRoughCircles(order, width, height, scale) -- (objectives "rough": Spoilers)
     end
     if not State.areasDrawn then
         MapMarks.releaseAreas() -- a look without areas (or nothing to mark here): the kept ones are taken off the map
     end
+    -- What the pools hold and this drawing did not use: hidden, and let go of the map (the game lays out again, on
+    -- every frame of a drag or a zoom, whatever hangs from it, hidden or not; each is placed anew when next used)
     for name, pool in pairs(State.pools) do
         if name ~= "halos" then
             for index = pool.usedCount + 1, #pool do
-                pool[index]:Hide()
-                if pool == State.pools.marks and pool[index].glow then
-                    pool[index].glow:Hide() -- it lies on the mark layer, apart from its mark
+                local item = pool[index]
+                if item.omqLoose ~= true then
+                    item.omqLoose = true
+                    item:Hide()
+                    item:ClearAllPoints()
+                    if pool == State.pools.marks and item.glow then
+                        item.glow:Hide() -- it lies on the mark layer, apart from its mark
+                    end
                 end
             end
         end
+    end
+    -- The marks drawn: their parts that do not show let go of them (once all is dressed and shown as it will be)
+    for _, button in ipairs(pinnedButtons) do
+        restHiddenParts(button)
     end
     MapMarks.updateParty()
 end

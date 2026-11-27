@@ -568,6 +568,75 @@ test("a chain is the same chain whichever of its quests is asked for", function(
     LibQuestieDB.Quest.Get = savedGet
 end)
 
+test("a pre-quest is told apart from a chain: what a quest unlocks and what it followed", function()
+    local ns, state = createAddon()
+    -- A fork, for further down: the last step of a chain opens two quests (any one of two is enough for the second),
+    -- and one more that is another race's
+    local fields = {
+        [201] = { preQuestSingle = { 103 } },
+        [301] = { preQuestSingle = { 103, 520 } },
+        [401] = { preQuestSingle = { 103 }, requiredRaces = 1 },
+    }
+    local savedGet = LibQuestieDB.Quest.Get
+    LibQuestieDB.Quest.Get = function(id, field)
+        if fields[id] and fields[id][field] ~= nil then
+            return fields[id][field]
+        end
+        return savedGet(id, field)
+    end
+    ns.Availability.prepare()
+    local function list(questIds)
+        return table.concat(questIds, ",")
+    end
+    -- Patrols (526) needs The Sewer Key (524) and Break-In (525) at once: no chain joins them, so each is its pre-quest
+    expectEqual(list(ns.Chain.getUnlockedQuestIds(524)), "526", "a lead-in unlocks the quest that needs it")
+    expectEqual(list(ns.Chain.getUnlockedQuestIds(525)), "526", "and so does the other one")
+    local requiredIds, isAnyEnough = ns.Chain.getRequiredQuestIds(526)
+    expectEqual(list(requiredIds), "524,525", "which followed them both")
+    expectEqual(isAnyEnough, false, "all of them, not any one")
+    -- Steps of one chain are shown as the chain, not twice
+    expectEqual(list(ns.Chain.getUnlockedQuestIds(526)), "", "the next step of its chain is no pre-quest link")
+    expectEqual(list(ns.Chain.getRequiredQuestIds(527)), "", "nor the step before")
+    expectEqual(list(ns.Chain.getUnlockedQuestIds(201)), "", "a quest nothing waits for")
+    expectEqual(ns.Chain.composeUnlockText({ 526 }, true), "Unlocks Patrols", "one is named")
+    expectEqual(ns.Chain.composeUnlockText({ 526 }, false), "Unlocks 1 quest", "unless the story is held back")
+    expectEqual(ns.Chain.composeUnlockText({ 526, 527 }, true), "Unlocks 2 quests", "several are counted")
+    expectEqual(ns.Chain.composeFollowText({ 524 }), "Follows The Sewer Key", "what it followed, by name")
+    -- In the tracker's model, for the row's mark
+    setQuest(state, 524, false)
+    local entry = ns.Model.composeEntry(524, ns.Model.getPlayer())
+    expectEqual(list(entry.unlockIds), "526", "the tracker's entry carries it")
+    expectEqual(entry.chainIndex, nil, "with no chain step beside it")
+    -- A quest unlocked already is not counted any more
+    state.turnedInQuestIds[526] = true
+    expectEqual(list(ns.Chain.getUnlockedQuestIds(524)), "", "done: nothing left to unlock")
+    state.turnedInQuestIds[526] = nil
+
+    -- The fork set up above: the last step of a chain opens two quests, the third is not this character's
+    expectEqual(list(ns.Chain.getUnlockedQuestIds(103)), "201,301", "a fork unlocks each branch, not the other race's")
+    expectEqual(select(2, ns.Chain.getStep(103)), 3, "and its own chain stays the chain")
+    requiredIds, isAnyEnough = ns.Chain.getRequiredQuestIds(301)
+    expectEqual(list(requiredIds), "103,520", "a quest that needs any one of two")
+    expectEqual(isAnyEnough, true, "says any one is enough")
+    -- The diagram: back along the chain, on into both branches, each quest once
+    local diagram = ns.Chain.getDiagram(103)
+    expectEqual(diagram.before[1].questId, 102, "the step before")
+    expectEqual(diagram.before[1].children[1].questId, 101, "and the one before that")
+    expectEqual(#diagram.after, 2, "both branches after")
+    local boxes, slotCount = ns.LogDiagram.compose(103)
+    expectEqual(#boxes, 5, "five boxes: two above, the quest, two below")
+    expectEqual(slotCount, 2, "two slots across, for the two branches")
+    local this = boxes[#boxes]
+    expectEqual(this.depth == 0 and this.slot == 0.5, true, "the quest itself over the middle of its branches")
+    local depths = {}
+    for _, box in ipairs(boxes) do
+        depths[box.questId] = box.depth
+    end
+    expectEqual(depths[101] == -2 and depths[102] == -1, true, "what comes before above it, the earliest highest")
+    expectEqual(depths[201] == 1 and depths[301] == 1, true, "what it unlocks below it")
+    LibQuestieDB.Quest.Get = savedGet
+end)
+
 test("a repeatable quest handed in is offered again; another counts as done at once", function()
     local ns = createAddon()
     ns.QuestState.noteTurnedIn(515) -- Daily Patrol

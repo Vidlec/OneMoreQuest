@@ -7,32 +7,49 @@ local Compose, Look, Layout, Shapes, Areas, Draw =
     ns.MapMarksCompose, ns.MapMarksLook, ns.MapMarksLayout, ns.MapMarksShapes, ns.MapMarksAreas, ns.MapMarksDraw
 
 local AREA_SOFTNESS = 0.85 -- how widely each spawn's glow spreads, against the reach: wider melts spawns together rounder
+local GLOW_RADIUS = 4 -- a spawn's glow is added onto the grid this many spreads round it (past it, under a thousandth)
+-- Spawn buckets told by one number: their column and row, shifted to be positive
+local BUCKET_OFFSET, BUCKET_SPAN = 32768, 65536
+local NONE = {}
 
 ---@return number value How strongly a place lies in an area: each spawn's soft glow (a bell curve), added up, less
 ---what one spawn gives at the edge of its reach. Positive inside: a lone spawn's area is the circle of its reach;
 ---near spawns melt into one round shape.
 local function getAreaValue(buckets, bucketSize, reach, x, y)
     local spread = AREA_SOFTNESS * reach
+    local twoSpreadSquared = 2 * spread * spread
     local total = 0
     local bucketX, bucketY = math.floor(x / bucketSize), math.floor(y / bucketSize)
     for stepX = -1, 1 do
         for stepY = -1, 1 do
-            for _, point in ipairs(buckets[(bucketX + stepX) .. ":" .. (bucketY + stepY)] or {}) do
-                total = total + math.exp(-((point.x - x) ^ 2 + (point.y - y) ^ 2) / (2 * spread * spread))
+            local bucket = buckets[(bucketX + stepX + BUCKET_OFFSET) * BUCKET_SPAN + bucketY + stepY + BUCKET_OFFSET]
+            if bucket then
+                for index = 1, #bucket do
+                    local point = bucket[index]
+                    local dx, dy = point.x - x, point.y - y
+                    total = total + math.exp(-(dx * dx + dy * dy) / twoSpreadSquared)
+                end
             end
         end
     end
-    return total - math.exp(-reach * reach / (2 * spread * spread))
+    return total - math.exp(-reach * reach / twoSpreadSquared)
 end
 
----@return table buckets, number size The spawns sorted into squares as wide as a glow reaches, for quick lookups
+---@return table buckets, number size The spawns sorted into squares as wide as a glow reaches, for quick lookups (a
+---number for each square: no key text made for every lookup)
 local function bucketSpawns(points, reach)
     local size = 3 * AREA_SOFTNESS * reach -- past three spreads a glow adds nothing that shows
     local buckets = {}
     for _, point in ipairs(points) do
-        local key = math.floor(point.x / size) .. ":" .. math.floor(point.y / size)
-        buckets[key] = buckets[key] or {}
-        table.insert(buckets[key], point)
+        local key = (math.floor(point.x / size) + BUCKET_OFFSET) * BUCKET_SPAN
+            + math.floor(point.y / size)
+            + BUCKET_OFFSET
+        local bucket = buckets[key]
+        if not bucket then
+            bucket = {}
+            buckets[key] = bucket
+        end
+        bucket[#bucket + 1] = point
     end
     return buckets, size
 end
@@ -41,6 +58,13 @@ end
 ---into one rounded shape, the land between groups left open; a lone spawn's area is the circle of its reach.
 ---Traced on a grid (marching squares), crossings placed where the glow fades out between grid points, so its
 ---edge curves smoothly.
+---
+---Made to cost what the shape's size does, not its spawns, and to leave little behind: each spawn's glow is added
+---onto the grid points near it (a bell curve is a row's curve times a column's: a few dozen exp() a spawn), the grid
+---is one list of numbers, each crossing is made once and shared by the two pieces of edge that meet there, and the
+---grid's own fill (rectangles and corner pieces) is made only when the outline cannot be cut into triangles. Before,
+---every grid point looked its spawns up by key text, and every cell made tables of its corners: some 240 MB of
+---garbage for twenty quests' areas.
 ---@param points { x: number, y: number }[] The spawns, in any units with y down
 ---@param reach number How far the area reaches past each spawn, in the same units
 ---@param cell number? The grid's spacing; a third of the reach when left out
@@ -49,193 +73,434 @@ end
 ---@param shouldYield boolean? Run in slices: pause now and then (inside a coroutine), so a big shape spreads over frames
 function MapMarks.composeAreaShape(points, reach, cell, shouldYield)
     cell = cell or reach / 3
-    local triangles, edges = {}, {}
     if #points == 0 or reach <= 0 then
-        return { triangles = triangles, edges = edges }
+        return { triangles = {}, edges = {} }
     end
     local minX, maxX, minY, maxY = math.huge, -math.huge, math.huge, -math.huge
     for _, point in ipairs(points) do
         minX, maxX = math.min(minX, point.x), math.max(maxX, point.x)
         minY, maxY = math.min(minY, point.y), math.max(maxY, point.y)
     end
-    local buckets, bucketSize = bucketSpawns(points, reach)
+    local spread = AREA_SOFTNESS * reach
+    local twoSpreadSquared = 2 * spread * spread
     -- Room round the spawns for where glows add up past one spawn's reach
     local margin = 3 * AREA_SOFTNESS * reach + cell
     minX, minY = minX - margin, minY - margin
     local columns = math.ceil((maxX + margin - minX) / cell)
     local rows = math.ceil((maxY + margin - minY) / cell)
-    local function getValue(x, y)
-        return getAreaValue(buckets, bucketSize, reach, x, y)
-    end
+    local width = columns + 1 -- grid points across
+
+    -- The glow on the grid: each spawn's added onto the points within GLOW_RADIUS spreads of it (past it a spawn adds
+    -- under a thousandth of the edge's value), its curve along the row and the column worked out once each
     local values = {}
-    for row = 0, rows do
-        if shouldYield and row % 8 == 0 then
+    local threshold = math.exp(-reach * reach / twoSpreadSquared)
+    for index = 1, (rows + 1) * width do
+        values[index] = -threshold
+    end
+    local radius = GLOW_RADIUS * spread
+    local alongColumns = {}
+    for pointIndex, point in ipairs(points) do
+        if shouldYield and pointIndex % 200 == 0 then
             coroutine.yield()
         end
-        local line = {}
-        for column = 0, columns do
-            line[column] = getValue(minX + column * cell, minY + row * cell)
+        local firstColumn = math.max(0, math.ceil((point.x - radius - minX) / cell))
+        local lastColumn = math.min(columns, math.floor((point.x + radius - minX) / cell))
+        local firstRow = math.max(0, math.ceil((point.y - radius - minY) / cell))
+        local lastRow = math.min(rows, math.floor((point.y + radius - minY) / cell))
+        for column = firstColumn, lastColumn do
+            local dx = minX + column * cell - point.x
+            alongColumns[column] = math.exp(-dx * dx / twoSpreadSquared)
         end
-        values[row] = line
-    end
-    local function crossing(first, second, firstValue, secondValue)
-        local t = firstValue / (firstValue - secondValue)
-        return { x = first.x + (second.x - first.x) * t, y = first.y + (second.y - first.y) * t }
-    end
-    local function addPolygon(polygon)
-        for index = 2, #polygon - 1 do
-            triangles[#triangles + 1] = { polygon[1], polygon[index], polygon[index + 1] }
-        end
-    end
-    -- Stretches of grid wholly inside, by their columns: the same stretch in the rows below grows into one
-    -- rectangle, so a broad area is a few rectangles and not one strip per row
-    local openRuns = {} -- ["from:to"] = { first row }
-    local function addRectangle(fromColumn, toColumn, firstRow, lastRow)
-        local left, right = minX + fromColumn * cell, minX + toColumn * cell
-        local top, bottom = minY + firstRow * cell, minY + (lastRow + 1) * cell
-        local corner = { x = left, y = top }
-        triangles[#triangles + 1] = { corner, { x = right, y = top }, { x = right, y = bottom } }
-        triangles[#triangles + 1] = { corner, { x = right, y = bottom }, { x = left, y = bottom } }
-    end
-    for row = 0, rows - 1 do
-        if shouldYield and row % 16 == 0 then
-            coroutine.yield()
-        end
-        local runStart
-        local rowRuns = {}
-        local function closeRun(endColumn)
-            if runStart then
-                rowRuns[runStart .. ":" .. endColumn] = { runStart, endColumn }
-                runStart = nil
+        for row = firstRow, lastRow do
+            local dy = minY + row * cell - point.y
+            local alongRow = math.exp(-dy * dy / twoSpreadSquared)
+            local base = row * width + 1
+            for column = firstColumn, lastColumn do
+                local at = base + column
+                values[at] = values[at] + alongRow * alongColumns[column]
             end
         end
-        for column = 0, columns - 1 do
+    end
+    local function valueAt(row, column)
+        return values[row * width + column + 1]
+    end
+
+    -- Where the edge crosses a side of a cell: made once for each side of the grid, shared by both cells along it
+    local crossings = {}
+    local function crossingOn(sideId, x1, y1, v1, x2, y2, v2)
+        local point = crossings[sideId]
+        if not point then
+            local t = v1 / (v1 - v2)
+            point = { x = x1 + (x2 - x1) * t, y = y1 + (y2 - y1) * t }
+            crossings[sideId] = point
+        end
+        return point
+    end
+    -- The four sides of a cell: 1 top (its upper corners), 2 right, 3 bottom, 4 left
+    local function sideCrossing(row, column, side)
+        local x0, y0 = minX + column * cell, minY + row * cell
+        if side == 1 then
+            return crossingOn(
+                (row * width + column) * 2,
+                x0,
+                y0,
+                valueAt(row, column),
+                x0 + cell,
+                y0,
+                valueAt(row, column + 1)
+            )
+        elseif side == 2 then
+            return crossingOn(
+                (row * width + column + 1) * 2 + 1,
+                x0 + cell,
+                y0,
+                valueAt(row, column + 1),
+                x0 + cell,
+                y0 + cell,
+                valueAt(row + 1, column + 1)
+            )
+        elseif side == 3 then
+            return crossingOn(
+                ((row + 1) * width + column) * 2,
+                x0,
+                y0 + cell,
+                valueAt(row + 1, column),
+                x0 + cell,
+                y0 + cell,
+                valueAt(row + 1, column + 1)
+            )
+        end
+        return crossingOn(
+            (row * width + column) * 2 + 1,
+            x0,
+            y0,
+            valueAt(row, column),
+            x0,
+            y0 + cell,
+            valueAt(row + 1, column)
+        )
+    end
+    local buckets, bucketSize -- (for a saddle's middle: made when the first one needs it)
+    local function isMiddleInside(row, column)
+        if not buckets then
+            buckets, bucketSize = bucketSpawns(points, reach)
+        end
+        return getAreaValue(buckets, bucketSize, reach, minX + (column + 0.5) * cell, minY + (row + 0.5) * cell) > 0
+    end
+
+    -- The cells the edge runs through, and, only when asked for (the outline would not cut), the grid's own fill
+    local function march(isFillWanted)
+        local edges, triangles = {}, {}
+        local openRuns = {} -- ["from:to"] = { first row }: stretches wholly inside, grown down into rectangles
+        local function addRectangle(fromColumn, toColumn, firstRow, lastRow)
+            local left, right = minX + fromColumn * cell, minX + toColumn * cell
+            local top, bottom = minY + firstRow * cell, minY + (lastRow + 1) * cell
+            local corner = { x = left, y = top }
+            triangles[#triangles + 1] = { corner, { x = right, y = top }, { x = right, y = bottom } }
+            triangles[#triangles + 1] = { corner, { x = right, y = bottom }, { x = left, y = bottom } }
+        end
+        local function addPolygon(polygon)
+            for index = 2, #polygon - 1 do
+                triangles[#triangles + 1] = { polygon[1], polygon[index], polygon[index + 1] }
+            end
+        end
+        local function corner(row, column, number) -- 1 upper left, 2 upper right, 3 lower right, 4 lower left
             local x0, y0 = minX + column * cell, minY + row * cell
-            local corners = {
-                { x = x0, y = y0 },
-                { x = x0 + cell, y = y0 },
-                { x = x0 + cell, y = y0 + cell },
-                { x = x0, y = y0 + cell },
-            }
-            local cornerValues =
-                { values[row][column], values[row][column + 1], values[row + 1][column + 1], values[row + 1][column] }
-            local insideCount = 0
-            for _, value in ipairs(cornerValues) do
-                if value > 0 then
-                    insideCount = insideCount + 1
-                end
+            if number == 1 then
+                return { x = x0, y = y0 }
+            elseif number == 2 then
+                return { x = x0 + cell, y = y0 }
+            elseif number == 3 then
+                return { x = x0 + cell, y = y0 + cell }
             end
-            if insideCount == 4 then
-                runStart = runStart or column
-            else
-                closeRun(column)
-                if insideCount > 0 then
-                    -- The crossing on each side of the cell (side n runs from corner n to the next)
-                    local crossings = {}
-                    for side = 1, 4 do
-                        local nextSide = side % 4 + 1
-                        if (cornerValues[side] > 0) ~= (cornerValues[nextSide] > 0) then
-                            crossings[side] =
-                                crossing(corners[side], corners[nextSide], cornerValues[side], cornerValues[nextSide])
-                        end
+            return { x = x0, y = y0 + cell }
+        end
+        for row = 0, rows - 1 do
+            if shouldYield and row % 16 == 0 then
+                coroutine.yield()
+            end
+            local runStart
+            local rowRuns = isFillWanted and {} or nil
+            for column = 0, columns - 1 do
+                local v1, v2 = valueAt(row, column), valueAt(row, column + 1)
+                local v3, v4 = valueAt(row + 1, column + 1), valueAt(row + 1, column)
+                local in1, in2, in3, in4 = v1 > 0, v2 > 0, v3 > 0, v4 > 0
+                local insideCount = (in1 and 1 or 0) + (in2 and 1 or 0) + (in3 and 1 or 0) + (in4 and 1 or 0)
+                if insideCount == 4 then
+                    runStart = runStart or column
+                else
+                    if runStart and rowRuns then
+                        rowRuns[runStart .. ":" .. column] = { runStart, column }
                     end
-                    local isSaddle = insideCount == 2 and (cornerValues[1] > 0) == (cornerValues[3] > 0)
-                    if isSaddle and getValue(x0 + cell / 2, y0 + cell / 2) <= 0 then
-                        -- Two corners inside across from each other, not joined in the middle: a corner piece each
-                        for corner = 1, 4 do
-                            if cornerValues[corner] > 0 then
-                                local before = crossings[(corner + 2) % 4 + 1] -- the side coming into this corner
-                                local after = crossings[corner]
-                                addPolygon({ corners[corner], after, before })
-                                edges[#edges + 1] = { before, after }
-                            end
-                        end
-                    else
-                        -- One piece: the corners inside and the crossings, in order round the cell
-                        local polygon = {}
+                    runStart = nil
+                    if insideCount > 0 then
+                        local inside = { in1, in2, in3, in4 }
+                        -- The sides the edge crosses (side n runs from corner n to the next)
+                        local crossed = {}
                         for side = 1, 4 do
-                            if cornerValues[side] > 0 then
-                                polygon[#polygon + 1] = corners[side]
-                            end
-                            if crossings[side] then
-                                polygon[#polygon + 1] = crossings[side]
+                            if inside[side] ~= inside[side % 4 + 1] then
+                                crossed[side] = sideCrossing(row, column, side)
                             end
                         end
-                        addPolygon(polygon)
-                        if isSaddle then
-                            -- Joined in the middle: the edge cuts off each outside corner
-                            for corner = 1, 4 do
-                                if cornerValues[corner] <= 0 then
-                                    edges[#edges + 1] = { crossings[(corner + 2) % 4 + 1], crossings[corner] }
+                        local isSaddle = insideCount == 2 and in1 == in3
+                        if isSaddle and not isMiddleInside(row, column) then
+                            -- Two corners inside across from each other, not joined in the middle: a corner piece each
+                            for number = 1, 4 do
+                                if inside[number] then
+                                    local before = crossed[(number + 2) % 4 + 1] -- the side coming into this corner
+                                    local after = crossed[number]
+                                    if isFillWanted then
+                                        addPolygon({ corner(row, column, number), after, before })
+                                    end
+                                    edges[#edges + 1] = { before, after }
                                 end
                             end
                         else
-                            local found = {}
-                            for side = 1, 4 do
-                                if crossings[side] then
-                                    found[#found + 1] = crossings[side]
+                            if isFillWanted then
+                                -- One piece: the corners inside and the crossings, in order round the cell
+                                local polygon = {}
+                                for side = 1, 4 do
+                                    if inside[side] then
+                                        polygon[#polygon + 1] = corner(row, column, side)
+                                    end
+                                    if crossed[side] then
+                                        polygon[#polygon + 1] = crossed[side]
+                                    end
                                 end
+                                addPolygon(polygon)
                             end
-                            edges[#edges + 1] = { found[1], found[2] }
+                            if isSaddle then
+                                -- Joined in the middle: the edge cuts off each outside corner
+                                for number = 1, 4 do
+                                    if not inside[number] then
+                                        edges[#edges + 1] = { crossed[(number + 2) % 4 + 1], crossed[number] }
+                                    end
+                                end
+                            else
+                                local first, second
+                                for side = 1, 4 do
+                                    if crossed[side] then
+                                        if first then
+                                            second = crossed[side]
+                                        else
+                                            first = crossed[side]
+                                        end
+                                    end
+                                end
+                                edges[#edges + 1] = { first, second }
+                            end
                         end
                     end
                 end
             end
-        end
-        closeRun(columns)
-        -- Runs that stop here become rectangles; the rest carry on into the next row
-        for key, run in pairs(openRuns) do
-            if not rowRuns[key] then
-                addRectangle(run.from, run.to, run.firstRow, row - 1)
-                openRuns[key] = nil
+            if isFillWanted then
+                if runStart then
+                    rowRuns[runStart .. ":" .. columns] = { runStart, columns }
+                end
+                -- Runs that stop here become rectangles; the rest carry on into the next row
+                for key, run in pairs(openRuns) do
+                    if not rowRuns[key] then
+                        addRectangle(run.from, run.to, run.firstRow, row - 1)
+                        openRuns[key] = nil
+                    end
+                end
+                for key, columnsOfRun in pairs(rowRuns) do
+                    openRuns[key] = openRuns[key] or { from = columnsOfRun[1], to = columnsOfRun[2], firstRow = row }
+                end
             end
         end
-        for key, columnsOfRun in pairs(rowRuns) do
-            openRuns[key] = openRuns[key] or { from = columnsOfRun[1], to = columnsOfRun[2], firstRow = row }
+        for _, run in pairs(openRuns) do
+            addRectangle(run.from, run.to, run.firstRow, rows - 1)
         end
+        return edges, triangles
     end
-    for _, run in pairs(openRuns) do
-        addRectangle(run.from, run.to, run.firstRow, rows - 1)
-    end
+
     -- The smoothed outline, and its inside cut into triangles straight from it: far fewer pieces than the grid's
-    -- strips and edge pieces, and the fill meets the smooth edge exactly. The grid's fill stays for a shape the
-    -- cutting cannot do.
-    local outline, loops = MapMarks.simplifyEdges(edges, cell * MapMarks.EDGE_TOLERANCE)
+    -- strips and edge pieces, and the fill meets the smooth edge exactly
+    local pieces = march(false)
+    local outline, loops = MapMarks.simplifyEdges(pieces, cell * MapMarks.EDGE_TOLERANCE)
     if shouldYield then
         coroutine.yield()
     end
     -- An outline that closes into no loop cuts into nothing: the grid's fill then, never an edge with no inside
     local cut = MapMarks.triangulateLoops(loops)
-    return { triangles = cut and #cut > 0 and cut or triangles, edges = outline }
+    if cut and #cut > 0 then
+        -- (loops: the outline's closed rings, for drawing it with fewer pieces: MapMarks.thinLoops)
+        return { triangles = cut, edges = outline, pieces = MapMarks.pairTriangles(cut), loops = loops }
+    end
+    local _, gridTriangles = march(true)
+    return { triangles = gridTriangles, edges = outline, pieces = MapMarks.pairTriangles(gridTriangles) }
+end
+
+---An outline's rings thinned further (Douglas-Peucker, as simplifyEdges thins them): the same shape drawn with
+---fewer pieces of edge, a point that bends a ring by less than the tolerance left out. A ring is never thinned to
+---fewer than four points (a small round area stays an area).
+---@param loops { x: number, y: number }[][] Closed rings (composeAreaShape's `loops`)
+---@return table[] edges { from, to } pieces
+function MapMarks.thinLoops(loops, tolerance)
+    local edges = {}
+    local function thin(ring, first, last, kept)
+        local a, b = ring[first], ring[last]
+        local dx, dy = b.x - a.x, b.y - a.y
+        local length = math.sqrt(dx * dx + dy * dy)
+        local farthest, farthestIndex = 0, nil
+        for index = first + 1, last - 1 do
+            local point = ring[index]
+            local distance = length > 0 and math.abs(dy * (point.x - a.x) - dx * (point.y - a.y)) / length
+                or math.sqrt((point.x - a.x) ^ 2 + (point.y - a.y) ^ 2)
+            if distance > farthest then
+                farthest, farthestIndex = distance, index
+            end
+        end
+        if farthestIndex and farthest > tolerance then
+            thin(ring, first, farthestIndex, kept)
+            thin(ring, farthestIndex, last, kept)
+        else
+            kept[#kept + 1] = b
+        end
+    end
+    for _, loop in ipairs(loops) do
+        -- Closed again (its first point at its end), and thinned in two halves, so its ends are not one point
+        local ring = {}
+        for index = 1, #loop do
+            ring[index] = loop[index]
+        end
+        ring[#ring + 1] = loop[1]
+        local kept = { ring[1] }
+        local middle = math.floor(#ring / 2) + 1
+        thin(ring, 1, middle, kept)
+        thin(ring, middle, #ring, kept)
+        if #kept < 5 then
+            kept = ring -- (thinned to a sliver: as it was)
+        end
+        for index = 1, #kept - 1 do
+            edges[#edges + 1] = { kept[index], kept[index + 1] }
+        end
+    end
+    return edges
+end
+
+---The fill's triangles as fewer pieces to draw: two triangles sharing a side whose four corners make a convex shape
+---are one piece of four (a texture takes four corners: half the textures for the same fill). Convex only, so the
+---shape is the same however the game splits a texture's corners into its own two triangles.
+---@return table[] pieces Each three or four points, round the piece
+function MapMarks.pairTriangles(triangles)
+    local ids, nextId = {}, 0
+    local function idOf(point)
+        local id = ids[point]
+        if not id then
+            nextId = nextId + 1
+            id = nextId
+            ids[point] = id
+        end
+        return id
+    end
+    local function sideKey(a, b)
+        local first, second = idOf(a), idOf(b)
+        if first > second then
+            first, second = second, first
+        end
+        return first * 1048576 + second
+    end
+    -- The triangles on each side
+    local bySide = {}
+    for index, triangle in ipairs(triangles) do
+        for corner = 1, 3 do
+            local key = sideKey(triangle[corner], triangle[corner % 3 + 1])
+            local list = bySide[key]
+            if not list then
+                list = {}
+                bySide[key] = list
+            end
+            list[#list + 1] = index
+        end
+    end
+    local function isConvex(ring)
+        local sign = 0
+        for index = 1, 4 do
+            local a, b, c = ring[index], ring[index % 4 + 1], ring[(index + 1) % 4 + 1]
+            local turn = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x)
+            if turn ~= 0 then
+                if sign == 0 then
+                    sign = turn > 0 and 1 or -1
+                elseif (turn > 0 and 1 or -1) ~= sign then
+                    return false
+                end
+            else
+                return false -- (three in a line: a triangle in disguise, kept as one)
+            end
+        end
+        return true
+    end
+    local isPaired, pieces = {}, {}
+    for index, triangle in ipairs(triangles) do
+        if not isPaired[index] then
+            isPaired[index] = true
+            local piece = triangle
+            for corner = 1, 3 do
+                local u, v, w = triangle[corner], triangle[corner % 3 + 1], triangle[(corner + 1) % 3 + 1]
+                for _, other in ipairs(bySide[sideKey(u, v)]) do
+                    if not isPaired[other] then
+                        local otherTriangle = triangles[other]
+                        local far -- the other triangle's corner off the shared side
+                        for otherCorner = 1, 3 do
+                            local point = otherTriangle[otherCorner]
+                            if point ~= u and point ~= v then
+                                far = point
+                            end
+                        end
+                        local ring = far and { w, u, far, v }
+                        if ring and isConvex(ring) then
+                            isPaired[other], piece = true, ring
+                            break
+                        end
+                    end
+                end
+                if piece ~= triangle then
+                    break
+                end
+            end
+            pieces[#pieces + 1] = piece
+        end
+    end
+    return pieces
 end
 
 ---The edge's short pieces joined end to end into lines, then thinned: a point that bends the line by less than the
 ---tolerance is left out. The same curve with far fewer pieces to draw.
 ---@return table[] edges { from, to } pieces, as many as the curve needs
 function MapMarks.simplifyEdges(edges, tolerance)
+    -- A point's place as one number (to a thousandth of a unit): pieces meeting there are joined. The tracing shares
+    -- each crossing between its two pieces; pieces from elsewhere meet by place
     local function keyOf(point)
-        return string.format("%.3f:%.3f", point.x, point.y)
+        return math.floor(point.x * 1000 + 0.5) * 1e8 + math.floor(point.y * 1000 + 0.5)
     end
     -- Each end's pieces, to walk from piece to piece
     local byEnd = {}
     for index, edge in ipairs(edges) do
-        for _, point in ipairs(edge) do
-            local key = keyOf(point)
-            byEnd[key] = byEnd[key] or {}
-            table.insert(byEnd[key], index)
+        for side = 1, 2 do
+            local key = keyOf(edge[side])
+            local list = byEnd[key]
+            if not list then
+                list = {}
+                byEnd[key] = list
+            end
+            list[#list + 1] = index
         end
     end
     local isUsed, chains = {}, {}
     for index, edge in ipairs(edges) do
         if not isUsed[index] then
             isUsed[index] = true
-            local chain = { edge[1], edge[2] }
-            -- Grow it at its end, then at its start
+            -- Grown at its end, and at its start in a list of its own (put before it at the end, not one by one)
+            local forward, backward = { edge[1], edge[2] }, {}
             for _, atEnd in ipairs({ true, false }) do
+                local chain = atEnd and forward or backward
                 while true do
-                    local tip = atEnd and chain[#chain] or chain[1]
+                    local tip = chain[#chain] or forward[1]
+                    local tipKey = keyOf(tip)
                     local nextIndex
-                    for _, candidate in ipairs(byEnd[keyOf(tip)] or {}) do
+                    for _, candidate in ipairs(byEnd[tipKey] or NONE) do
                         if not isUsed[candidate] then
                             nextIndex = candidate
                             break
@@ -246,13 +511,15 @@ function MapMarks.simplifyEdges(edges, tolerance)
                     end
                     isUsed[nextIndex] = true
                     local nextEdge = edges[nextIndex]
-                    local other = keyOf(nextEdge[1]) == keyOf(tip) and nextEdge[2] or nextEdge[1]
-                    if atEnd then
-                        chain[#chain + 1] = other
-                    else
-                        table.insert(chain, 1, other)
-                    end
+                    chain[#chain + 1] = keyOf(nextEdge[1]) == tipKey and nextEdge[2] or nextEdge[1]
                 end
+            end
+            local chain = {}
+            for step = #backward, 1, -1 do
+                chain[#chain + 1] = backward[step]
+            end
+            for step = 1, #forward do
+                chain[#chain + 1] = forward[step]
             end
             chains[#chains + 1] = chain
         end
@@ -277,10 +544,7 @@ function MapMarks.simplifyEdges(edges, tolerance)
             end
             chain = cut
         end
-        return chain
-    end
-    for index, chain in ipairs(chains) do
-        chains[index] = smooth(chain)
+        return chain, isLoop
     end
     -- Douglas-Peucker: keep the point furthest from the straight line between the ends while it is far enough
     local function thin(chain, first, last, kept)
@@ -304,13 +568,13 @@ function MapMarks.simplifyEdges(edges, tolerance)
         end
     end
     local simplified, loops = {}, {}
-    for _, chain in ipairs(chains) do
+    for _, rough in ipairs(chains) do
+        local chain, isLoop = smooth(rough)
         if #chain >= 2 then
             local kept = { chain[1] }
             -- A closed loop is thinned in two halves, so its ends are not one point
-            local middle = math.floor(#chain / 2) + 1
-            local isLoop = #chain > 3 and keyOf(chain[1]) == keyOf(chain[#chain])
             if isLoop then
+                local middle = math.floor(#chain / 2) + 1
                 thin(chain, 1, middle, kept)
                 thin(chain, middle, #chain, kept)
             else
@@ -427,35 +691,59 @@ local function cutEars(loop)
     local function cross(a, b, c)
         return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
     end
-    local triangles, start, misses = {}, 1, 0
-    while #points > 3 do
-        local count = #points
-        local index = (start - 1) % count + 1
-        local a, b, c = points[(index - 2) % count + 1], points[index], points[index % count + 1]
-        local isEar = cross(a, b, c) > 0
-        if isEar then
-            for other = 1, count do
-                local point = points[other]
-                if point ~= a and point ~= b and point ~= c then
-                    if cross(a, b, point) >= 0 and cross(b, c, point) >= 0 and cross(c, a, point) >= 0 then
-                        isEar = false
-                        break
-                    end
-                end
+    -- The loop as a ring (each point's neighbours), so cutting an ear off takes nothing from a list; and its corners
+    -- that bend inwards apart: only those can stand inside an ear, so only those are looked at (a smooth area has few,
+    -- where every point was looked at for every ear)
+    local count = #points
+    local before, after, isInward = {}, {}, {}
+    for index = 1, count do
+        before[index], after[index] = (index - 2) % count + 1, index % count + 1
+    end
+    local function setBend(index)
+        isInward[index] = cross(points[before[index]], points[index], points[after[index]]) <= 0 or nil
+    end
+    for index = 1, count do
+        setBend(index)
+    end
+    local function isEar(index)
+        if isInward[index] then
+            return false
+        end
+        local a, b, c = points[before[index]], points[index], points[after[index]]
+        for other in pairs(isInward) do
+            local point = points[other]
+            if
+                point ~= a
+                and point ~= b
+                and point ~= c
+                and cross(a, b, point) >= 0
+                and cross(b, c, point) >= 0
+                and cross(c, a, point) >= 0
+            then
+                return false
             end
         end
-        if isEar then
-            triangles[#triangles + 1] = { a, b, c }
-            table.remove(points, index)
-            start, misses = index, 0
+        return true
+    end
+    local triangles, index, misses, left = {}, 1, 0, count
+    while left > 3 do
+        if isEar(index) then
+            local previous, following = before[index], after[index]
+            triangles[#triangles + 1] = { points[previous], points[index], points[following] }
+            after[previous], before[following] = following, previous
+            isInward[index] = nil
+            left = left - 1
+            setBend(previous)
+            setBend(following)
+            index, misses = following, 0
         else
-            start, misses = index + 1, misses + 1
-            if misses > count then
+            index, misses = after[index], misses + 1
+            if misses > left then
                 return nil
             end
         end
     end
-    triangles[#triangles + 1] = { points[1], points[2], points[3] }
+    triangles[#triangles + 1] = { points[before[index]], points[index], points[after[index]] }
     return triangles
 end
 
@@ -561,7 +849,28 @@ local function setTriangle(texture, first, second, third, anchor)
     texture:SetVertexOffset(4, thirdX - width, height - thirdY)
 end
 
+---A piece of four corners (MapMarks.pairTriangles), round it: a texture whose corners are moved onto them.
+local function setQuad(texture, first, second, third, fourth, anchor)
+    local left = math.min(first.x, second.x, third.x, fourth.x)
+    local top = math.min(first.y, second.y, third.y, fourth.y)
+    local firstX, firstY = toHundredths(first.x - left), toHundredths(first.y - top)
+    local secondX, secondY = toHundredths(second.x - left), toHundredths(second.y - top)
+    local thirdX, thirdY = toHundredths(third.x - left), toHundredths(third.y - top)
+    local fourthX, fourthY = toHundredths(fourth.x - left), toHundredths(fourth.y - top)
+    local width = math.max(firstX, secondX, thirdX, fourthX, 0.01)
+    local height = math.max(firstY, secondY, thirdY, fourthY, 0.01)
+    ns.Widgets.place(texture, "TOPLEFT", anchor or State.areaLayer, "TOPLEFT", left, -top)
+    texture:SetSize(width, height)
+    -- Round the piece: upper left, lower left, lower right, upper right (y up)
+    texture:SetVertexOffset(1, firstX, -firstY)
+    texture:SetVertexOffset(2, secondX, height - secondY)
+    texture:SetVertexOffset(4, thirdX - width, height - thirdY)
+    texture:SetVertexOffset(3, fourthX - width, -fourthY)
+end
+
 MapMarks.setTriangle = setTriangle
+MapMarks.setQuad = setQuad
 
 -- Shared with the other parts of the window
 Shapes.setTriangle = setTriangle
+Shapes.setQuad = setQuad

@@ -93,7 +93,7 @@ local function placeAll(window, map, panel, tab)
 end
 
 local function fit()
-    local window, map = _G.TrailheadLog, WorldMapFrame
+    local window, map = _G.OneMoreQuestLog, WorldMapFrame
     local panel, tab = _G[FRAME_NAMES.panel], _G[FRAME_NAMES.tab]
     if state.isFitting or not (map and (panel or tab)) then
         return

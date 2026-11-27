@@ -14,7 +14,7 @@ local BACKGROUND, COLORS, HEADER_BAR_HIGH, HEADER_BAR_LOW, PADDING =
 local PAPER_FILL, SELECTED_EDGE, TITLE_HEIGHT = Style.PAPER_FILL, Style.SELECTED_EDGE, Style.TITLE_HEIGHT
 
 ---------------------------------------------------------------------------------------------------------------
--- Trailhead's settings, on the page beside the list: the cog opens them in place of the quest
+-- OneMoreQuest's settings, on the page beside the list: the cog opens them in place of the quest
 
 ---Carries a changed setting out everywhere, then draws the page again with it.
 function SettingsView.applySetting()
@@ -218,43 +218,41 @@ local function addMarkerPicture(kind, centerX, centerY, glyph, color, scale)
     end
 end
 
--- An area on a picture, in a look: a light wash with a thin edge, or the bold shape (a bright edge over a dark rim);
--- its fill and its edge as the player set them (each on or off, and its strength)
-local AREA_RIM = { 0.04, 0.06, 0.12, 0.7 }
+-- An area on a picture: a wash in its quest's colour with an edge round it; its fill and its edge as the player set
+-- them (each on or off, and its strength)
 local function addAreaPicture(style, x, y, size, color, level)
-    if style ~= "blob" and style ~= "filled" then
+    if style ~= "filled" then
         return
     end
     local settings = ns.settings
     local fill = settings.shouldFillAreas ~= false and math.min(2, tonumber(settings.areaFillStrength) or 1) or 0
     local edge = settings.shouldOutlineAreas ~= false and math.min(2, tonumber(settings.areaOutlineStrength) or 1) or 0
-    local isBold = style == "blob"
-    local inset = isBold and 2 or 1
-    if edge > 0 then
-        if isBold then
-            State.detail:addDot(
-                x - 1,
-                y - 1,
-                size + 2,
-                { AREA_RIM[1], AREA_RIM[2], AREA_RIM[3], math.min(1, AREA_RIM[4] * edge) },
-                level
-            )
-        end
-        State.detail:addDot(
-            x,
-            y,
-            size,
-            { color[1], color[2], color[3], math.min(1, (isBold and 1 or 0.75) * edge) },
-            level + 1
+    if ns.MapMarks.isShadowsOnly() then
+        -- Drawn as shadows: a soft patch in the quest's colour, no ring, as strong as the one strength says
+        local strength = math.min(2, tonumber(settings.areaFillStrength) or 1)
+        State.detail:addImage(
+            x - size * 0.15,
+            y - size * 0.15,
+            size * 1.3,
+            size * 1.3,
+            ns.LogStyle.MEDIA .. "SoftDot",
+            nil,
+            color,
+            level + 3,
+            math.min(1, 0.45 * strength)
         )
-        State.detail:addDot(x + inset, y + inset, size - 2 * inset, MAP_GROUND, level + 2)
+        return
+    end
+    if edge > 0 then
+        State.detail:addDot(x, y, size, { color[1], color[2], color[3], math.min(1, 0.75 * edge) }, level + 1)
+        State.detail:addDot(x + 1, y + 1, size - 2, MAP_GROUND, level + 2)
     end
     if fill > 0 then
         State.detail:addDot(
-            x + inset,
-            y + inset,
-            size - 2 * inset,
-            { color[1], color[2], color[3], math.min(1, (isBold and 0.45 or 0.25) * fill) },
+            x + 1,
+            y + 1,
+            size - 2,
+            { color[1], color[2], color[3], math.min(1, 0.25 * fill) },
             level + 3
         )
     end
@@ -1454,7 +1452,14 @@ local function drawSettingsPage()
                 + 8
         end
         -- (a group may make its options as it is drawn: the hidden quests, each with its button)
+        -- (an option with no meaning as things are set is left out of the page: Settings' hiddenUnless)
+        local shownOptions = {}
         for _, option in ipairs(group.getOptions and group.getOptions() or group.options) do
+            if not (option.isHidden and option.isHidden()) then
+                shownOptions[#shownOptions + 1] = option
+            end
+        end
+        for _, option in ipairs(shownOptions) do
             if option.isSpoilerPresets then
                 y = addSpoilerPresets(y)
             elseif option.choices and option.isDropdown then

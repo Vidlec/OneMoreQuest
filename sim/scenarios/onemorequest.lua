@@ -40,7 +40,7 @@ if require("widgets").focus then
     key("ESCAPE")
     wait(0.2)
 end
-if not (G.WorldMapFrame:IsShown() and G.TrailheadLog and G.TrailheadLog:IsShown()) then
+if not (G.WorldMapFrame:IsShown() and G.OneMoreQuestLog and G.OneMoreQuestLog:IsShown()) then
     if G.WorldMapFrame:IsShown() then
         key("M")
         wait(0.5)

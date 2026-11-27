@@ -90,7 +90,7 @@ end
 ---@return number? questId The quest the list says is under the mouse
 local function hoverListRow(rowNumber)
     local W = require("widgets")
-    local list = W.computeRect(G.TrailheadLogList)
+    local list = W.computeRect(G.OneMoreQuestLogList)
     local left, right = list[1], list[3]
     local top, bottom = sim.screenHeight - list[4], sim.screenHeight - list[2]
     local rows = {}

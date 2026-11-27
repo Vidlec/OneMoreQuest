@@ -335,7 +335,12 @@ end
 
 ---@return number? npcId The creature a unit's identifier names; nil for players, pets and objects
 function Database.getNpcId(guid)
-    local unitType, npcId = (guid or ""):match("^(%a+)%-%d+%-%d+%-%d+%-%d+%-(%d+)")
+    -- (in an instance the game hands addons a creature's identifier as a secret value: it cannot be read, so no
+    -- creature is named; Razorfen Downs' quest givers broke the data check on it)
+    if type(guid) ~= "string" or (issecretvalue and issecretvalue(guid)) then
+        return nil
+    end
+    local unitType, npcId = guid:match("^(%a+)%-%d+%-%d+%-%d+%-%d+%-(%d+)")
     if unitType ~= "Creature" and unitType ~= "Vehicle" then
         return nil
     end

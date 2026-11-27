@@ -75,7 +75,7 @@ end
 ---@return table pad { addon, window, blocked(), navCalls, madeInPanel, cursor(), isOwn(key), menu(), report() }
 function omqpad.start()
     local addon = require("addons").byName["onemorequest"].private
-    local pad = { addon = addon, window = G.TrailheadLog, navCalls = {}, madeInPanel = {} }
+    local pad = { addon = addon, window = G.OneMoreQuestLog, navCalls = {}, madeInPanel = {} }
     local blocked = 0
     G.hooksecurefunc("DisplayInterfaceActionBlockedMessage", function()
         blocked = blocked + 1
@@ -168,7 +168,7 @@ function omqpad.start()
     function pad.framesInMapWalk()
         local found = {}
         local function isOwn(frame)
-            if frame == G.TrailheadLog then
+            if frame == G.OneMoreQuestLog then
                 return true
             end
             for _, script in ipairs({ "OnClick", "OnEnter", "OnShow", "OnUpdate", "OnMouseUp", "OnMouseDown", "OnLoad" }) do

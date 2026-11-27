@@ -17,7 +17,7 @@ memberProgress("Garra", 844, 1, 3)
 wait(1.5)
 local omq = require("omqpad").start()
 gamepadInterface(true)
-local window = G.TrailheadLog
+local window = G.OneMoreQuestLog
 local addon = require("addons").byName["onemorequest"].private
 addon.MapDock.open() -- (the gamepad interface: the window by itself, the map keeping the game's quest panel)
 wait(0.5)

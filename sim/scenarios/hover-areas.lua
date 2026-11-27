@@ -156,7 +156,8 @@ expect(not G.GameTooltip:IsShown(), "off the minimap, the tooltip goes")
 key("M")
 wait(0.8)
 local drawn, markLayer = addon.MapMarks.getDrawn()
-expect(#drawn.areas > 0, "the map shows the quests' areas")
+local drawnAreas, drawnSquares = addon.MapMarks.listDrawn() -- (whichever drawing made them)
+expect(#drawnAreas > 0, "the map shows the quests' areas")
 -- Points on the map, from its 0 to 1 position, through the area layer (the canvas' size and units)
 local function mapPoint(x, y)
     local canvas = drawn.map:GetCanvas()
@@ -164,13 +165,13 @@ local function mapPoint(x, y)
 end
 -- Inside an area, clear of spawn marks, and not on a quest mark (a pin shows its own tooltip): tried in turn
 local isHovered = false
-for _, area in ipairs(drawn.areas) do
+for _, area in ipairs(drawnAreas) do
     local minX, maxX, minY, maxY = getBox(area)
     for step = 1, 60 do
         local x = minX + (maxX - minX) * ((step * 0.618) % 1)
         local y = minY + (maxY - minY) * ((step * 0.382) % 1)
         local isClear = isInArea(area, x, y)
-        for _, square in ipairs(drawn.squares) do
+        for _, square in ipairs(drawnSquares) do
             -- (off its spawn mark: beyond the radius OneMoreQuest hit-tests a mark by, MapHover.findQuests, and a little)
             if (square.x - x * drawn.scale) ^ 2 + (square.y - y * drawn.scale) ^ 2 < ((square.radius or 4) + 3) ^ 2 then
                 isClear = false
@@ -183,7 +184,7 @@ for _, area in ipairs(drawn.areas) do
             local focus = G.GetMouseFoci()[1]
             if not (focus and focus.mark) then
                 local lines = getTooltipLines()
-                local found = addon.MapHover.findQuests({}, drawn.areas, 0, 0, x, y)
+                local found = addon.MapHover.findQuests({}, drawnAreas, 0, 0, x, y)
                 expect(
                     found[1] and hasTitle(lines, found[1].questId),
                     "map area: its quest's title (" .. table.concat(lines, " | ") .. ")"
@@ -220,7 +221,7 @@ for _, area in ipairs(drawn.areas) do
     end
 end
 expect(isHovered, "a bare part of an area on the map to hover")
-local square = drawn.squares[1]
+local square = drawnSquares[1]
 expect(square ~= nil and square.questId ~= nil, "the map's spawn marks know their quest")
 if square then
     local x, y = mapPoint(square.x / (drawn.width * drawn.scale), square.y / (drawn.height * drawn.scale))

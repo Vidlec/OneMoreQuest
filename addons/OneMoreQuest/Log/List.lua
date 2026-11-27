@@ -412,6 +412,18 @@ end
 -- take it but has not got it, and the game lets it be shared. A click offers it to the party.
 local partyShare = { icon = { atlas = "friends-icon-friendsingroup" } }
 
+---@return number count How many of the party have the quest too (the game tells, whatever addons they run)
+function Log.getPartyCount(questId)
+    if not (IsInGroup and IsInGroup()) then
+        return 0
+    end
+    local count = 0
+    for _, member in ipairs(ns.Party.getMembers(questId)) do
+        count = count + (member.isOnQuest and 1 or 0)
+    end
+    return count
+end
+
 ---@return boolean canShare Sharing the quest would help: a party member who has not got it could take it (or
 ---nothing says they could not), and the game lets it be shared
 function Log.canShareWithParty(questId)
@@ -479,7 +491,7 @@ function partyShare.share(questId)
 end
 
 ---One quest in the list.
----@param line { handleClick: fun(questId: number)?, indent: number?, title: string, level: number, subText: string?, color: number[]?, isReady: boolean?, icon: string?, itemTexture: any, canShareWithParty: boolean?, chainText: string?, warnings: string[]?, number: number?, progress: number?, isFocused: boolean?, canFocus: boolean? }
+---@param line { handleClick: fun(questId: number)?, indent: number?, title: string, level: number, subText: string?, color: number[]?, isReady: boolean?, icon: string?, itemTexture: any, canShareWithParty: boolean?, chainText: string?, chainIcon: string?, partyCount: number?, warnings: string[]?, number: number?, progress: number?, isFocused: boolean?, canFocus: boolean? }
 ---@return number y Below the row
 local function addListQuest(y, questId, line)
     local width = State.list.width
@@ -554,7 +566,21 @@ local function addListQuest(y, questId, line)
             { font = "GameFontHighlightSmall", color = COLORS.tan, width = 30, justify = "RIGHT", isSingleLine = true }
         )
         right = right - math.min(textWidth, 30) - 16
-        State.list:addIcon(right, y + 6, 12, CHAIN_ICON, COLORS.tan)
+        -- (a quest that opens others without being a chain's step has the branching mark there: line.chainIcon)
+        State.list:addIcon(right, y + 6, 12, line.chainIcon or CHAIN_ICON, COLORS.tan)
+        right = right - 4
+    end
+    -- How many of the party are on it too, as the game's own quest log says before a quest's name ("[2]"): the
+    -- players mark and the count
+    if (line.partyCount or 0) > 0 then
+        local _, countWidth = State.list:addText(
+            tostring(line.partyCount),
+            right - 14,
+            y + 7,
+            { font = "GameFontHighlightSmall", color = COLORS.tan, width = 14, justify = "RIGHT", isSingleLine = true }
+        )
+        right = right - math.min(countWidth or 14, 14) - 15
+        State.list:addIcon(right, y + 5, 13, MEDIA .. "GlyphPlayers", COLORS.tan)
         right = right - 4
     end
     -- Before the chain step: the offer to share it with the party, when that would help

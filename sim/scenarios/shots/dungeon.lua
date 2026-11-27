@@ -31,4 +31,4 @@ addon.Log.showZone(718) -- Wailing Caverns
 wait(1)
 addon.Log.showAvailable(962) -- Serpentbloom, to pick up before you go
 wait(1)
-crop("dungeon", { G.WorldMapFrame, G.TrailheadLog }, 6)
+crop("dungeon", { G.WorldMapFrame, G.OneMoreQuestLog }, 6)

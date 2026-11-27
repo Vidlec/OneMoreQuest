@@ -43,10 +43,10 @@ for index in ipairs({ "glance" }) do
     addon.ChroniclePage.chapterIndex = index
     addon.Log.refresh()
     wait(1)
-    crop("chronicle", { G.TrailheadLog }, 6, 26)
+    crop("chronicle", { G.OneMoreQuestLog }, 6, 26)
 end
 -- The journal: every quest handed in, day by day, with its search and filters
 addon.ChroniclePage.chapterIndex = 3
 addon.Log.refresh()
 wait(1)
-crop("journal", { G.TrailheadLog }, 6, 26)
+crop("journal", { G.OneMoreQuestLog }, 6, 26)

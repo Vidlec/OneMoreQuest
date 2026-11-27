@@ -1,12 +1,11 @@
 --@login race=Human,class=WARRIOR,level=36
 -- A quest to pick up that starts from an item creatures drop (Strahnbrad Mystery, from a Singed Note): selected on
--- the Available tab, the map shows where those creatures are, each in its own shade as on the quest page, in
--- every look of the places (icons and areas included).
+-- the Available tab, the map shows where those creatures are, drawn as a tracked quest's places are (the kept
+-- drawing: the same areas and spawn marks, by the player's settings for them), each creature named in its marks.
 setProfile({ level = 36 })
 moveTo(1416, 0.58, 0.67) -- Alterac Mountains
 wait(1)
 local addon = require("addons").byName["onemorequest"].private
-local S = require("widgets").state
 local questId
 local zoneId = addon.Database.getParentZoneId(addon.Database.getAreaId(1416))
 for _, quest in ipairs(addon.Availability.getQuests(zoneId, { shouldShowLowLevel = true })) do
@@ -23,31 +22,33 @@ addon.Log.showAvailable(questId)
 wait(0.5)
 expect(addon.Log.getSelectedAvailableQuestId and addon.Log.getSelectedAvailableQuestId() == questId, "it is selected")
 
-local function countIcons(look)
-    addon.settings.areaStyle = look
+-- The kept drawing shows them, as it shows a tracked quest's places (the same areas and spawn marks, the player's
+-- own look for them): each creature's spawns, named with its chance in their notes
+local function countSpots()
+    addon.settings.areaStyle = "filled"
     addon.MapPins.refresh()
-    local icons, colours = 0, {}
-    for _, frame in ipairs({ G.WorldMapFrame.ScrollContainer.Child:GetChildren() }) do
-        for _, region in ipairs({ frame:GetRegions() }) do
-            local texture = S[region].texture
-            if region:IsVisible() and type(texture) == "string" and texture:find("IconLoot", 1, true) then
-                icons = icons + 1
-            end
-            if region:IsVisible() and type(texture) == "string" and texture:find("SoftDot", 1, true) then
-                local r, g, b = region:GetVertexColor()
-                colours[string.format("%.2f,%.2f,%.2f", r, g, b)] = true
+    wait(1.5) -- (the kept drawing lays its pieces out a little each frame)
+    local _, spots = addon.MapMarks.World.list(G.WorldMapFrame, 1)
+    local count, notes, noteCount = 0, {}, 0
+    for _, spot in ipairs(spots) do
+        if spot.questId == questId then
+            count = count + 1
+            if spot.note and not notes[spot.note] then
+                notes[spot.note], noteCount = true, noteCount + 1
             end
         end
     end
-    local colourCount = 0
-    for _ in pairs(colours) do
-        colourCount = colourCount + 1
-    end
-    return icons, colourCount
+    return count, noteCount
 end
-local icons, colours = countIcons("filled")
-expect(icons > 3, "icons and areas: a bag where the creatures that drop the note are (" .. icons .. ")")
-expect(colours >= 2, "each creature in its own shade (" .. colours .. " shades)")
+local spotCount, creatureCount = countSpots()
+expect(spotCount > 3, "icons and areas: a spawn mark where the creatures that drop the note are (" .. spotCount .. ")")
+expect(creatureCount >= 2, "each creature named in its own marks (" .. creatureCount .. " creatures)")
+local keptAreas = addon.MapMarks.World.list(G.WorldMapFrame, 1)
+local areaCount = 0
+for _, area in ipairs(keptAreas) do
+    areaCount = areaCount + (area.questId == questId and 1 or 0)
+end
+expect(areaCount > 0, "with an area round them, drawn as a tracked quest's (" .. areaCount .. ")")
 addon.settings.areaStyle, addon.settings.spawnMarker = "filled", "glyph"
 addon.MapPins.refresh()
 wait(0.3)
