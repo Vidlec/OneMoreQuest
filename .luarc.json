@@ -1,4 +1,8 @@
 {
+  "$schema": "https://raw.githubusercontent.com/LuaLS/vscode-lua/master/setting/schema.json",
   "runtime.version": "Lua 5.1",
-  "workspace.library": ["node_modules/addonsim/types"]
+  "workspace.library": ["node_modules/addonsim/types"],
+  "workspace.ignoreDir": ["node_modules", "dist", "sim/plugins/questie", "tools/design"],
+  "diagnostics.disable": ["lowercase-global"],
+  "format.enable": false
 }

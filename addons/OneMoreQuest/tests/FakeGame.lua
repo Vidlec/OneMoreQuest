@@ -28,6 +28,9 @@ local function createVector(x, y)
         GetXY = function(self)
             return self.x, self.y
         end,
+        SetXY = function(self, newX, newY) -- (as the game's Vector2DMixin: a vector reused, not made anew)
+            self.x, self.y = newX, newY
+        end,
     }
 end
 

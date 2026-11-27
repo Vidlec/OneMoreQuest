@@ -1,0 +1,344 @@
+local _, ns = ...
+
+-- A creature's tooltip (hovered in the world, on its nameplate, or on the target's portrait) says what it is
+-- worth to your quests: for each quest in your log it counts for, the quest's name, then each unfinished
+-- objective it helps with: an item it drops, with the count and the drop chance, or a kill, with the count.
+local UnitTooltip = {}
+ns.UnitTooltip = UnitTooltip
+
+local CREATURES, KILL_CREDITS = 1, 5 -- the quest database's objective lists: creatures, and kill credit groups
+local TITLE_COLOR = { 1, 0.82, 0 }
+local LINE_COLOR = { 0.9, 0.9, 0.9 }
+local CHANCE_COLOR = { 0.55, 0.8, 1 }
+local DONE_COLOR = { 0.5, 0.5, 0.5 }
+
+---@return number? npcId The creature a unit GUID belongs to ("Creature-0-…-npcId-spawn"); nil for players, pets,
+---objects, and a GUID the game keeps secret
+function UnitTooltip.getNpcId(guid)
+    if type(guid) ~= "string" or (issecretvalue and issecretvalue(guid)) then
+        return nil
+    end
+    local kind, npcId = guid:match("^(%a+)%-%d+%-%d+%-%d+%-%d+%-(%d+)")
+    if kind ~= "Creature" and kind ~= "Vehicle" then
+        return nil
+    end
+    return tonumber(npcId)
+end
+
+---@return boolean isTarget The creature is one a kill objective asks for: itself, or one of its kill credit group
+local function isKillTarget(questId, typeIndex, npcId)
+    local objectives = ns.Database.getQuestField(questId, "objectives") or {}
+    local creatures, killCredits = objectives[CREATURES] or {}, objectives[KILL_CREDITS] or {}
+    local creature = creatures[typeIndex]
+    if creature then
+        return creature[1] == npcId
+    end
+    local killCredit = killCredits[typeIndex - #creatures]
+    for _, creditNpcId in ipairs(killCredit and killCredit[1] or {}) do
+        if creditNpcId == npcId then
+            return true
+        end
+    end
+    return false
+end
+
+---@class UnitTooltipQuest
+---@field questId number
+---@field title string "[12] Plainstrider Menace"
+---@field lines { text: string, chance: number?, isDone: boolean, kind: string }[] What the creature gives towards it:
+
+---@return boolean isTold Which quest a creature is for may be told (Spoilers' "creatures": always, after the first
+---kill of one, or never; a hint lifts it)
+local function isCreatureTold(questId, npcId)
+    local choice = ns.Spoilers.get("creatures", questId)
+    return choice == "always" or (choice == "killed" and ns.Spoilers.hasKilled(npcId))
+end
+
+---@return boolean isTold, boolean isChanceTold That a creature drops a quest's item may be told, and how often
+---(Spoilers' "drops": with chances, names only, once it dropped it for the player, hidden)
+local function isDropTold(questId, itemId, npcId)
+    local choice = ns.Spoilers.get("drops", questId)
+    if choice == "chances" then
+        return true, true
+    end
+    return choice == "names" or (choice == "found" and ns.Spoilers.hasSeenDrop(itemId, npcId)), false
+end
+
+---@return string title A quest of the log's title with its level, "[12] Plainstrider Menace"
+local function composeQuestTitle(quest, questId)
+    local level = quest.level or ns.Database.getQuestField(questId, "questLevel")
+    local title = quest.title
+        or ns.QuestText.getTitle(questId, ns.Database.getQuestField(questId, "name") or ("Quest " .. questId))
+    -- The database gives 0 for a level it does not know: then no level is shown
+    local hasLevel = type(level) == "number" and level > 0
+    return hasLevel and string.format("[%d] %s", level, title) or title
+end
+
+---@return table? line An item objective's line when the creature drops its item and that may be told
+local function composeLootLine(questId, itemIndex, npcId, isSpoiling)
+    local target = ns.Location.getObjectiveTarget(questId, "item", itemIndex)
+    local itemId = target and target.itemId
+    if not itemId then
+        return nil
+    end
+    local chance = ns.Drops.getChance(itemId, npcId)
+    local isDropShown, isChanceShown = true, true
+    if isSpoiling then
+        isDropShown, isChanceShown = isDropTold(questId, itemId, npcId)
+    end
+    if not (isDropShown and (chance or ns.Drops.isDroppedBy(itemId, npcId))) then
+        return nil
+    end
+    return { chance = isChanceShown and chance or nil, kind = "loot" }
+end
+
+---@return table[] lines What a creature gives towards one quest of the log: its items to loot and kills
+local function composeQuestLines(quest, questId, npcId, isSpoiling)
+    local lines, typeIndexes = {}, {}
+    local isTold = not isSpoiling or isCreatureTold(questId, npcId)
+    for _, objective in ipairs(isTold and quest and not quest.isComplete and quest.objectives or {}) do
+        typeIndexes[objective.type] = (typeIndexes[objective.type] or 0) + 1
+        local line
+        if objective.type == "item" then
+            line = composeLootLine(questId, typeIndexes.item, npcId, isSpoiling)
+        elseif objective.type == "monster" and isKillTarget(questId, typeIndexes.monster, npcId) then
+            line = { kind = "kill" }
+        end
+        if line then
+            local count = (objective.required or 0) > 1
+                    and string.format(" %d/%d", objective.fulfilled or 0, objective.required)
+                or ""
+            line.text = (objective.shownLabel or objective.label) .. count
+            line.isDone = objective.isFinished == true
+            lines[#lines + 1] = line
+        end
+    end
+    return lines
+end
+
+---@return boolean hasOpen A line is of an objective still to do
+local function hasOpenLine(lines)
+    for _, line in ipairs(lines) do
+        if not line.isDone then
+            return true
+        end
+    end
+    return false
+end
+
+---What a creature is worth to the quests in the log: only what the player's spoiler choices let be told (in Guide,
+---everything, nothing asked).
+---@return UnitTooltipQuest[] quests In the log's order; empty when it counts for none
+function UnitTooltip.compose(npcId)
+    local quests = {}
+    if not npcId then
+        return quests
+    end
+    local isSpoiling = ns.Spoilers.isActive()
+    for _, questId in ipairs(ns.QuestState.getLogQuestIds()) do
+        local quest = ns.QuestState.getQuest(questId)
+        local lines = composeQuestLines(quest, questId, npcId, isSpoiling)
+        -- Only quests it still helps with: a finished objective is shown only beside one that is not
+        if hasOpenLine(lines) then
+            quests[#quests + 1] = { questId = questId, title = composeQuestTitle(quest, questId), lines = lines }
+        end
+    end
+    return quests
+end
+
+---Adds the lines for a creature to a tooltip.
+function UnitTooltip.addLines(tooltip, npcId)
+    local quests = UnitTooltip.compose(npcId)
+    if #quests == 0 then
+        return false
+    end
+    tooltip:AddLine(" ")
+    for _, quest in ipairs(quests) do
+        ns.QuestTooltip.addTitle(tooltip, quest.title, quest.questId, TITLE_COLOR)
+        for _, line in ipairs(quest.lines) do
+            local color = line.isDone and DONE_COLOR or LINE_COLOR
+            if line.chance then
+                tooltip:AddDoubleLine(
+                    "  " .. line.text,
+                    ns.Drops.formatChance(line.chance),
+                    color[1],
+                    color[2],
+                    color[3],
+                    CHANCE_COLOR[1],
+                    CHANCE_COLOR[2],
+                    CHANCE_COLOR[3]
+                )
+            else
+                tooltip:AddLine("  " .. line.text, color[1], color[2], color[3])
+            end
+        end
+    end
+    tooltip:Show() -- to fit the new lines
+    return true
+end
+
+-- An item's tooltip (in the bags, the bank, a link) says the same for the quests that ask for it: each quest's title
+-- with its level and experience, then how many of it it wants and how many are still to get. Which quests ask for
+-- which item is worked out once from the log (itemQuests) and again only after it changes, so a hover is one lookup.
+local itemQuests -- [itemId] = { { questId, objectiveIndex } }; nil: worked out at the next hover
+local LEFT_COLOR = { 1, 0.6, 0.48 }
+
+local function buildItemQuests()
+    itemQuests = {}
+    for _, questId in ipairs(ns.QuestState.getLogQuestIds()) do
+        local quest = ns.QuestState.getQuest(questId)
+        local itemIndex = 0
+        for index, objective in ipairs(quest and quest.objectives or {}) do
+            if objective.type == "item" then
+                itemIndex = itemIndex + 1
+                local target = ns.Location.getObjectiveTarget(questId, "item", itemIndex)
+                local itemId = target and target.itemId
+                if itemId then
+                    local list = itemQuests[itemId] or {}
+                    itemQuests[itemId] = list
+                    list[#list + 1] = { questId = questId, objectiveIndex = index }
+                end
+            end
+        end
+    end
+end
+
+---Adds the quests an item is for to its tooltip.
+---@return boolean isAdded It is for one at least
+function UnitTooltip.addItemLines(tooltip, itemId)
+    if not itemQuests then
+        buildItemQuests()
+    end
+    local uses = itemQuests[itemId]
+    if not uses then
+        return false
+    end
+    tooltip:AddLine(" ")
+    for _, use in ipairs(uses) do
+        local quest = ns.QuestState.getQuest(use.questId)
+        local objective = quest and quest.objectives and quest.objectives[use.objectiveIndex]
+        if objective then
+            ns.QuestTooltip.addTitle(tooltip, composeQuestTitle(quest, use.questId), use.questId, TITLE_COLOR)
+            local fulfilled, required = objective.fulfilled or 0, objective.required or 1
+            local count = string.format("%d/%d", math.min(fulfilled, required), required)
+            if objective.isFinished then
+                tooltip:AddDoubleLine(
+                    "  " .. (objective.shownLabel or objective.label),
+                    count,
+                    DONE_COLOR[1],
+                    DONE_COLOR[2],
+                    DONE_COLOR[3],
+                    DONE_COLOR[1],
+                    DONE_COLOR[2],
+                    DONE_COLOR[3]
+                )
+            else
+                tooltip:AddDoubleLine(
+                    "  " .. (objective.shownLabel or objective.label) .. " " .. count,
+                    ns.Lp(math.max(required - fulfilled, 0), "%d left", "%d left"),
+                    LINE_COLOR[1],
+                    LINE_COLOR[2],
+                    LINE_COLOR[3],
+                    LEFT_COLOR[1],
+                    LEFT_COLOR[2],
+                    LEFT_COLOR[3]
+                )
+            end
+        end
+    end
+    tooltip:Show() -- to fit the new lines
+    return true
+end
+
+local addedTo = {} -- [tooltip] = the creature whose lines it shows, until the game clears it
+local itemAddedTo = {} -- [tooltip] = the item whose lines it shows, until the game clears it
+
+---@return boolean isShowing Questie runs with its own quest lines on creatures' tooltips: ours would repeat them
+local function isQuestieShowingTooltips()
+    local isLoaded = ns.isAddOnLoaded("Questie")
+    if not isLoaded then
+        return false
+    end
+    local isRead, isEnabled = pcall(function()
+        return Questie.db.profile.enableTooltips
+    end)
+    return not isRead or isEnabled ~= false -- when its setting cannot be read, it is taken to be on
+end
+UnitTooltip.isQuestieShowingTooltips = isQuestieShowingTooltips
+
+---@return boolean isOurs The game's tooltip, our quest lines on, and Questie not adding its own
+local function isTooltipForUs(tooltip)
+    return tooltip == GameTooltip and ns.settings.shouldShowUnitQuests and not isQuestieShowingTooltips()
+end
+
+local function handleUnitTooltip(tooltip, data)
+    if not isTooltipForUs(tooltip) then
+        return
+    end
+    local guid = data and data.guid
+    if not guid and tooltip.GetUnit then
+        local _, unit = tooltip:GetUnit()
+        if unit and not (issecretvalue and issecretvalue(unit)) and UnitGUID then
+            guid = UnitGUID(unit)
+        end
+    end
+    local npcId = UnitTooltip.getNpcId(guid)
+    -- The game can run the post-call again for the same tooltip without clearing it: the lines go in once
+    if not npcId or addedTo[tooltip] == npcId then
+        return
+    end
+    if UnitTooltip.addLines(tooltip, npcId) then
+        addedTo[tooltip] = npcId
+    end
+end
+
+local function handleItemTooltip(tooltip, data)
+    if not isTooltipForUs(tooltip) then
+        return
+    end
+    local itemId = data and data.id
+    if not itemId and tooltip.GetItem then
+        local _, link = tooltip:GetItem()
+        itemId = type(link) == "string" and tonumber(link:match("item:(%d+)")) or nil
+    end
+    if type(itemId) ~= "number" or (issecretvalue and issecretvalue(itemId)) or itemAddedTo[tooltip] == itemId then
+        return
+    end
+    if UnitTooltip.addItemLines(tooltip, itemId) then
+        itemAddedTo[tooltip] = itemId
+    end
+end
+
+---Hooks creature and item tooltips: the game's tooltip data post-calls, or, on an older client, the tooltip's own
+---OnTooltipSetUnit and OnTooltipSetItem.
+function UnitTooltip.create()
+    if GameTooltip and GameTooltip.HookScript then
+        GameTooltip:HookScript("OnTooltipCleared", function(tooltip)
+            addedTo[tooltip], itemAddedTo[tooltip] = nil, nil
+        end)
+    end
+    if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType then
+        TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, handleUnitTooltip)
+        TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, handleItemTooltip)
+    elseif GameTooltip and GameTooltip.HasScript then
+        if GameTooltip:HasScript("OnTooltipSetUnit") then
+            GameTooltip:HookScript("OnTooltipSetUnit", function(tooltip)
+                handleUnitTooltip(tooltip)
+            end)
+        end
+        if GameTooltip:HasScript("OnTooltipSetItem") then
+            GameTooltip:HookScript("OnTooltipSetItem", function(tooltip)
+                handleItemTooltip(tooltip)
+            end)
+        end
+    end
+end
+
+ns.registerModule({
+    name = "UnitTooltip",
+    create = UnitTooltip.create,
+    -- The log changed (a redraw of everything): which quests ask for which item is worked out again at the next hover
+    invalidate = function()
+        itemQuests = nil
+    end,
+})

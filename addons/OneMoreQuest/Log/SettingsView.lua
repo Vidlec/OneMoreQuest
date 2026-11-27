@@ -1529,30 +1529,42 @@ local function drawSettingsSections()
     return y + 6
 end
 
----The whole window as the settings: the sections on the list's side, the chosen one on the page, and the
----settings' own buttons under it. The tabs, the search and the quest buttons stand aside meanwhile.
-function SettingsView.refreshSettings()
-    -- The sections need little room, as the chronicle's chapters: the page gets the rest
+-- The settings and the chronicle take the whole window alike: a narrow list of sections (chapters) beside the
+-- page, and the quests' controls put aside. Their shared steps:
+
+---The list narrowed to the sections' room, and the page given the rest at its width beside the scroll bar (its
+---controls are laid out for it); no place on the map is named meanwhile.
+local function placeSectionsBesidePage()
     State.frame.placeSplit(ns.ChroniclePage.LIST_WIDTH, 0, 0, State.pageBottom)
-    State.frame.setPageWide(false) -- (its controls are laid out for the page beside the scroll bar)
-    local pageScroll = State.detail:getScroll()
+    State.frame.setPageWide(false)
     State.shownPlace, State.shownTurnInPlace = nil, nil
+end
+
+---Anchors the list from the window's top to its foot: no tab row or search over it.
+local function placeSectionsList()
     State.list.frame:SetPoint("TOPLEFT", State.frame, "TOPLEFT", 6, -6)
     State.list.frame:SetPoint("BOTTOMLEFT", State.frame, "BOTTOMLEFT", 6, 6)
-    -- The sections reach right up to the page; the scroll bar's strip is kept only when they need it
+end
+
+---The sections reach right up to the page; the scroll bar's strip is kept only when the list is long enough to
+---scroll. So it is drawn at the width with the strip first, then without it when nothing scrolls.
+---@param draw function Draws the list and the page on their cleared canvases
+local function drawSectionsAndPage(draw)
     local listWidth = ns.ChroniclePage.LIST_WIDTH - 6
     for _, width in ipairs({ listWidth + ns.Widgets.SCROLL_BAR_WIDTH - 1, listWidth }) do
         State.list:setWidth(width)
         State.list:clear()
         State.detail:clear()
-        State.list:finish(drawSettingsSections())
-        State.detail:finish(drawSettingsPage())
+        draw()
         if (State.list.maxScroll or 0) <= 0 then
             break
         end
     end
-    State.detail:setScroll(pageScroll) -- a switch flipped leaves the page where it was
-    State.isSettingsDrawn = true
+end
+
+---The tabs, the search and the quest buttons stand aside while the settings or the chronicle are shown (the
+---settings' Reset button is the views' own: each shows or hides it).
+local function hideQuestControls()
     for _, control in ipairs({
         State.frame.search,
         State.frame.availableSearch,
@@ -1578,6 +1590,24 @@ function SettingsView.refreshSettings()
     for _, tab in ipairs(State.frame.tabs) do
         tab:Hide()
     end
+end
+
+local function drawSettingsSectionsAndPage()
+    State.list:finish(drawSettingsSections())
+    State.detail:finish(drawSettingsPage())
+end
+
+---The whole window as the settings: the sections on the list's side, the chosen one on the page, and the
+---settings' own buttons under it. The tabs, the search and the quest buttons stand aside meanwhile.
+function SettingsView.refreshSettings()
+    -- The sections need little room, as the chronicle's chapters: the page gets the rest
+    placeSectionsBesidePage()
+    local pageScroll = State.detail:getScroll()
+    placeSectionsList()
+    drawSectionsAndPage(drawSettingsSectionsAndPage)
+    State.detail:setScroll(pageScroll) -- a switch flipped leaves the page where it was
+    State.isSettingsDrawn = true
+    hideQuestControls()
     State.frame.ironPage:Show() -- the settings' dark ground in place of the parchment
     State.frame.resetSettingsButton:Show()
     State.frame.doneButton:Show()
@@ -1593,65 +1623,32 @@ function SettingsView.toggleSettings()
     Log.refresh()
 end
 
+local function drawChronicleChaptersAndPage()
+    local listHeight, pageHeight, pageTitle, pageNote = ns.ChroniclePage.draw(State.list, State.detail)
+    setPageHeader(pageTitle, pageNote)
+    if ns.ChroniclePage.isEntryOpen() then
+        QuestPage.setPageHeaderBack(ns.L("Back to list"), ns.ChroniclePage.closeEntry) -- as the bar's Back does
+    end
+    State.list:finish(listHeight)
+    State.detail:finish(pageHeight)
+    local pageScroll = ns.ChroniclePage.takePageScroll()
+    if pageScroll then
+        State.detail:setScroll(pageScroll) -- the top of a quest's story, or the journal's list where it was
+    end
+end
+
 ---The whole window as the chronicle: its chapters on the list's side, the chosen one on the page, as the
 ---settings are shown.
 function Log.drawChronicle()
-    State.frame.placeSplit(ns.ChroniclePage.LIST_WIDTH, 0, 0, State.pageBottom) -- its chapters need little room; the page gets the rest
-    State.frame.setPageWide(false)
+    placeSectionsBesidePage() -- its chapters need little room; the page gets the rest
     hideSegmentGlow()
-    State.shownPlace, State.shownTurnInPlace = nil, nil
     setPageRewards(nil)
-    State.list.frame:SetPoint("TOPLEFT", State.frame, "TOPLEFT", 6, -6)
-    State.list.frame:SetPoint("BOTTOMLEFT", State.frame, "BOTTOMLEFT", 6, 6)
-    -- The chapters reach right up to the page; the scroll bar's strip is kept only when the list is long
-    -- enough to scroll, as a long journal is
-    local listWidth = ns.ChroniclePage.LIST_WIDTH - 6
-    for _, width in ipairs({ listWidth + ns.Widgets.SCROLL_BAR_WIDTH - 1, listWidth }) do
-        State.list:setWidth(width)
-        State.list:clear()
-        State.detail:clear()
-        local listHeight, pageHeight, pageTitle, pageNote = ns.ChroniclePage.draw(State.list, State.detail)
-        setPageHeader(pageTitle, pageNote)
-        if ns.ChroniclePage.isEntryOpen() then
-            QuestPage.setPageHeaderBack(ns.L("Back to list"), ns.ChroniclePage.closeEntry) -- as the bar's Back does
-        end
-        State.list:finish(listHeight)
-        State.detail:finish(pageHeight)
-        local pageScroll = ns.ChroniclePage.takePageScroll()
-        if pageScroll then
-            State.detail:setScroll(pageScroll) -- the top of a quest's story, or the journal's list where it was
-        end
-        if (State.list.maxScroll or 0) <= 0 then
-            break
-        end
-    end
+    placeSectionsList()
+    -- (the chapters' list scrolls when it is long, as a long journal is)
+    drawSectionsAndPage(drawChronicleChaptersAndPage)
     State.isSettingsDrawn = true -- the quest list's places are kept aside meanwhile, as for the settings
-    for _, control in ipairs({
-        State.frame.search,
-        State.frame.availableSearch,
-        State.frame.searchLabel,
-        State.frame.zoneButton,
-        State.frame.status,
-        State.frame.tabRowFill,
-        State.frame.tabRowRule,
-        State.frame.trackAllButton,
-        State.frame.zoneMapButton,
-        State.frame.trackButton,
-        State.frame.focusButton,
-        State.frame.shareButton,
-        State.frame.abandonButton,
-        State.frame.mapButton,
-        State.frame.turnInMapButton,
-        State.lowLevelBar,
-        filterDropdown.button or State.lowLevelBar,
-        State.frame.resetSettingsButton,
-        State.zoneDropdown,
-    }) do
-        control:Hide()
-    end
-    for _, tab in ipairs(State.frame.tabs) do
-        tab:Hide()
-    end
+    hideQuestControls()
+    State.frame.resetSettingsButton:Hide()
     State.frame.doneButton:Show()
     State.frame.journalBackButton:SetShown(ns.ChroniclePage.isEntryOpen())
 end

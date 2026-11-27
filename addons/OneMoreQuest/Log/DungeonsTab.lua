@@ -11,8 +11,7 @@ local addListQuest = List.addListQuest
 local drawAvailableQuest = QuestPage.drawAvailableQuest
 local selectQuest = Actions.selectQuest
 local selectedQuestIds = State.selectedQuestIds
-local COLORS, DOT, GIVER_ICON, ITEM_ICON, OBJECT_ICON, PADDING =
-    Style.COLORS, Style.DOT, Style.GIVER_ICON, Style.ITEM_ICON, Style.OBJECT_ICON, Style.PADDING
+local COLORS, DOT, GIVER_ICON, PADDING = Style.COLORS, Style.DOT, Style.GIVER_ICON, Style.PADDING
 local TAB_DUNGEONS, MEDIA = Style.TAB_DUNGEONS, Style.MEDIA
 -- Up, for a lead-in's arrow to the quest it opens: the chevron that points down, turned over
 local UP_CHEVRON, UP_COORDS = MEDIA .. "ChevronDown", { 0, 1, 1, 0 }
@@ -35,7 +34,7 @@ end
 LISTED_SECTIONS[#LISTED_SECTIONS + 1] = DONE_SECTION
 local DONE_ICON = "Interface\\RaidFrame\\ReadyCheck-Ready" -- the game's green check
 
-local cachedRows, cachedAt
+local cachedRows, cachedAt, cachedFor -- (cachedFor: Availability's change key they were worked out at)
 -- What the Spoilers choice lets the tab name, asked once a drawing: which quests to pick up (List.getPickupChoice), and
 -- whether quests still to come in a story are kept back (Availability.isLaterHidden)
 local Told = { pickup = "all", isStoryHidden = false }
@@ -43,9 +42,12 @@ local Told = { pickup = "all", isStoryHidden = false }
 ---@return table[] rows Each dungeon with quests for the player: { dungeon, run, minLevel, maxLevel, inLog, toPickUp, total }
 local function getRows()
     local now = GetTime and GetTime() or 0
-    if cachedRows and cachedAt and now - cachedAt < ROWS_SECONDS then
+    -- (a few seconds, and only while who can pick up what stands: a quest taken or handed in redraws it at once)
+    local changeKey = ns.Availability.getChangeKey and ns.Availability.getChangeKey()
+    if cachedRows and cachedAt and now - cachedAt < ROWS_SECONDS and cachedFor == changeKey then
         return cachedRows
     end
+    cachedFor = changeKey
     local rows = {}
     for _, dungeonId in ipairs(ns.Availability.getDungeonIds()) do
         local dungeon = ns.Database.getDungeon(dungeonId)
@@ -244,11 +246,7 @@ local function getStartIcon(quest)
     if quest.blocker or quest.availableAtLevel then
         return Style.LOCK_ICON
     end
-    if quest.startType == "item" then
-        local icon = quest.itemId and C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(quest.itemId)
-        return icon or ITEM_ICON
-    end
-    return quest.startType == "object" and OBJECT_ICON or GIVER_ICON
+    return List.getStartTypeIcon(quest)
 end
 
 ---Opens a dungeon (its page, its quests under its row), or folds it again when it was open.
@@ -375,12 +373,12 @@ local ICONS = "Interface\\Icons\\"
 ---The run at a glance, on the dark wood the chronicle's At a glance uses: what the quests left are worth, and how
 ---far through the dungeon's quests the character is.
 ---@return number y Below the strip
-local function addGlance(y, run)
-    local rewards = composeRunRewards(run)
-    local leftCount = #getRunQuests(run)
-    -- In all: the experience left, as the game gives it; what the quests for later would give, reckoned the same
-    -- way; and what the done ones gave, as the chronicle kept it (the database's amount for one done before it began)
-    local allExperience = rewards.experience
+---The experience of all the dungeon's quests: the experience left (as the game gives it), what the quests for
+---later would give, reckoned the same way, and what the done ones gave, as the chronicle kept it (the database's
+---amount for one done before it began).
+---@param leftExperience number What the quests left give
+local function composeAllExperience(run, leftExperience)
+    local allExperience = leftExperience
     for _, key in ipairs({ "behindLeadIn", "notYet" }) do
         for _, quest in ipairs(run[key]) do
             allExperience = allExperience + (ns.QuestState.getRewards(quest.questId).experience or 0)
@@ -396,9 +394,23 @@ local function addGlance(y, run)
         allExperience = allExperience
             + (keptExperience[quest.questId] or ns.Database.getQuestExperience(quest.questId) or 0)
     end
+    return allExperience
+end
+
+---@return number? percent How much of the character's current level the experience would fill
+local function getLevelShare(experience)
     local levelMax = UnitXPMax and UnitXPMax("player") or 0
-    local levelShare = levelMax > 0 and rewards.experience > 0 and math.floor(rewards.experience / levelMax * 100 + 0.5)
-        or nil
+    if levelMax > 0 and experience > 0 then
+        return math.floor(experience / levelMax * 100 + 0.5)
+    end
+    return nil
+end
+
+local function addGlance(y, run)
+    local rewards = composeRunRewards(run)
+    local leftCount = #getRunQuests(run)
+    local allExperience = composeAllExperience(run, rewards.experience)
+    local levelShare = getLevelShare(rewards.experience)
     local totalCount = run.doneCount + leftCount + #run.behindLeadIn + #run.notYet
     local formatNumber = ns.ChroniclePage.formatNumber
     return ns.ChroniclePage.addRewardStrip(State.detail, y, {
@@ -448,9 +460,7 @@ end
 
 ---Turns the map to the dungeon's way in, as the page's Show entrance button does.
 local function showEntrance(place)
-    State.isMapFollowPaused = true
-    ns.MapDock.showQuestPlace(place.mapZoneId or place.groupZoneId, place)
-    State.isMapFollowPaused = false
+    Actions.showPlaceOnMap(place.mapZoneId or place.groupZoneId, place)
 end
 
 ---@return string text Text in a colour, for a line that mixes colours
@@ -733,33 +743,95 @@ local function drawDungeonPage(row, run)
     return y + PADDING
 end
 
----@return table? selected, number? dungeonCount nil while the database is being read
-function DungeonsTab.drawDungeonsTab()
-    if not ns.Availability.isReady() then
-        State.list:addText(
-            ns.L("Reading the quest database..."),
-            10,
-            8,
-            { color = COLORS.tan, width = State.list.width - 20 }
-        )
-        State.list:finish(40)
-        State.detail:finish(1)
-        State.frame.status:SetText("")
-        ns.Availability.prepare(Log.refresh)
-        return nil, nil
+---@return table[] rows The dungeons the tab lists: with the Spoilers choice, only those it lets be named (entered, or
+---with quests of the player's own, or all)
+local function getShownRows(rows)
+    if not ns.Spoilers.isActive() then
+        return rows
     end
-    local rows = getRows()
-    Told.pickup, Told.isStoryHidden = List.getPickupChoice(), ns.Availability.isLaterHidden("quest")
-    if ns.Spoilers.isActive() then
-        -- Only the dungeons the Spoilers choice lets be named: entered (or with quests of the player's own), or all
-        local shownRows = {}
-        for _, row in ipairs(rows) do
-            if List.isDungeonShown(row.dungeon.areaId, row.inLog > 0 or row.doneCount > 0) then
-                shownRows[#shownRows + 1] = row
-            end
+    local shownRows = {}
+    for _, row in ipairs(rows) do
+        if List.isDungeonShown(row.dungeon.areaId, row.inLog > 0 or row.doneCount > 0) then
+            shownRows[#shownRows + 1] = row
         end
-        rows = shownRows
     end
+    return shownRows
+end
+
+---The flow from a lead-in's icon along the icon column up into the quest it opens, the arrow head just under that
+---quest's icon.
+local function addLeadInArrow(parentTop, rowTop)
+    local lineTop, lineBottom = parentTop + 30, rowTop + 12
+    State.list:addRect(17, lineTop, 2, lineBottom - lineTop, COLORS.gold, 4)
+    State.list:addRect(17, lineBottom - 1, 9, 2, COLORS.gold, 4)
+    State.list:addIcon(11, parentTop + 20, 14, UP_CHEVRON, COLORS.gold, 5, UP_COORDS)
+end
+
+---The mark of a quest of the open dungeon: the game's check for a done one, its own ? for one in the log (grey while
+---worked on, yellow when done), else what starts it.
+local function getRunQuestIcon(quest, logQuest, isInLog)
+    if quest.isDone then
+        return DONE_ICON
+    end
+    if isInLog then
+        return logQuest and logQuest.isComplete and READY_ICON or IN_LOG_ICON
+    end
+    return getStartIcon(quest)
+end
+
+---One quest of the open dungeon, under the dungeon's mark and name: its icon under the mark, its title where the
+---name starts; a quest in the log saying so in green.
+---@return number y Below the row
+local function addRunQuestRow(y, entry)
+    local quest, isInLog = entry.quest, entry.sectionKey == "inLog"
+    local logQuest = isInLog and ns.QuestState.getQuest(quest.questId)
+    local icon = getRunQuestIcon(quest, logQuest, isInLog)
+    local isColoured = icon == GIVER_ICON or icon == READY_ICON -- (the "!" and the "?" ready: in the kind's colour)
+    return addListQuest(y, quest.questId, {
+        indent = 2 + entry.depth * 16,
+        isIconSpaceKept = true,
+        title = quest.title,
+        level = quest.level,
+        subText = isInLog and ("|cff7ce07c" .. ns.L(
+            logQuest and logQuest.isComplete and "Ready to turn in" or "In your log"
+        ) .. "|r") or composeQuestText(quest, entry.sectionKey, entry.depth > 0),
+        icon = icon,
+        iconColour = isColoured and ns.MapMarks.getQuestIconColour(quest.questId, quest.isLowLevel, icon == READY_ICON)
+            or nil,
+        isTurnInIcon = icon == READY_ICON,
+        color = quest.isDone and COLORS.tan or nil, -- handed in: its difficulty no longer matters
+        handleClick = quest.isDone and ignoreClick or openQuest,
+    })
+end
+
+---The open dungeon's quests, unfolded under its row, each lead-in under the quest it leads to.
+---@return number y Below them
+---@return table? selectedQuest The selected quest among them, to pick up (not one in the log, nor one done)
+local function addRunQuests(y, row, selectedId)
+    local selectedQuest
+    local parentTop = y
+    for _, entry in ipairs(composeEntries(List.keepRunToPickUp(row.run, Told.pickup))) do
+        local quest = entry.quest
+        if quest.questId == selectedId and entry.sectionKey ~= "inLog" and not quest.isDone then
+            selectedQuest = quest
+        end
+        local rowTop = y
+        if entry.depth == 0 then
+            parentTop = y
+        end
+        y = addRunQuestRow(y, entry)
+        if entry.depth > 0 then
+            addLeadInArrow(parentTop, rowTop)
+        end
+    end
+    return y, selectedQuest
+end
+
+---The list: each dungeon's row, the open one with its quests under it.
+---@return number y Below the list
+---@return table? selectedRow The dungeon whose page is shown
+---@return table? selectedQuest The quest of it whose page is shown instead
+local function addDungeonRows(rows)
     local selectedId = selectedQuestIds[TAB_DUNGEONS]
     local selectedRow, selectedQuest
     local y = 6
@@ -776,54 +848,56 @@ function DungeonsTab.drawDungeonsTab()
         })
         if State.selectedDungeonId == dungeonId then
             selectedRow = selectedId == -dungeonId and row or selectedRow
-            -- Its quests unfold under it, each lead-in under the quest it leads to
-            local parentTop = y
-            for _, entry in ipairs(composeEntries(List.keepRunToPickUp(row.run, Told.pickup))) do
-                local quest, isInLog = entry.quest, entry.sectionKey == "inLog"
-                if quest.questId == selectedId and not isInLog and not quest.isDone then
-                    selectedQuest = quest
-                end
-                local logQuest = isInLog and ns.QuestState.getQuest(quest.questId)
-                -- Under the dungeon's mark and name: icons under its mark, titles where its name starts; a quest in the
-                -- log with the game's own ? (grey while worked on, yellow when done) and saying so in green
-                local rowTop = y
-                if entry.depth == 0 then
-                    parentTop = y
-                end
-                local icon = quest.isDone and DONE_ICON
-                    or isInLog and (logQuest and logQuest.isComplete and READY_ICON or IN_LOG_ICON)
-                    or getStartIcon(quest)
-                local isColoured = icon == GIVER_ICON or icon == READY_ICON -- (the "!" and the "?" ready: in the kind's colour)
-                y = addListQuest(y, quest.questId, {
-                    indent = 2 + entry.depth * 16,
-                    isIconSpaceKept = true,
-                    title = quest.title,
-                    level = quest.level,
-                    subText = isInLog
-                            and ("|cff7ce07c" .. ns.L(
-                                logQuest and logQuest.isComplete and "Ready to turn in" or "In your log"
-                            ) .. "|r")
-                        or composeQuestText(quest, entry.sectionKey, entry.depth > 0),
-                    icon = icon,
-                    iconColour = isColoured
-                            and ns.MapMarks.getQuestIconColour(quest.questId, quest.isLowLevel, icon == READY_ICON)
-                        or nil,
-                    isTurnInIcon = icon == READY_ICON,
-                    color = quest.isDone and COLORS.tan or nil, -- handed in: its difficulty no longer matters
-                    handleClick = quest.isDone and ignoreClick or openQuest,
-                })
-                if entry.depth > 0 then
-                    -- The flow: from the lead-in's icon along the icon column up into the quest it opens, the arrow
-                    -- head just under that quest's icon
-                    local lineTop, lineBottom = parentTop + 30, rowTop + 12
-                    State.list:addRect(17, lineTop, 2, lineBottom - lineTop, COLORS.gold, 4)
-                    State.list:addRect(17, lineBottom - 1, 9, 2, COLORS.gold, 4)
-                    State.list:addIcon(11, parentTop + 20, 14, UP_CHEVRON, COLORS.gold, 5, UP_COORDS)
-                end
-            end
+            local runQuest
+            y, runQuest = addRunQuests(y, row, selectedId)
+            selectedQuest = runQuest or selectedQuest
             y = y + 6
         end
     end
+    return y, selectedRow, selectedQuest
+end
+
+local pageQuest, pageRow, pageRun -- what the page beside the list shows, read by its drawing functions below
+
+local function drawSelectedQuestPage()
+    return drawAvailableQuest(pageQuest, State.selectedDungeonId)
+end
+
+local function drawSelectedDungeonPage()
+    return drawDungeonPage(pageRow, pageRun)
+end
+
+---The page beside the list: the selected quest's, the open dungeon's, or a hint on selecting one.
+local function drawDungeonsTabPage(selectedRow, selectedQuest)
+    if selectedQuest then
+        if State.mapQuestId == selectedQuest.questId then
+            Actions.showChosenQuestStart(selectedQuest)
+        end
+        State.mapQuestId = nil
+        State.selectedAvailableQuest = selectedQuest
+        pageQuest = selectedQuest
+        State.frame.finishPage(drawSelectedQuestPage)
+    elseif selectedRow then
+        pageRow, pageRun = selectedRow, List.keepRunToPickUp(selectedRow.run, Told.pickup)
+        State.frame.finishPage(drawSelectedDungeonPage)
+    else
+        QuestPage.drawHintPage(
+            ns.L("Select a dungeon to see its quests, where its way in is, and what to pick up before you go.")
+        )
+    end
+end
+
+---Draws the Dungeons tab: the dungeons with quests for the player, the open one's quests under it, and the page.
+---@return table? selected, number? dungeonCount nil while the database is being read
+function DungeonsTab.drawDungeonsTab()
+    if not ns.Availability.isReady() then
+        List.drawDatabaseWait()
+        return nil, nil
+    end
+    local rows = getRows()
+    Told.pickup, Told.isStoryHidden = List.getPickupChoice(), ns.Availability.isLaterHidden("quest")
+    rows = getShownRows(rows)
+    local y, selectedRow, selectedQuest = addDungeonRows(rows)
     if #rows == 0 then
         State.list:addText(
             ns.L("No dungeon has quests for you right now."),
@@ -835,41 +909,6 @@ function DungeonsTab.drawDungeonsTab()
     end
     State.list:finish(y + 8)
     State.frame.status:SetText("")
-
-    if selectedQuest then
-        if State.mapQuestId == selectedQuest.questId then
-            -- Chosen by hand: the map turns to where the quest starts
-            local place = selectedQuest.nearestPlace or selectedQuest.places[1]
-            if place and place.x >= 0 then
-                State.isMapFollowPaused = true
-                ns.MapDock.showQuestPlace(place.mapZoneId or place.groupZoneId, place)
-                State.isMapFollowPaused = false
-            end
-        end
-        State.mapQuestId = nil
-        State.selectedAvailableQuest = selectedQuest
-        State.frame.finishPage(function()
-            return drawAvailableQuest(selectedQuest, State.selectedDungeonId)
-        end)
-    elseif selectedRow then
-        local run = List.keepRunToPickUp(selectedRow.run, Told.pickup)
-        State.frame.finishPage(function()
-            return drawDungeonPage(selectedRow, run)
-        end)
-    else
-        State.frame.finishPage(function()
-            State.detail:addText(
-                ns.L("Select a dungeon to see its quests, where its way in is, and what to pick up before you go."),
-                PADDING,
-                PADDING,
-                {
-                    font = "QuestFont",
-                    color = COLORS.softInk,
-                    width = State.detail.width - 2 * PADDING,
-                }
-            )
-            return 80
-        end)
-    end
+    drawDungeonsTabPage(selectedRow, selectedQuest)
     return selectedQuest, #rows
 end

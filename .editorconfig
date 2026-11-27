@@ -1,0 +1,26 @@
+# The editors' settings for this repository (https://editorconfig.org). StyLua formats the Lua to match (stylua.toml).
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.lua]
+indent_size = 4
+max_line_length = 120
+
+[*.{py,toc}]
+indent_size = 4
+
+[*.md]
+trim_trailing_whitespace = false
+
+# Questie's own code, copied unchanged
+[sim/plugins/questie/**]
+indent_style = unset
+indent_size = unset
+trim_trailing_whitespace = unset

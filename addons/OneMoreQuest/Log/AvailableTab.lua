@@ -10,8 +10,7 @@ local drawAvailableQuest = QuestPage.drawAvailableQuest
 local selectedQuestIds = State.selectedQuestIds
 local CHAIN_ICON, COLORS, DOT, GIVER_ICON, HEADER_BAR_HIGH, HEADER_BAR_LOW =
     Style.CHAIN_ICON, Style.COLORS, Style.DOT, Style.GIVER_ICON, Style.HEADER_BAR_HIGH, Style.HEADER_BAR_LOW
-local ITEM_ICON, MEDIA, OBJECT_ICON, PADDING, TAB_AVAILABLE =
-    Style.ITEM_ICON, Style.MEDIA, Style.OBJECT_ICON, Style.PADDING, Style.TAB_AVAILABLE
+local MEDIA, TAB_AVAILABLE = Style.MEDIA, Style.TAB_AVAILABLE
 
 -- What the Spoilers choice keeps back of the story, asked once a drawing (Availability.isLaterHidden): a quest still
 -- to come, and a dungeon. One table, as the file is near the number of names Lua allows it.
@@ -66,49 +65,92 @@ local function getSectionIndex(quest)
     return 1
 end
 
+---@return string text The text, then who gives the quest ("· unknown giver" when nobody knows)
+local function withGiver(text, quest)
+    return text .. DOT .. (quest.starterName or ns.L("unknown giver"))
+end
+
+---@return string text The text, then the spot where the quest starts, when it has one
+local function withSpot(text, quest)
+    local place = quest.nearestPlace or quest.places[1]
+    local where = place and place.x >= 0 and string.format("%d, %d", place.x, place.y) or nil
+    return text .. (where and (DOT .. where) or "")
+end
+
+---A low-level quest (grey, as the game shows it), listed all the same because its chain climbs into the player's
+---range: says so, and where it goes.
+local function composeLeadsOnText(quest)
+    if Told.isStoryHidden then
+        return ns.L("Low-level, but its story leads on into your levels") -- (the quest it leads to is later in the story)
+    end
+    local lead = quest.leadsTo
+    return ns.L("Low-level, but leads to [%d] %s", lead.level, lead.title)
+        .. DOT
+        .. (lead.stepCount == 1 and ns.L("the next step") or ns.Lp(lead.stepCount, "%d step on", "%d steps on"))
+end
+
+---A quest whose item drops elsewhere and is handed in here: where the item is, and who takes it.
+local function composeHandedInHereText(quest)
+    local itemText = quest.isItemInBags and ns.L("Item is in your bags")
+        or (
+            quest.sourceZoneName and ns.L("Item drops in %s", quest.sourceZoneName)
+            or ns.L("Item drops in another place")
+        )
+    return itemText
+        .. DOT
+        .. (quest.finisherName and ns.L("turn in to %s", quest.finisherName) or ns.L("turn in to the quest giver"))
+end
+
+---A quest to pick up now: what starts it (a creature's drop, the game's own "!", a giver) and where.
+local function composeStartText(quest)
+    if quest.startType == "item" then
+        return withSpot(
+            quest.starterName and ns.L("Drops from %s", quest.starterName) or ns.L("Drops from a creature here"),
+            quest
+        )
+    end
+    if quest.isFromGame and not quest.starterName then
+        -- Not in the quest database: the game's own "!" says where it starts
+        return withSpot(ns.L("Shown by the game"), quest)
+    end
+    return withSpot(quest.starterName or ns.L("Unknown giver"), quest)
+end
+
+---What a quest's row says under its title on the Available tab: what holds it back, or what starts it and where.
+---@param isBare boolean? Without the steps done back to back (stepsText)
 local function composeAvailableSubText(quest, isBare)
     if quest.stepsText and not isBare then
         -- Steps done back to back, versions of one quest: said first, as what the row stands for
         return quest.stepsText .. DOT .. composeAvailableSubText(quest, true)
     end
-    local place = quest.nearestPlace or quest.places[1]
-    local where = place and place.x >= 0 and string.format("%d, %d", place.x, place.y) or nil
     if quest.availableAtLevel then
-        return ns.L("At level %d", quest.availableAtLevel) .. DOT .. (quest.starterName or ns.L("unknown giver"))
-    elseif quest.leadsTo and not quest.blocker and Told.isStoryHidden then
-        return ns.L("Low-level, but its story leads on into your levels") -- (the quest it leads to is later in the story)
-    elseif quest.leadsTo and not quest.blocker then
-        -- Low-level (grey, as the game shows it), listed all the same because its chain climbs into the player's
-        -- range: says so, and where it goes
-        local lead = quest.leadsTo
-        return ns.L("Low-level, but leads to [%d] %s", lead.level, lead.title)
-            .. DOT
-            .. (lead.stepCount == 1 and ns.L("the next step") or ns.Lp(lead.stepCount, "%d step on", "%d steps on"))
-    elseif quest.blocker then
-        -- What to do to unlock it: the quest to do first and whether it can be taken now, or the level to reach
-        return ns.Availability.getShownReason(quest.blocker, quest.unlockText or quest.blocker.text)
-            .. DOT
-            .. (quest.starterName or ns.L("unknown giver"))
-    elseif quest.dungeonStepTitle and not Told.isStoryHidden and not Told.isDungeonHidden then
-        -- Picked up elsewhere, it leads into the dungeon a few quests on
-        return ns.L("Leads to %s", quest.dungeonStepTitle) .. DOT .. (quest.starterName or ns.L("unknown giver"))
-    elseif quest.isHandedInHere then
-        local itemText = quest.isItemInBags and ns.L("Item is in your bags")
-            or (
-                quest.sourceZoneName and ns.L("Item drops in %s", quest.sourceZoneName)
-                or ns.L("Item drops in another place")
-            )
-        return itemText
-            .. DOT
-            .. (quest.finisherName and ns.L("turn in to %s", quest.finisherName) or ns.L("turn in to the quest giver"))
-    elseif quest.startType == "item" then
-        return (quest.starterName and ns.L("Drops from %s", quest.starterName) or ns.L("Drops from a creature here"))
-            .. (where and (DOT .. where) or "")
-    elseif quest.isFromGame and not quest.starterName then
-        -- Not in the quest database: the game's own "!" says where it starts
-        return ns.L("Shown by the game") .. (where and (DOT .. where) or "")
+        return withGiver(ns.L("At level %d", quest.availableAtLevel), quest)
     end
-    return (quest.starterName or ns.L("Unknown giver")) .. (where and (DOT .. where) or "")
+    if quest.leadsTo and not quest.blocker then
+        return composeLeadsOnText(quest)
+    end
+    if quest.blocker then
+        -- What to do to unlock it: the quest to do first and whether it can be taken now, or the level to reach
+        return withGiver(ns.Availability.getShownReason(quest.blocker, quest.unlockText or quest.blocker.text), quest)
+    end
+    if quest.dungeonStepTitle and not Told.isStoryHidden and not Told.isDungeonHidden then
+        -- Picked up elsewhere, it leads into the dungeon a few quests on
+        return withGiver(ns.L("Leads to %s", quest.dungeonStepTitle), quest)
+    end
+    if quest.isHandedInHere then
+        return composeHandedInHereText(quest)
+    end
+    return composeStartText(quest)
+end
+
+---"Leads to <dungeon> · <giver>": a quest to pick up for a dungeon (or the start of its chain), where the Spoilers
+---choice lets the dungeon be named.
+---@return string? text Nil for a quest that leads into no dungeon, one not to be had yet, or one held back
+local function composeLeadsToDungeonText(quest)
+    if not quest.leadsToDungeonName or quest.availableAtLevel or quest.blocker or Told.isDungeonHidden then
+        return nil
+    end
+    return withGiver(ns.L("Leads to %s", quest.leadsToDungeonName), quest)
 end
 
 local LOCK_ICON = Style.LOCK_ICON
@@ -117,11 +159,7 @@ local function getStartIcon(quest)
     if quest.blocker then
         return LOCK_ICON
     end
-    if quest.startType == "item" then
-        local icon = quest.itemId and C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(quest.itemId)
-        return icon or ITEM_ICON
-    end
-    return quest.startType == "object" and OBJECT_ICON or GIVER_ICON
+    return List.getStartTypeIcon(quest)
 end
 
 local function pickZone(zoneId)
@@ -154,32 +192,30 @@ local function drawZonePicker(playerZoneId)
         y = y + 30
     end
     local zones = ns.Availability.getZones({ shouldShowLowLevel = ns.settings.shouldShowLowLevel })
-    -- Zones only: the dungeons have a tab of their own
-    for _, section in ipairs({ { title = "Zones with quests for you", isDungeon = false } }) do
-        local hasHeading = false
-        for _, zone in ipairs(zones) do
-            if zone.isDungeon == section.isDungeon then
-                if not hasHeading then
-                    y = addListHeading(y + (section.isDungeon and 10 or 0), ns.L(section.title), "", COLORS.parchment)
-                    hasHeading = true
-                end
-                local isCurrent = zone.zoneId == playerZoneId
-                State.list:addText(zone.zoneName .. (isCurrent and (DOT .. ns.L("you are here")) or ""), 10, y + 5, {
-                    font = "GameFontNormal",
-                    color = isCurrent and COLORS.gold or COLORS.white,
-                    width = width - 60,
-                    isSingleLine = true,
-                })
-                State.list:addText(zone.count, width - 40, y + 6, {
-                    font = "GameFontHighlightSmall",
-                    color = COLORS.tan,
-                    width = 30,
-                    justify = "RIGHT",
-                    isSingleLine = true,
-                })
-                State.list:addButton(2, y, width - 4, 24, pickZone, zone.zoneId)
-                y = y + 24
+    local hasHeading = false
+    for _, zone in ipairs(zones) do
+        -- Zones only: the dungeons have a tab of their own
+        if zone.isDungeon == false then
+            if not hasHeading then
+                y = addListHeading(y, ns.L("Zones with quests for you"), "", COLORS.parchment)
+                hasHeading = true
             end
+            local isCurrent = zone.zoneId == playerZoneId
+            State.list:addText(zone.zoneName .. (isCurrent and (DOT .. ns.L("you are here")) or ""), 10, y + 5, {
+                font = "GameFontNormal",
+                color = isCurrent and COLORS.gold or COLORS.white,
+                width = width - 60,
+                isSingleLine = true,
+            })
+            State.list:addText(zone.count, width - 40, y + 6, {
+                font = "GameFontHighlightSmall",
+                color = COLORS.tan,
+                width = 30,
+                justify = "RIGHT",
+                isSingleLine = true,
+            })
+            State.list:addButton(2, y, width - 4, 24, pickZone, zone.zoneId)
+            y = y + 24
         end
     end
     State.list:finish(y + 20)
@@ -567,16 +603,512 @@ State.setLowLevelCount = function(hiddenCount)
     )
 end
 
----@return table? selected, number? availableCount nil while the database is being read
-local function drawAvailableTab()
-    local player = ns.Model.getPlayer()
-    local zoneId = State.pickedZoneId or player.zoneId
+---------------------------------------------------------------------------------------------------------------
+-- What the list holds. Worked out once a drawing into one table, the view:
+--   zoneId, pickup        the location shown, and the Spoilers choice of which quests to pick up may be named
+--   quests                the zone's quests to pick up (List.keepToPickUp), before those held back are added
+--   sections, sectionTitles, foldedSectionIndex
+--                         the quests by section, each section's title, and the one folded until asked for (none in
+--                         a dungeon's run)
+--   hiddenCount, availableCount
+--                         the low-level quests the filter hides, and the count on the tab
+--   isDungeonRun, isSearching, searchText, isNextList, isUpcomingOpen, isRowListed
+--                         what kind of list it is, and whether any row is listed
+
+---Puts a quest in the section of AVAILABLE_SECTIONS it belongs to.
+local function addToSection(sections, quest)
+    local section = sections[getSectionIndex(quest)]
+    section[#section + 1] = quest
+end
+
+---After the quests a few levels away, the ones held back by something else, each saying what. A quest the game
+---itself offers is listed to pick up, though the rules hold it back: once, not again here.
+---@param isListed table<number, boolean> The quests listed already; those added are marked in it
+---@return number hiddenCount The low-level ones among them the filter hides
+local function addBlockedQuests(view, isListed)
+    local blockedQuests, blockedHiddenCount =
+        ns.Availability.getBlockedQuests(view.zoneId, { shouldShowLowLevel = ns.settings.shouldShowLowLevel })
+    blockedQuests = List.keepToPickUp(blockedQuests, view.pickup)
+    for _, quest in ipairs(blockedQuests) do
+        if not isListed[quest.questId] then
+            table.insert(view.sections[UPCOMING_SECTION], quest)
+            isListed[quest.questId] = true
+        end
+    end
+    return blockedHiddenCount
+end
+
+---A quest chosen elsewhere (a link to an earlier quest, a mark on the map) is listed even when the low-level filter
+---hides it, so its page is there to see; or one not to be taken yet (a later step of a chain, opened from the chain
+---on a quest's page).
+---@param isListed table<number, boolean> The quests listed already
+local function addChosenQuest(view, isListed)
+    local chosenQuestId = selectedQuestIds[TAB_AVAILABLE]
+    if not chosenQuestId or isListed[chosenQuestId] or ns.settings.shouldShowLowLevel then
+        return
+    end
+    local quests = ns.Availability.getQuests(view.zoneId, { shouldShowLowLevel = true })
+    for _, quest in ipairs(List.keepToPickUp(quests, view.pickup)) do
+        if quest.questId == chosenQuestId then
+            addToSection(view.sections, quest)
+            isListed[chosenQuestId] = true
+        end
+    end
+    if isListed[chosenQuestId] then
+        return
+    end
+    local blockedQuests = ns.Availability.getBlockedQuests(view.zoneId, { shouldShowLowLevel = true })
+    for _, quest in ipairs(List.keepToPickUp(blockedQuests, view.pickup)) do
+        if quest.questId == chosenQuestId then
+            table.insert(view.sections[UPCOMING_SECTION], quest)
+            isListed[chosenQuestId] = true
+        end
+    end
+end
+
+---The zone's quests by AVAILABLE_SECTIONS: to pick up here, from an item, turned in here, and not yet available.
+local function composeZoneSections(view)
+    local quests, hiddenCount =
+        ns.Availability.getQuests(view.zoneId, { shouldShowLowLevel = ns.settings.shouldShowLowLevel })
+    quests = List.keepToPickUp(quests, view.pickup)
+    view.quests, view.sections = quests, { {}, {}, {}, {} }
+    view.sectionTitles, view.foldedSectionIndex = AVAILABLE_SECTIONS, UPCOMING_SECTION
+    view.availableCount = 0
+    local isListed = {}
+    for _, quest in ipairs(quests) do
+        if not quest.availableAtLevel then
+            view.availableCount = view.availableCount + 1
+        end
+        -- The search box belongs to My quests and is hidden here, so it does not filter this list
+        addToSection(view.sections, quest)
+        isListed[quest.questId] = true
+    end
+    view.hiddenCount = hiddenCount + addBlockedQuests(view, isListed)
+    addChosenQuest(view, isListed)
+    view.isRowListed = #quests > 0
+end
+
+local RUN_SECTION_TITLES = { "In your log", "Pick up before you go", "Found inside", "Behind a lead-in", "Not yet" }
+
+---A dungeon's list is a plan for one run: every quest done inside, sorted by what to do about it, and the lead-ins
+---that open the ones behind them, named as lead-ins.
+local function composeRunSections(view)
+    local run = List.keepRunToPickUp(ns.Availability.getDungeonRun(view.zoneId), view.pickup)
+    view.sections = { run.inLog, run.pickUp, run.foundInside, run.behindLeadIn, run.notYet }
+    view.sectionTitles, view.foldedSectionIndex = RUN_SECTION_TITLES, nil
+    view.hiddenCount = 0
+    view.availableCount = #run.pickUp + #run.foundInside
+    view.isRowListed = #run.inLog + #run.pickUp + #run.foundInside + #run.behindLeadIn + #run.notYet > 0
+end
+
+---The search beside the location keeps the quests whose title, giver or start item holds what is typed.
+local function keepSearchedQuests(view)
+    view.isRowListed = false
+    for sectionIndex, section in ipairs(view.sections) do
+        local kept = {}
+        for _, quest in ipairs(section) do
+            if ns.Availability.isSearchMatch(quest, view.searchText) then
+                kept[#kept + 1] = quest
+            end
+        end
+        view.sections[sectionIndex] = kept
+        view.isRowListed = view.isRowListed or #kept > 0
+    end
+end
+
+---Works out what the list of a location holds (the view above).
+local function composeView(zoneId)
+    -- The Spoilers choice: which quests to pick up may be named (all, or only those whose giver the player met), and
+    -- what of the story is kept back; asked once for the whole list
+    local view = { zoneId = zoneId, pickup = List.getPickupChoice() }
+    Told.isStoryHidden, Told.isDungeonHidden =
+        ns.Availability.isLaterHidden("quest"), ns.Availability.isLaterHidden("dungeon")
+    Told.isChainHidden = ns.Spoilers.isActive() and ns.Spoilers.getChoice("chains") == "hidden"
+    composeZoneSections(view)
+    view.isDungeonRun = ns.Database.getDungeon(zoneId) ~= nil
+    if view.isDungeonRun then
+        composeRunSections(view)
+    end
+    -- A search opens the quests not yet available too, as what is looked for may be among them
+    view.searchText = State.availableSearchText or ""
+    view.isSearching = view.searchText ~= ""
+    if view.isSearching then
+        keepSearchedQuests(view)
+    end
+    -- A zone's list is by what to do next (NextList), unless the Spoilers choice keeps the story back: what opens a
+    -- quest would name the quests before it
+    view.isNextList = not view.isDungeonRun and not Told.isStoryHidden
+    view.isUpcomingOpen = State.isUpcomingShown or view.isSearching or view.isNextList
+    return view
+end
+
+---@return table? quest The selected quest, when the list shows it (not under the folded section, nor a dungeon's
+---quest in the log, which opens on My quests)
+local function findSelectedQuest(view)
+    local selectedQuest
+    for sectionIndex, section in ipairs(view.sections) do
+        if sectionIndex ~= view.foldedSectionIndex or view.isUpcomingOpen then
+            for _, quest in ipairs(section) do
+                if
+                    quest.questId == selectedQuestIds[TAB_AVAILABLE] and not (view.isDungeonRun and sectionIndex == 1)
+                then
+                    selectedQuest = quest
+                end
+            end
+        end
+    end
+    return selectedQuest
+end
+
+---------------------------------------------------------------------------------------------------------------
+-- A dungeon's run: what its rows say
+
+---"After <lead-ins>": the quests to do first (a long chain says how long it is and where it starts, not every
+---step), with the other dungeon whose run comes first, and whether the last of them is in the log.
+local function composeAfterLeadInsText(quest, zoneId)
+    local names = {}
+    for _, leadInId in ipairs(quest.leadInIds) do
+        names[#names + 1] = ns.QuestText.getQuestName(leadInId) or ("Quest " .. leadInId)
+    end
+    local text = #names > 2 and ns.L("After %d lead-ins, from %s", #names, names[1])
+        or ns.L("After %s", table.concat(names, " > "))
+    local lastLeadInId = quest.leadInIds[#quest.leadInIds]
+    local lastLeadInDungeon = lastLeadInId
+        and ns.Database.getDungeon(ns.Location.getInsideDungeonIds(lastLeadInId)[1] or 0)
+    if lastLeadInDungeon and lastLeadInDungeon.areaId ~= zoneId then
+        text = text .. " (" .. lastLeadInDungeon.name .. ")" -- a run of another dungeon first
+    end
+    if lastLeadInId and ns.QuestState.isInLog(lastLeadInId) then
+        text = text .. DOT .. ns.L("in your log")
+    end
+    return text
+end
+
+---Where a quest of the run stands: in the log, a lead-in, behind lead-ins, found inside, or as a zone's quest.
+local function composeRunStanding(quest, sectionIndex, zoneId)
+    if sectionIndex == 1 then
+        return ns.L("In your log")
+    end
+    if quest.isLeadIn and Told.isStoryHidden then
+        return withGiver(ns.L("Lead-in"), quest) -- (what it leads to is later in the story)
+    end
+    if quest.leadInIds and Told.isStoryHidden then
+        return ns.L("Later in the story")
+    end
+    if quest.isLeadIn then
+        return withGiver(ns.L("Lead-in for %s", quest.leadsToTitle), quest)
+    end
+    if quest.leadInIds then
+        return composeAfterLeadInsText(quest, zoneId)
+    end
+    if sectionIndex == 3 then
+        local text = ns.L(
+            quest.startType == "item" and "Drops inside: %s" or "Given inside: %s",
+            quest.itemName or quest.starterName or ns.L("unknown")
+        )
+        return quest.stepsText and (quest.stepsText .. DOT .. text) or text
+    end
+    return composeAvailableSubText(quest)
+end
+
+---What a row of a dungeon's run says under its title: where it stands and what to do about it.
+local function composeRunText(quest, sectionIndex, zoneId)
+    local text = composeRunStanding(quest, sectionIndex, zoneId)
+    if quest.opensTitle and not Told.isStoryHidden then -- (held back, the quest it opens is later in the story)
+        text = text .. DOT .. ns.L("opens %s", quest.opensTitle)
+    elseif quest.isLeadInOnRun then
+        text = text .. DOT .. ns.L("both on one run")
+    end
+    return quest.isLowLevel and (text .. DOT .. ns.L("low-level")) or text
+end
+
+---------------------------------------------------------------------------------------------------------------
+-- The list's parts
+
+---A dungeon the database does not know: only the quests seen done inside are listed, and the list says so.
+---@return number y Below the note
+local function addLearnedDungeonNote(y, view)
+    local runDungeon = view.isDungeonRun and ns.Database.getDungeon(view.zoneId)
+    if not (runDungeon and runDungeon.isLearned) then
+        return y
+    end
+    local noteHeight = State.list:addText(
+        ns.L(
+            "Learned from your runs: the quest database does not know this dungeon yet, so only the quests you picked up, worked on or handed in inside are listed. More may be done here. The QuestieTrace addon helps the database learn it."
+        ),
+        10,
+        y + 2,
+        { color = COLORS.tan, width = State.list.width - 20 }
+    )
+    return y + 8 + math.max(tonumber(noteHeight) or 0, 28)
+end
+
+local function addNextHeading(top, title, count)
+    return addListHeading(top, title, count, COLORS.parchment)
+end
+
+---A quest's row in the list by what to do next (NextList.draw).
+---@param subText string|false|nil What its heading leaves it to say; false: nothing; nil: what starts it, and how
+---far the way to it is
+local function addNextQuestRow(top, quest, indent, subText)
+    local icon = getStartIcon(quest)
+    local isAvailable = not (quest.availableAtLevel or quest.blocker)
+    if subText == nil then
+        subText = composeLeadsToDungeonText(quest) or composeAvailableSubText(quest)
+        -- How far the way to it is, for a quest to pick up now
+        if isAvailable and quest.distance then
+            subText = subText .. DOT .. ns.Widgets.formatDistance(quest.distance)
+        end
+    end
+    local experience = isAvailable
+        and ns.QuestTooltip.isExperienceShown(quest.questId)
+        and ns.QuestTooltip.getExperience(quest.questId)
+    return addListQuest(top, quest.questId, {
+        indent = indent,
+        title = quest.title,
+        level = quest.level,
+        subText = subText or nil,
+        profitText = experience and ns.QuestTooltip.formatExperience(experience) or nil,
+        color = (not isAvailable or quest.isLowLevel) and COLORS.grey or nil,
+        icon = icon,
+        iconColour = icon == GIVER_ICON and ns.MapMarks.getQuestIconColour(quest.questId, quest.isLowLevel) or nil,
+        chainText = not Told.isChainHidden and List.composeChainText(quest) or nil,
+        chainIcon = not quest.chainIndex and ns.LogStyle.UNLOCK_ICON or nil,
+        warnings = isAvailable and ns.Warnings.getQuestWarnings(quest.questId, true) or nil,
+    })
+end
+
+---A zone's list by what to do next: the chips, then the sections they keep.
+---@return number y Below it
+local function addNextList(y, view)
+    local available = {}
+    for sectionIndex = 1, UPCOMING_SECTION - 1 do
+        for _, quest in ipairs(view.sections[sectionIndex]) do
+            available[#available + 1] = quest
+        end
+    end
+    local nextSections, counts =
+        NextList.compose(available, view.sections[UPCOMING_SECTION], ns.Availability.getPlayer())
+    if counts.all > 0 and not view.isSearching then
+        y = NextList.addChips(y, counts)
+    end
+    return NextList.draw(y, nextSections, addNextHeading, addNextQuestRow, {
+        isSearching = view.isSearching,
+        selectedQuestId = selectedQuestIds[TAB_AVAILABLE],
+    })
+end
+
+local function openInLog(questId)
+    Log.showQuestAnywhere(questId)
+end
+
+---A quest's row in a section; a quest for a dungeon (or the start of its chain) says where it leads.
+---@return number y Below the row
+local function addSectionQuestRow(y, quest, indent, view, sectionIndex)
+    local isInLog = view.isDungeonRun and sectionIndex == 1
+    local icon = not isInLog and getStartIcon(quest) or nil
+    return addListQuest(y, quest.questId, {
+        indent = indent,
+        title = quest.title,
+        level = quest.level,
+        subText = view.isDungeonRun and composeRunText(quest, sectionIndex, view.zoneId) or composeLeadsToDungeonText(
+            quest
+        ) or composeAvailableSubText(quest),
+        color = (quest.availableAtLevel or quest.blocker or quest.isLowLevel) and COLORS.grey or nil,
+        icon = icon,
+        -- (a giver's "!" in the colour of the quest's kind: repeatable blue, an event's green...)
+        iconColour = icon == GIVER_ICON and ns.MapMarks.getQuestIconColour(quest.questId, quest.isLowLevel) or nil,
+        chainText = not Told.isChainHidden and List.composeChainText(quest) or nil,
+        chainIcon = not quest.chainIndex and ns.LogStyle.UNLOCK_ICON or nil,
+        warnings = not isInLog and ns.Warnings.getQuestWarnings(quest.questId, true) or nil,
+        handleClick = isInLog and openInLog or nil, -- a quest in the log opens there
+    })
+end
+
+---Quests not yet available: the steps of one chain under a heading of its own (where the Spoilers choice keeps the
+---story back, no chain's heading names its first step).
+---@return number y Below them
+local function addUpcomingQuests(y, section, view, sectionIndex)
+    local entries = Told.isStoryHidden and ChainList.composePlainEntries(section) or ChainList.composeEntries(section)
+    for _, entry in ipairs(entries) do
+        if entry.chain then
+            y = ChainList.addHeading(y, entry.chain)
+            -- A folded chain still shows its selected step, so a quest opened by a link is in view
+            local isFolded = ChainList.isFolded(entry.chain.key)
+            for _, quest in ipairs(entry.chain.quests) do
+                if not isFolded or quest.questId == selectedQuestIds[TAB_AVAILABLE] then
+                    y = addSectionQuestRow(y, quest, 14, view, sectionIndex)
+                end
+            end
+        else
+            y = addSectionQuestRow(y, entry.quest, 0, view, sectionIndex)
+        end
+    end
+    return y
+end
+
+---The list by sections (a dungeon's run, or a zone's while the story is kept back), each under its heading; the
+---section of quests not yet available is folded until its heading is clicked.
+---@return number y Below them
+local function addSectionLists(y, view)
+    for sectionIndex, section in ipairs(view.sections) do
+        if #section > 0 then
+            local isUpcoming = sectionIndex == view.foldedSectionIndex
+            local label = (isUpcoming and not view.isUpcomingOpen and "+ " or "")
+                .. ns.L(view.sectionTitles[sectionIndex])
+            y = addListHeading(
+                y,
+                label,
+                #section,
+                COLORS.parchment,
+                isUpcoming and not view.isSearching and toggleUpcoming or nil
+            )
+            if not isUpcoming then
+                for _, quest in ipairs(section) do
+                    y = addSectionQuestRow(y, quest, 0, view, sectionIndex)
+                end
+            elseif view.isUpcomingOpen then
+                y = addUpcomingQuests(y, section, view, sectionIndex)
+            end
+            y = y + 8
+        end
+    end
+    return y
+end
+
+---A search names the other zones with quests that match, each a click away (the search stays).
+---@return number y Below them
+---@return boolean isListed Some were named
+local function addOtherZones(y, view)
+    local others = ns.Availability.findInOtherZones(
+        view.searchText,
+        view.zoneId,
+        { shouldShowLowLevel = ns.settings.shouldShowLowLevel }
+    )
+    if #others == 0 then
+        return y, false
+    end
+    y = addListHeading(y, ns.L("In other zones"), #others, COLORS.parchment)
+    for index = 1, math.min(#others, 6) do
+        local other = others[index]
+        local text = "|cffffd100" .. other.zoneName .. "|r" .. DOT .. table.concat(other.titles, ", ")
+        local textHeight = State.list:addText(
+            text,
+            10,
+            y + 3,
+            { font = "GameFontHighlightSmall", color = COLORS.tan, width = State.list.width - 20 }
+        )
+        local height = math.max(tonumber(textHeight) or 12, 12) + 6
+        State.list:addButton(2, y, State.list.width - 4, height, pickZone, other.zoneId)
+        y = y + height
+    end
+    return y + 8, true
+end
+
+---@return table[] entrances The dungeons whose way in is in the zone: only those the Spoilers choice lets be named
+---(those entered, or all, or none)
+local function getEntranceDungeons(zoneId)
+    local entranceDungeons = ns.Availability.getEntranceDungeons(zoneId)
+    if not ns.Spoilers.isActive() then
+        return entranceDungeons
+    end
+    local known = {}
+    for _, entrance in ipairs(entranceDungeons) do
+        if List.isDungeonKnown(entrance.dungeonId) then
+            known[#known + 1] = entrance
+        end
+    end
+    return known
+end
+
+local function showEntranceDungeon(rowId)
+    Log.showDungeon(-rowId)
+end
+
+---Under a dungeon's row: how many quests to pick up inside, and its levels. (The count is left out where the choice
+---names only some of them.)
+local function composeEntranceText(entrance, pickup, minLevel, maxLevel)
+    local countText = pickup == "all"
+            and ns.Lp(entrance.count, "%d quest to pick up inside", "%d quests to pick up inside")
+        or ns.L("Dungeon")
+    if minLevel and maxLevel and minLevel ~= maxLevel then
+        return countText .. DOT .. ns.L("levels %d-%d", minLevel, maxLevel)
+    end
+    return countText
+end
+
+---Dungeons whose way in is here: their quests are the dungeon's, on the Dungeons tab; this points the way.
+---@return number y Below them
+---@return boolean isListed Some were named
+local function addEntranceDungeons(y, view)
+    local entranceDungeons = getEntranceDungeons(view.zoneId)
+    if #entranceDungeons == 0 then
+        return y, false
+    end
+    y = addListHeading(y, ns.L("Dungeons with their way in here"), #entranceDungeons, COLORS.parchment)
+    for _, entrance in ipairs(entranceDungeons) do
+        local minLevel, maxLevel = ns.Availability.getZoneLevels(entrance.dungeonId)
+        y = addListQuest(y, -entrance.dungeonId, {
+            title = entrance.name,
+            level = minLevel or ns.Model.getPlayer().level or 1,
+            color = COLORS.parchment,
+            subText = composeEntranceText(entrance, view.pickup, minLevel, maxLevel),
+            icon = "Interface\\Icons\\INV_Misc_Key_03",
+            handleClick = showEntranceDungeon,
+        })
+    end
+    return y + 8, true
+end
+
+---@return number y Below the line that says why the list is empty
+local function addEmptyNote(y, view)
+    local emptyText = view.isSearching and ns.L('No quest to pick up matches "%s".', State.availableSearchText)
+        or ns.L(
+            view.isDungeonRun and "No quests for you are done in here, or all of them are done."
+                or "Nothing to pick up here right now."
+        )
+    State.list:addText(emptyText, 10, y + 4, { color = COLORS.tan, width = State.list.width - 20 })
+    return y + 24
+end
+
+---The list of a location's quests: the log-full banner and the zone's summary, its quests, then (searching) the
+---other zones with matches, or the dungeons whose way in is here; a line when nothing is listed.
+---@return number y Below the list
+local function addAvailableList(view)
+    -- (the summary counts the quests to pick up here: not while the choice names only some of them)
+    local top = addLogFullBanner(6)
+    local y = view.pickup == "all" and addZoneSummary(top, view.zoneId) or top
+    y = addLearnedDungeonNote(y, view)
+    if view.isNextList then
+        y = addNextList(y, view)
+    else
+        y = addSectionLists(y, view)
+    end
+    local isListed
+    if view.isSearching and view.pickup == "all" then -- (other zones would name quests the choice keeps back)
+        y, isListed = addOtherZones(y, view)
+        view.isRowListed = view.isRowListed or isListed
+    end
+    if not view.isDungeonRun and not view.isSearching then
+        y, isListed = addEntranceDungeons(y, view)
+        view.isRowListed = view.isRowListed or isListed
+    end
+    if not view.isRowListed then
+        y = addEmptyNote(y, view)
+    end
+    return y
+end
+
+---------------------------------------------------------------------------------------------------------------
+-- The tab
+
+---The location over the list. Its text follows the location, also when the map chose it: the menu is built again
+---only when the location shown changed (building it lists every zone with quests), and anyway as it opens.
+local function showLocation(player, zoneId)
     local zoneName = zoneId and ns.Database.getZoneName(zoneId) or player.zoneName or ns.L("Unknown location")
     State.frame.zoneButton.label:SetText(zoneName)
     State.frame.zoneButton.note:SetText(zoneId == player.zoneId and ns.L("you are here") or "")
     State.frame.zoneButton.arrow:SetText(ns.L("change"))
-    -- Its text follows the location, also when the map chose it: the menu is built again only when the location
-    -- shown changed (building it lists every zone with quests), and anyway as it opens
     local menuKey = tostring(zoneId) .. ":" .. tostring(player.zoneId) .. ":" .. zoneName
     if State.zoneDropdown and State.zoneDropdown.GenerateMenu and State.zoneMenuKey ~= menuKey then
         State.zoneMenuKey = menuKey
@@ -585,18 +1117,42 @@ local function drawAvailableTab()
         end
         State.zoneDropdown:GenerateMenu()
     end
+end
 
+local pageQuest, pageZoneId -- what the page beside the list shows, read by its drawing function below
+
+local function drawSelectedQuestPage()
+    return drawAvailableQuest(pageQuest, pageZoneId)
+end
+
+---The page beside the list: the selected quest's, or a hint on selecting one.
+local function drawAvailablePage(selectedQuest, view)
+    if selectedQuest and State.mapQuestId == selectedQuest.questId then
+        Actions.showChosenQuestStart(selectedQuest)
+    end
+    State.mapQuestId = nil
+    if selectedQuest then
+        pageQuest, pageZoneId = selectedQuest, view.zoneId
+        State.frame.finishPage(drawSelectedQuestPage)
+        return
+    end
+    QuestPage.drawHintPage(
+        #view.quests > 0
+                and ns.L(
+                    "Select a quest to see how to start it and to mark its giver and turn-in on the map. Click it again to let go of it."
+                )
+            or ""
+    )
+end
+
+---Draws the Available tab: the location's quests to pick up (or the zones to choose from), and the page.
+---@return table? selected, number? availableCount nil while the database is being read
+local function drawAvailableTab()
+    local player = ns.Model.getPlayer()
+    local zoneId = State.pickedZoneId or player.zoneId
+    showLocation(player, zoneId)
     if not ns.Availability.isReady() then
-        State.list:addText(
-            ns.L("Reading the quest database..."),
-            10,
-            8,
-            { color = COLORS.tan, width = State.list.width - 20 }
-        )
-        State.list:finish(40)
-        State.detail:finish(1)
-        State.frame.status:SetText("")
-        ns.Availability.prepare(Log.refresh)
+        List.drawDatabaseWait()
         return nil, nil
     end
     if State.isPickingZone then
@@ -605,427 +1161,19 @@ local function drawAvailableTab()
         State.frame.status:SetText("")
         return nil, nil
     end
-
-    -- The Spoilers choice: which quests to pick up may be named (all, or only those whose giver the player met), and
-    -- what of the story is kept back; asked once for the whole list
-    local pickup = List.getPickupChoice()
-    Told.isStoryHidden, Told.isDungeonHidden =
-        ns.Availability.isLaterHidden("quest"), ns.Availability.isLaterHidden("dungeon")
-    Told.isChainHidden = ns.Spoilers.isActive() and ns.Spoilers.getChoice("chains") == "hidden"
-    local quests, hiddenCount =
-        ns.Availability.getQuests(zoneId, { shouldShowLowLevel = ns.settings.shouldShowLowLevel })
-    quests = List.keepToPickUp(quests, pickup)
-    local sections = { {}, {}, {}, {} }
-    local selectedQuest, firstQuest
-    local availableCount = 0
-    for _, quest in ipairs(quests) do
-        if not quest.availableAtLevel then
-            availableCount = availableCount + 1
-        end
-        -- The search box belongs to My quests and is hidden here, so it does not filter this list
-        local section = sections[getSectionIndex(quest)]
-        section[#section + 1] = quest
-    end
-    -- After the quests a few levels away, the ones held back by something else, each saying what
-    local isListed = {}
-    for _, quest in ipairs(quests) do
-        isListed[quest.questId] = true
-    end
-    local blockedQuests, blockedHiddenCount =
-        ns.Availability.getBlockedQuests(zoneId, { shouldShowLowLevel = ns.settings.shouldShowLowLevel })
-    blockedQuests = List.keepToPickUp(blockedQuests, pickup)
-    hiddenCount = hiddenCount + blockedHiddenCount
-    for _, quest in ipairs(blockedQuests) do
-        -- A quest the game itself offers is listed to pick up, though the rules hold it back: once, not again here
-        if not isListed[quest.questId] then
-            table.insert(sections[UPCOMING_SECTION], quest)
-            isListed[quest.questId] = true
-        end
-    end
-    -- A quest chosen elsewhere (a link to an earlier quest, a mark on the map) is listed even when the low-level
-    -- filter hides it, so its page is there to see
-    local chosenQuestId = selectedQuestIds[TAB_AVAILABLE]
-    if chosenQuestId and not isListed[chosenQuestId] and not ns.settings.shouldShowLowLevel then
-        for _, quest in
-            ipairs(List.keepToPickUp((ns.Availability.getQuests(zoneId, { shouldShowLowLevel = true })), pickup))
-        do
-            if quest.questId == chosenQuestId then
-                local section = sections[getSectionIndex(quest)]
-                section[#section + 1] = quest
-                isListed[chosenQuestId] = true
-            end
-        end
-        -- or one not to be taken yet (a later step of a chain, opened from the chain on a quest's page)
-        if not isListed[chosenQuestId] then
-            for _, quest in
-                ipairs(
-                    List.keepToPickUp((ns.Availability.getBlockedQuests(zoneId, { shouldShowLowLevel = true })), pickup)
-                )
-            do
-                if quest.questId == chosenQuestId then
-                    table.insert(sections[UPCOMING_SECTION], quest)
-                    isListed[chosenQuestId] = true
-                end
-            end
-        end
-    end
-    -- A dungeon's list is a plan for one run: every quest done inside, sorted by what to do about it, and the
-    -- lead-ins that open the ones behind them, named as lead-ins
-    local sectionTitles, foldedSectionIndex = AVAILABLE_SECTIONS, UPCOMING_SECTION
-    local isDungeonRun = ns.Database.getDungeon(zoneId) ~= nil
-    local isRowListed = #quests > 0
-    if isDungeonRun then
-        local run = List.keepRunToPickUp(ns.Availability.getDungeonRun(zoneId), pickup)
-        sections = { run.inLog, run.pickUp, run.foundInside, run.behindLeadIn, run.notYet }
-        sectionTitles = { "In your log", "Pick up before you go", "Found inside", "Behind a lead-in", "Not yet" }
-        foldedSectionIndex, hiddenCount = nil, 0
-        availableCount = #run.pickUp + #run.foundInside
-        isRowListed = #run.inLog + #run.pickUp + #run.foundInside + #run.behindLeadIn + #run.notYet > 0
-    end
-    -- The search beside the location keeps the quests whose title, giver or start item holds what is typed; a
-    -- search opens the quests not yet available too, as what is looked for may be among them
-    local searchText = State.availableSearchText or ""
-    local isSearching = searchText ~= ""
-    if isSearching then
-        for sectionIndex, section in ipairs(sections) do
-            local kept = {}
-            for _, quest in ipairs(section) do
-                if ns.Availability.isSearchMatch(quest, searchText) then
-                    kept[#kept + 1] = quest
-                end
-            end
-            sections[sectionIndex] = kept
-        end
-        isRowListed = false
-        for _, section in ipairs(sections) do
-            isRowListed = isRowListed or #section > 0
-        end
-    end
-    -- A zone's list is by what to do next (NextList), unless the Spoilers choice keeps the story back: what opens a
-    -- quest would name the quests before it
-    local isNextList = not isDungeonRun and not Told.isStoryHidden
-    local isUpcomingOpen = State.isUpcomingShown or isSearching or isNextList
-    for sectionIndex, section in ipairs(sections) do
-        if sectionIndex ~= foldedSectionIndex or isUpcomingOpen then
-            for _, quest in ipairs(section) do
-                firstQuest = firstQuest or quest
-                if quest.questId == selectedQuestIds[TAB_AVAILABLE] and not (isDungeonRun and sectionIndex == 1) then
-                    selectedQuest = quest
-                end
-            end
-        end
-    end
+    local view = composeView(zoneId)
     -- No quest is selected until the player picks one, here as on My quests
+    local selectedQuest = findSelectedQuest(view)
     State.selectedAvailableQuest = selectedQuest
-
-    ---What a row of a dungeon's run says under its title: where it stands and what to do about it.
-    local function composeRunText(quest, sectionIndex)
-        local text
-        if sectionIndex == 1 then
-            text = ns.L("In your log")
-        elseif quest.isLeadIn and Told.isStoryHidden then
-            text = ns.L("Lead-in") .. DOT .. (quest.starterName or ns.L("unknown giver")) -- (what it leads to is later in the story)
-        elseif quest.leadInIds and Told.isStoryHidden then
-            text = ns.L("Later in the story")
-        elseif quest.isLeadIn then
-            text = ns.L("Lead-in for %s", quest.leadsToTitle) .. DOT .. (quest.starterName or ns.L("unknown giver"))
-        elseif quest.leadInIds then
-            local names = {}
-            for _, leadInId in ipairs(quest.leadInIds) do
-                names[#names + 1] = ns.QuestText.getQuestName(leadInId) or ("Quest " .. leadInId)
-            end
-            -- A long chain says how long it is and where it starts, not every step
-            text = #names > 2 and ns.L("After %d lead-ins, from %s", #names, names[1])
-                or ns.L("After %s", table.concat(names, " > "))
-            local lastLeadInId = quest.leadInIds[#quest.leadInIds]
-            local lastLeadInDungeon = lastLeadInId
-                and ns.Database.getDungeon(ns.Location.getInsideDungeonIds(lastLeadInId)[1] or 0)
-            if lastLeadInDungeon and lastLeadInDungeon.areaId ~= zoneId then
-                text = text .. " (" .. lastLeadInDungeon.name .. ")" -- a run of another dungeon first
-            end
-            if lastLeadInId and ns.QuestState.isInLog(lastLeadInId) then
-                text = text .. DOT .. ns.L("in your log")
-            end
-        elseif sectionIndex == 3 then
-            text = ns.L(
-                quest.startType == "item" and "Drops inside: %s" or "Given inside: %s",
-                quest.itemName or quest.starterName or ns.L("unknown")
-            )
-            text = quest.stepsText and (quest.stepsText .. DOT .. text) or text
-        else
-            text = composeAvailableSubText(quest)
-        end
-        if quest.opensTitle and not Told.isStoryHidden then -- (held back, the quest it opens is later in the story)
-            text = text .. DOT .. ns.L("opens %s", quest.opensTitle)
-        elseif quest.isLeadInOnRun then
-            text = text .. DOT .. ns.L("both on one run")
-        end
-        return quest.isLowLevel and (text .. DOT .. ns.L("low-level")) or text
-    end
-    local function openInLog(questId)
-        Log.showQuestAnywhere(questId)
-    end
-
-    -- (the summary counts the quests to pick up here: not while the choice names only some of them)
-    local top = addLogFullBanner(6)
-    local y = pickup == "all" and addZoneSummary(top, zoneId) or top
-    local runDungeon = isDungeonRun and ns.Database.getDungeon(zoneId)
-    if runDungeon and runDungeon.isLearned then
-        local noteHeight = State.list:addText( -- a dungeon the database does not know: only the quests seen done inside
-            ns.L(
-                "Learned from your runs: the quest database does not know this dungeon yet, so only the quests you picked up, worked on or handed in inside are listed. More may be done here. The QuestieTrace addon helps the database learn it."
-            ),
-            10,
-            y + 2,
-            { color = COLORS.tan, width = State.list.width - 20 }
-        )
-        y = y + 8 + math.max(tonumber(noteHeight) or 0, 28)
-    end
-    if isNextList then
-        local available = {}
-        for sectionIndex = 1, UPCOMING_SECTION - 1 do
-            for _, quest in ipairs(sections[sectionIndex]) do
-                available[#available + 1] = quest
-            end
-        end
-        local nextSections, counts =
-            NextList.compose(available, sections[UPCOMING_SECTION], ns.Availability.getPlayer())
-        if counts.all > 0 and not isSearching then
-            y = NextList.addChips(y, counts)
-        end
-        local function addHeading(top, title, count)
-            return addListHeading(top, title, count, COLORS.parchment)
-        end
-        local function addQuestRow(top, quest, indent, subText)
-            local icon = getStartIcon(quest)
-            local isAvailable = not (quest.availableAtLevel or quest.blocker)
-            if subText == nil then
-                subText = quest.leadsToDungeonName
-                        and isAvailable
-                        and not Told.isDungeonHidden
-                        and (ns.L("Leads to %s", quest.leadsToDungeonName) .. DOT .. (quest.starterName or ns.L(
-                            "unknown giver"
-                        )))
-                    or composeAvailableSubText(quest)
-                -- How far the way to it is, for a quest to pick up now
-                if isAvailable and quest.distance then
-                    subText = subText .. DOT .. ns.Widgets.formatDistance(quest.distance)
-                end
-            end
-            local experience = isAvailable
-                and ns.QuestTooltip.isExperienceShown(quest.questId)
-                and ns.QuestTooltip.getExperience(quest.questId)
-            return addListQuest(top, quest.questId, {
-                indent = indent,
-                title = quest.title,
-                level = quest.level,
-                subText = subText or nil,
-                profitText = experience and ns.QuestTooltip.formatExperience(experience) or nil,
-                color = (not isAvailable or quest.isLowLevel) and COLORS.grey or nil,
-                icon = icon,
-                iconColour = icon == GIVER_ICON and ns.MapMarks.getQuestIconColour(quest.questId, quest.isLowLevel)
-                    or nil,
-                chainText = not Told.isChainHidden
-                        and (quest.chainIndex and string.format("%d/%d", quest.chainIndex, quest.chainTotal) or (#(quest.unlockIds or {}) > 0 and "+" .. #quest.unlockIds))
-                    or nil,
-                chainIcon = not quest.chainIndex and ns.LogStyle.UNLOCK_ICON or nil,
-                warnings = isAvailable and ns.Warnings.getQuestWarnings(quest.questId, true) or nil,
-            })
-        end
-        y = NextList.draw(y, nextSections, addHeading, addQuestRow, {
-            isSearching = isSearching,
-            selectedQuestId = selectedQuestIds[TAB_AVAILABLE],
-        })
-    end
-    for sectionIndex, section in ipairs(isNextList and {} or sections) do
-        if #section > 0 then
-            local isUpcoming = sectionIndex == foldedSectionIndex
-            local label = (isUpcoming and not isUpcomingOpen and "+ " or "") .. ns.L(sectionTitles[sectionIndex])
-            y = addListHeading(
-                y,
-                label,
-                #section,
-                COLORS.parchment,
-                isUpcoming and not isSearching and toggleUpcoming or nil
-            )
-            if not isUpcoming or isUpcomingOpen then
-                local function addQuestRow(quest, indent)
-                    local isInLog = isDungeonRun and sectionIndex == 1
-                    local icon = not isInLog and getStartIcon(quest) or nil
-                    y = addListQuest(y, quest.questId, {
-                        indent = indent,
-                        title = quest.title,
-                        level = quest.level,
-                        -- A quest for a dungeon (or the start of its chain) says where it leads
-                        subText = isDungeonRun and composeRunText(quest, sectionIndex)
-                            or (quest.leadsToDungeonName and not quest.availableAtLevel and not quest.blocker and not Told.isDungeonHidden and (ns.L(
-                                "Leads to %s",
-                                quest.leadsToDungeonName
-                            ) .. DOT .. (quest.starterName or ns.L("unknown giver"))))
-                            or composeAvailableSubText(quest),
-                        color = (quest.availableAtLevel or quest.blocker or quest.isLowLevel) and COLORS.grey or nil,
-                        icon = icon,
-                        -- (a giver's "!" in the colour of the quest's kind: repeatable blue, an event's green...)
-                        iconColour = icon == GIVER_ICON
-                                and ns.MapMarks.getQuestIconColour(quest.questId, quest.isLowLevel)
-                            or nil,
-                        chainText = not Told.isChainHidden
-                                and (quest.chainIndex and string.format("%d/%d", quest.chainIndex, quest.chainTotal) or (#(quest.unlockIds or {}) > 0 and "+" .. #quest.unlockIds))
-                            or nil,
-                        chainIcon = not quest.chainIndex and ns.LogStyle.UNLOCK_ICON or nil,
-                        warnings = not isInLog and ns.Warnings.getQuestWarnings(quest.questId, true) or nil,
-                        handleClick = isInLog and openInLog or nil, -- a quest in the log opens there
-                    })
-                end
-                -- Quests not yet available: the steps of one chain under a heading of its own
-                -- (where the Spoilers choice keeps the story back, no chain's heading names its first step)
-                for _, entry in
-                    ipairs(
-                        isUpcoming
-                                and (Told.isStoryHidden and ChainList.composePlainEntries(section) or ChainList.composeEntries(
-                                    section
-                                ))
-                            or {}
-                    )
-                do
-                    if entry.chain then
-                        y = ChainList.addHeading(y, entry.chain)
-                        -- A folded chain still shows its selected step, so a quest opened by a link is in view
-                        local isFolded = ChainList.isFolded(entry.chain.key)
-                        for _, quest in ipairs(entry.chain.quests) do
-                            if not isFolded or quest.questId == selectedQuestIds[TAB_AVAILABLE] then
-                                addQuestRow(quest, 14)
-                            end
-                        end
-                    else
-                        addQuestRow(entry.quest, 0)
-                    end
-                end
-                for _, quest in ipairs(isUpcoming and {} or section) do
-                    addQuestRow(quest, 0)
-                end
-            end
-            y = y + 8
-        end
-    end
-    -- A search names the other zones with quests that match, each a click away (the search stays)
-    if isSearching and pickup == "all" then -- (they would name quests the choice keeps back)
-        local others = ns.Availability.findInOtherZones(
-            searchText,
-            zoneId,
-            { shouldShowLowLevel = ns.settings.shouldShowLowLevel }
-        )
-        if #others > 0 then
-            y = addListHeading(y, ns.L("In other zones"), #others, COLORS.parchment)
-            local function pickOtherZone(otherZoneId)
-                pickZone(otherZoneId)
-            end
-            for index = 1, math.min(#others, 6) do
-                local other = others[index]
-                local text = "|cffffd100" .. other.zoneName .. "|r" .. DOT .. table.concat(other.titles, ", ")
-                local textHeight = State.list:addText(
-                    text,
-                    10,
-                    y + 3,
-                    { font = "GameFontHighlightSmall", color = COLORS.tan, width = State.list.width - 20 }
-                )
-                local height = math.max(tonumber(textHeight) or 12, 12) + 6
-                State.list:addButton(2, y, State.list.width - 4, height, pickOtherZone, other.zoneId)
-                y = y + height
-            end
-            y = y + 8
-            isRowListed = true
-        end
-    end
-    -- Dungeons whose way in is here: their quests are the dungeon's, on the Dungeons tab; this points the way
-    if not isDungeonRun and not isSearching then
-        local entranceDungeons = ns.Availability.getEntranceDungeons(zoneId)
-        if ns.Spoilers.isActive() then
-            -- Only the dungeons the Spoilers choice lets be named (those entered, or all, or none)
-            local known = {}
-            for _, entrance in ipairs(entranceDungeons) do
-                if List.isDungeonKnown(entrance.dungeonId) then
-                    known[#known + 1] = entrance
-                end
-            end
-            entranceDungeons = known
-        end
-        local function showEntranceDungeon(rowId)
-            Log.showDungeon(-rowId)
-        end
-        if #entranceDungeons > 0 then
-            y = addListHeading(y, ns.L("Dungeons with their way in here"), #entranceDungeons, COLORS.parchment)
-            for _, entrance in ipairs(entranceDungeons) do
-                local minLevel, maxLevel = ns.Availability.getZoneLevels(entrance.dungeonId)
-                -- (the count of quests to pick up inside is left out where the choice names only some of them)
-                local countText = pickup == "all"
-                        and ns.Lp(entrance.count, "%d quest to pick up inside", "%d quests to pick up inside")
-                    or ns.L("Dungeon")
-                y = addListQuest(y, -entrance.dungeonId, {
-                    title = entrance.name,
-                    level = minLevel or ns.Model.getPlayer().level or 1,
-                    color = COLORS.parchment,
-                    subText = countText .. (minLevel and maxLevel and minLevel ~= maxLevel and (DOT .. ns.L(
-                        "levels %d-%d",
-                        minLevel,
-                        maxLevel
-                    )) or ""),
-                    icon = "Interface\\Icons\\INV_Misc_Key_03",
-                    handleClick = showEntranceDungeon,
-                })
-            end
-            y = y + 8
-            isRowListed = true
-        end
-    end
-    if not isRowListed then
-        local emptyText = isSearching and ns.L('No quest to pick up matches "%s".', State.availableSearchText)
-            or ns.L(
-                isDungeonRun and "No quests for you are done in here, or all of them are done."
-                    or "Nothing to pick up here right now."
-            )
-        State.list:addText(emptyText, 10, y + 4, { color = COLORS.tan, width = State.list.width - 20 })
-        y = y + 24
-    end
-    State.setLowLevelCount(hiddenCount)
+    local y = addAvailableList(view)
+    State.setLowLevelCount(view.hiddenCount)
     State.list:finish(y + 8)
 
     -- The tab counts what is available, and the low-level switch under the list how many it hides: nothing
     -- more to say beside the tabs
     State.frame.status:SetText("")
-
-    if selectedQuest and State.mapQuestId == selectedQuest.questId then
-        -- Chosen by hand: the map turns to where the quest starts and slides to it, as for a quest in the log.
-        -- The list stays on its location meanwhile, though the map now shows another zone.
-        local place = selectedQuest.nearestPlace or selectedQuest.places[1]
-        if place and place.x >= 0 then
-            State.isMapFollowPaused = true
-            ns.MapDock.showQuestPlace(place.mapZoneId or place.groupZoneId, place)
-            State.isMapFollowPaused = false
-        end
-    end
-    State.mapQuestId = nil
-    if selectedQuest then
-        State.frame.finishPage(function()
-            return drawAvailableQuest(selectedQuest, zoneId)
-        end)
-    else
-        local hint = #quests > 0
-                and ns.L(
-                    "Select a quest to see how to start it and to mark its giver and turn-in on the map. Click it again to let go of it."
-                )
-            or ""
-        State.frame.finishPage(function()
-            State.detail:addText(
-                hint,
-                PADDING,
-                PADDING,
-                { font = "QuestFont", color = COLORS.softInk, width = State.detail.width - 2 * PADDING }
-            )
-            return 80
-        end)
-    end
-    return selectedQuest, availableCount
+    drawAvailablePage(selectedQuest, view)
+    return selectedQuest, view.availableCount
 end
 
 -- Shared with the other parts of the window

@@ -11,3 +11,6 @@ sim/scenarios/.api-budget*.txt
 sim/scenarios/.mock-export*.json
 sim/scenarios/.profile*.txt
 sim/lib/mapcost.options
+
+# The release tools' output (python tools/release/build_zip.py)
+dist/

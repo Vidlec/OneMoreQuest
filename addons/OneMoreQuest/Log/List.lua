@@ -185,112 +185,166 @@ do -- a block of its own, so its helpers do not count against the file's limit o
         end)
     end
 
+    local FOLD_SIZE = 18
+
+    ---The gold edge down the left of a band's wood, as the settings and the chronicle mark the chosen section: the
+    ---zone the player is in, the open dungeon. Drawn as pictures, over the band's own, inside the band, clear of the
+    ---window's border, which covers the list's first pixels.
+    local function addGoldEdge(y)
+        local woodTop, woodHeight = y + 3, math.floor(ZONE_BAR_HEIGHT * BAND_WOOD_BOTTOM) - 3
+        State.list:addImage(HERE_EDGE_LEFT, woodTop, 3, woodHeight, PLAIN_TEXTURE, nil, HERE_EDGE, 2)
+        State.list:addImage(HERE_EDGE_LEFT + 3, woodTop, 2, woodHeight, PLAIN_TEXTURE, nil, HERE_EDGE, 2):SetAlpha(0.3)
+    end
+
+    ---The zone the player is in: the gold edge, and the game's gold glow along the band's lower edge, as the game's
+    ---quest log lights the heading it means.
+    local function addHereMarks(y)
+        addGoldEdge(y)
+        if List.hasGameArt("questlog-header-glow-yellow") then
+            State.list:addImage(
+                0,
+                y + math.floor(ZONE_BAR_HEIGHT * BAND_WOOD_BOTTOM) - 10,
+                State.list.width,
+                14,
+                List.HERE_GLOW,
+                nil,
+                nil,
+                1
+            )
+        end
+    end
+
+    ---A zone's name: bright when a tracked quest is inside, muted when none is; a dungeon in lilac either way.
+    ---@return number[] color
+    local function getZoneNameColor(isDungeon, hasTracked)
+        if isDungeon then
+            return hasTracked and DUNGEON_NAME or MUTED_DUNGEON_NAME
+        end
+        return hasTracked and COLORS.white or MUTED_ZONE_NAME
+    end
+
+    ---At the right of a zone's heading, in words: the ready ones in green, then how many quests.
+    ---@return string text
+    local function composeZoneCountText(entries)
+        local readyCount = 0
+        for _, entry in ipairs(entries) do
+            readyCount = readyCount + (entry.isTurnIn and 1 or 0)
+        end
+        local countText = ns.Lp(#entries, "%d quest", "%d quests")
+        if readyCount > 0 then
+            countText = "|cff7ce07c" .. ns.Lp(readyCount, "%d ready", "%d ready") .. "|r" .. DOT .. countText -- in green, as ready elsewhere
+        end
+        return countText
+    end
+
+    ---What a heading is when it is not a plain zone: the map's gate for a dungeon, the category's own picture for
+    ---cooking or a class. Nothing for a plain zone.
+    ---@return any? icon
+    ---@return number[]? iconColor
+    ---@return number[]? texCoords
+    local function getHeadingIcon(group, isDungeon)
+        if isDungeon then
+            local icon, iconColor = getDungeonIcon()
+            return icon, iconColor, nil
+        end
+        if group.isCategory then
+            local icon, texCoords = ns.Database.getCategoryIcon(group.zoneId)
+            return icon, nil, texCoords
+        end
+        return nil, nil, nil
+    end
+
+    ---@return number[] questIds The entries' quests, in their order
+    local function collectQuestIds(entries)
+        local questIds = {}
+        for _, entry in ipairs(entries) do
+            questIds[#questIds + 1] = entry.questId
+        end
+        return questIds
+    end
+
+    ---In a group, the quests of a zone someone could still take, offered all at once from a button at the right:
+    ---only the game's group icon, as on a quest's row, the count and who gets what in its tooltip.
+    ---@return number width The room it takes from the count's right (0 with nothing to share)
+    local function addShareIcon(countRight, middle, shareable)
+        if #shareable == 0 then
+            return 0
+        end
+        local shareLeft = countRight - SHARE_BUTTON_WIDTH
+        local shareTop = middle - SHARE_BUTTON_HEIGHT / 2
+        State.list:addImage(shareLeft, shareTop, SHARE_BUTTON_WIDTH, SHARE_BUTTON_HEIGHT, SHARE_ICON, nil, nil, 6)
+        return SHARE_BUTTON_WIDTH + 6
+    end
+
+    ---The share icon's button, over the bar's own button, so a click there shares rather than folds.
+    local function addShareButton(countRight, middle, shareable, zoneName)
+        if #shareable == 0 then
+            return
+        end
+        local share = { questIds = shareable, zoneName = zoneName }
+        State.list:addButton(
+            countRight - SHARE_BUTTON_WIDTH,
+            middle - SHARE_BUTTON_HEIGHT / 2,
+            SHARE_BUTTON_WIDTH,
+            SHARE_BUTTON_HEIGHT,
+            handleShareClick,
+            share,
+            showShareHover,
+            nil,
+            hideShareHover
+        ).padSkip =
+            true -- (a controller shares from the heading's menu, Y)
+    end
+
     ---A zone's heading, on the quest page's dark title band across the list: the game's + or - to fold it in
     ---front, then the zone's name: white when a tracked quest is inside, muted when none is. After the name a
     ---dungeon has the map's gate mark (and a lilac name, so it is told apart by more than colour), a category such
     ---as cooking its own picture, as it is not a place; the zone the player is in has a gold edge down its left
-    ---("You are here" when pointed at). At the
-    ---right, in words, how many of its quests are ready to hand in and how many there are, "2 ready · 4 quests".
-    ---The heading itself is never highlighted: the quest inside that is selected or followed is.
+    ---("You are here" when pointed at). At the right, in words, how many of its quests are ready to hand in and how
+    ---many there are, "2 ready · 4 quests". The heading itself is never highlighted: the quest inside that is
+    ---selected or followed is.
+    ---@return number y Below the heading
     function List.addZoneHeading(y, group, isCollapsed, hasTracked)
         -- The zone the player is in has a gold edge at its left. A category (cooking) is no place, though it opens
         -- when a quest's next step is where the player is.
         local isHere = group.isCurrent and not group.isCategory
-        local barLeft, barWidth = 0, State.list.width
-        local barHeight = ZONE_BAR_HEIGHT
+        local width = State.list.width
         -- The band's wood fills its upper three quarters, a dark lip the rest: what it holds is centred on the wood
-        local middle = y + math.floor(barHeight * BAND_WOOD_MIDDLE + 0.5)
+        local middle = y + math.floor(ZONE_BAR_HEIGHT * BAND_WOOD_MIDDLE + 0.5)
         local isDungeon = ns.Database.getDungeon(group.zoneId) ~= nil
-        -- Bright when a tracked quest is inside, muted when none is; a dungeon in lilac either way
-        local nameColor
-        if isDungeon then
-            nameColor = hasTracked and DUNGEON_NAME or MUTED_DUNGEON_NAME
-        else
-            nameColor = hasTracked and COLORS.white or MUTED_ZONE_NAME
-        end
-        State.list:addImage(barLeft, y, barWidth, barHeight, ZONE_BAND, nil, nil, 0)
-
-        -- At the right, in words: the ready ones in green, then how many quests
-        local readyCount = 0
-        for _, entry in ipairs(group.shownEntries) do
-            readyCount = readyCount + (entry.isTurnIn and 1 or 0)
-        end
-        local questCount = #group.shownEntries
-        local countText = ns.Lp(questCount, "%d quest", "%d quests")
-        if readyCount > 0 then
-            countText = "|cff7ce07c" .. ns.Lp(readyCount, "%d ready", "%d ready") .. "|r" .. DOT .. countText -- in green, as ready elsewhere
-        end
-        local textTop = middle - 6
-        local countRight = barLeft + barWidth - 10
+        local nameColor = getZoneNameColor(isDungeon, hasTracked)
+        State.list:addImage(0, y, width, ZONE_BAR_HEIGHT, ZONE_BAND, nil, nil, 0)
         if isHere then
-            -- A gold edge down the left of the band's wood, as the settings and the chronicle mark the chosen section
-            local woodTop, woodHeight = y + 3, math.floor(barHeight * BAND_WOOD_BOTTOM) - 3
-            -- Drawn as pictures, over the band's own
-            -- Inside the band, clear of the window's border, which covers the list's first pixels
-            State.list:addImage(barLeft + HERE_EDGE_LEFT, woodTop, 3, woodHeight, PLAIN_TEXTURE, nil, HERE_EDGE, 2)
-            State.list
-                :addImage(barLeft + HERE_EDGE_LEFT + 3, woodTop, 2, woodHeight, PLAIN_TEXTURE, nil, HERE_EDGE, 2)
-                :SetAlpha(0.3)
-            -- And the game's gold glow along its lower edge, as the game's quest log lights the heading it means
-            if List.hasGameArt("questlog-header-glow-yellow") then
-                State.list:addImage(
-                    barLeft,
-                    y + math.floor(barHeight * BAND_WOOD_BOTTOM) - 10,
-                    barWidth,
-                    14,
-                    List.HERE_GLOW,
-                    nil,
-                    nil,
-                    1
-                )
-            end
+            addHereMarks(y)
         end
-        -- In a group, the quests here someone could still take, offered all at once from a button at the right
+        local countRight = width - 10
         local shareable = Log.getShareableQuestIds(group.shownEntries)
-        local shareWidth = 0
-        if #shareable > 0 then
-            shareWidth = SHARE_BUTTON_WIDTH + 6
-            local shareLeft = countRight - SHARE_BUTTON_WIDTH
-            local shareTop = middle - SHARE_BUTTON_HEIGHT / 2
-            -- Only the game's group icon, as on a quest's row: the count and who gets what are in its tooltip
-            State.list:addImage(shareLeft, shareTop, SHARE_BUTTON_WIDTH, SHARE_BUTTON_HEIGHT, SHARE_ICON, nil, nil, 6)
-        end
-        local _, countWidth = State.list:addText(countText, countRight - shareWidth - 120, textTop, {
-            font = "GameFontHighlightSmall",
-            color = COLORS.tan,
-            width = 120,
-            justify = "RIGHT",
-            isSingleLine = true,
-        })
+        local shareWidth = addShareIcon(countRight, middle, shareable)
+        local _, countWidth = State.list:addText(
+            composeZoneCountText(group.shownEntries),
+            countRight - shareWidth - 120,
+            middle - 6,
+            { font = "GameFontHighlightSmall", color = COLORS.tan, width = 120, justify = "RIGHT", isSingleLine = true }
+        )
         local rightEdge = countRight - shareWidth - math.min(countWidth, 120)
 
         -- In front: the game's + or -, as its campaign headings fold
-        local foldSize = 18
         State.list:addImage(
-            barLeft + 9,
-            middle - foldSize / 2,
-            foldSize,
-            foldSize,
+            9,
+            middle - FOLD_SIZE / 2,
+            FOLD_SIZE,
+            FOLD_SIZE,
             isCollapsed and FOLD_SHUT or FOLD_OPEN,
             nil,
             nil,
             5
         )
-        local nameLeft = barLeft + 9 + foldSize + 4
-        -- After the name, so names always start in one place: what the heading is when it is not a plain zone
-        -- (the map's gate for a dungeon, the category's own picture for cooking or a class), and "you are here"
-        local icon, iconColor, texCoords
-        if isDungeon then
-            icon, iconColor = getDungeonIcon()
-        elseif group.isCategory then
-            icon, texCoords = ns.Database.getCategoryIcon(group.zoneId)
-        end
+        local nameLeft = 9 + FOLD_SIZE + 4
+        -- After the name, so names always start in one place: what the heading is when it is not a plain zone, and
+        -- "you are here"
+        local icon, iconColor, texCoords = getHeadingIcon(group, isDungeon)
         local maxNameWidth = rightEdge - nameLeft - 6 - (icon and DUNGEON_ICON_SIZE + 6 or 0)
         local nameTop = middle - 7
-        local questIds = {}
-        for _, entry in ipairs(group.shownEntries or {}) do
-            questIds[#questIds + 1] = entry.questId
-        end
         local bar = {
             zoneId = group.zoneId,
             zoneName = group.zoneName,
@@ -298,7 +352,7 @@ do -- a block of its own, so its helpers do not count against the file's limit o
             nameColor = nameColor,
             isHere = isHere,
             shareable = shareable,
-            questIds = questIds,
+            questIds = collectQuestIds(group.shownEntries),
         }
         local _, nameWidth, name = State.list:addText(
             group.zoneName,
@@ -306,41 +360,26 @@ do -- a block of its own, so its helpers do not count against the file's limit o
             nameTop,
             { font = "GameFontNormalMed2", color = nameColor, isSingleLine = true, width = maxNameWidth }
         )
-        local afterLeft = nameLeft
-            + math.min(type(nameWidth) == "number" and nameWidth or maxNameWidth, maxNameWidth)
-            + 6
         if icon then
+            local afterLeft = nameLeft
+                + math.min(type(nameWidth) == "number" and nameWidth or maxNameWidth, maxNameWidth)
+                + 6
             State.list:addIcon(afterLeft, nameTop - 1, DUNGEON_ICON_SIZE, icon, iconColor, 6, texCoords)
         end
         bar.name = name
         State.list:addButton(
-            barLeft,
+            0,
             y,
-            barWidth,
-            barHeight,
+            width,
+            ZONE_BAR_HEIGHT,
             handleZoneBarClick,
             bar,
             showZoneBarHover,
             openZoneMenu,
             hideZoneBarHover
         )
-        if #shareable > 0 then
-            -- Over the bar's own button, so a click here shares rather than folds
-            local share = { questIds = shareable, zoneName = group.zoneName }
-            State.list:addButton(
-                countRight - SHARE_BUTTON_WIDTH,
-                middle - SHARE_BUTTON_HEIGHT / 2,
-                SHARE_BUTTON_WIDTH,
-                SHARE_BUTTON_HEIGHT,
-                handleShareClick,
-                share,
-                showShareHover,
-                nil,
-                hideShareHover
-            ).padSkip =
-                true -- (a controller shares from the heading's menu, Y)
-        end
-        return y + barHeight + (isCollapsed and 0 or 4)
+        addShareButton(countRight, middle, shareable, group.zoneName)
+        return y + ZONE_BAR_HEIGHT + (isCollapsed and 0 or 4)
     end
 
     ---A dungeon on the Dungeons tab, drawn as the log draws a dungeon's heading, not as a quest: the dark band with
@@ -354,11 +393,7 @@ do -- a block of its own, so its helpers do not count against the file's limit o
         local middle = y + math.floor(barHeight * BAND_WOOD_MIDDLE + 0.5)
         State.list:addImage(0, y, width, barHeight, ZONE_BAND, nil, nil, 0)
         if row.isSelected then
-            local woodTop, woodHeight = y + 3, math.floor(barHeight * BAND_WOOD_BOTTOM) - 3
-            State.list:addImage(HERE_EDGE_LEFT, woodTop, 3, woodHeight, PLAIN_TEXTURE, nil, HERE_EDGE, 2)
-            State.list
-                :addImage(HERE_EDGE_LEFT + 3, woodTop, 2, woodHeight, PLAIN_TEXTURE, nil, HERE_EDGE, 2)
-                :SetAlpha(0.3)
+            addGoldEdge(y)
         end
         local icon, iconColor = getDungeonIcon()
         State.list:addIcon(
@@ -490,152 +525,234 @@ function partyShare.share(questId)
     Log.shareQuest(questId)
 end
 
----One quest in the list.
----@param line { handleClick: fun(questId: number)?, indent: number?, title: string, level: number, subText: string?, color: number[]?, isReady: boolean?, icon: string?, itemTexture: any, canShareWithParty: boolean?, chainText: string?, chainIcon: string?, partyCount: number?, warnings: string[]?, number: number?, progress: number?, isFocused: boolean?, canFocus: boolean? }
----@return number y Below the row
-local function addListQuest(y, questId, line)
+-- A quest's row, drawn in steps: what leads it (the start's icon, or the tracking mark), the marks at its right
+-- (each takes its room from the right and gives back where the next one ends), its title, its second line, its
+-- warnings, and the row's own button under them all.
+local RING_DASHED = MEDIA .. "RingDashed"
+local RING_DASHED_COLOR = { 0.42, 0.38, 0.28 }
+local NO_WARNINGS = {}
+
+---The game's own glow round the chosen quest, as its quest log shows it; a gold box where the client lacks it.
+local function addSelectionGlow(y, height)
     local width = State.list.width
-    local warnings = line.warnings or {}
-    local hasSecondLine = line.subText ~= nil or line.profitText ~= nil
-    local height = 24 + (hasSecondLine and 15 or 0) + #warnings * 15
-    local isSelected = selectedQuestIds[State.selectedTab] == questId
-        and not (State.selectedTab == TAB_QUESTS and State.selectedLogZoneId)
-    if isSelected then
-        State.selectedRowTop, State.selectedRowBottom = y, y + height
+    if List.hasGameArt("questlog-quest-glow-yellow") then
+        State.list:addImage(2, y, width - 4, height, List.SELECTED_GLOW):SetDrawLayer("BORDER", 2) -- under the row's text
+    else
+        State.list:addRect(2, y, width - 4, height, SELECTED_EDGE)
+        State.list:addRect(3, y + 1, width - 6, height - 2, SELECTED_FILL, 1)
     end
-    if isSelected then
-        -- The game's own glow round the chosen quest, as its quest log shows it; a gold box where the client lacks it
-        if List.hasGameArt("questlog-quest-glow-yellow") then
-            State.list:addImage(2, y, width - 4, height, List.SELECTED_GLOW):SetDrawLayer("BORDER", 2) -- under the row's text
-        else
-            State.list:addRect(2, y, width - 4, height, SELECTED_EDGE)
-            State.list:addRect(3, y + 1, width - 6, height - 2, SELECTED_FILL, 1)
-        end
+end
+
+---The quest's mark, as on the map, is also how it is tracked: a tracked quest shows its coin with what it wants,
+---an untracked one an empty dashed ring. Clicking it tracks or untracks.
+local function addTrackingMark(y, questId, line)
+    local ringLeft, ringTop, ringSize = 6, y + 2, 20
+    if line.isTracked then
+        -- The quest's mark exactly as on the map
+        State.list:addMark(ringLeft, ringTop, ringSize, {
+            kind = line.isReady and "turnIn" or "objective",
+            questId = questId,
+            number = line.number,
+            glyph = ns.MapMarks.getQuestGlyph(questId),
+            progress = line.isReady and 1 or line.progress or 0,
+            isFocused = false,
+            lines = {},
+        })
+    else
+        State.list:addIcon(ringLeft, ringTop, ringSize, RING_DASHED, RING_DASHED_COLOR)
     end
-    if line.isFocused then
-        State.list:addRect(width - 5, y, 3, height, COLORS.gold, 2) -- the tracker's active quest: a gold bar down the row's right edge
-    end
+    -- Its click area is a square just round the mark, the same whether tracked or not; the rest of the row below it
+    -- selects the quest, as the row does
+    local trackButton =
+        State.list:addButton(ringLeft - 3, ringTop - 3, ringSize + 6, ringSize + 6, toggleTracked, questId)
+    trackButton:SetFrameLevel((trackButton:GetFrameLevel() or 1) + 2) -- over the row's own button
+    trackButton.padSkip = true -- with a controller, X tracks the quest (Gamepad.lua)
+end
+
+---What leads the row: the start's icon, the tracking mark of a quest in the log, or nothing.
+---@return number left Where the row's text starts
+local function addRowLead(y, questId, line)
     local indent = line.indent or 0
-    local left, buttonLeft = 10 + indent, 2
     if line.isIconSpaceKept and not line.icon then
-        left = 30 + indent -- no icon, but its text lines up with the rows that have one
-    elseif line.icon then
+        return 30 + indent -- no icon, but its text lines up with the rows that have one
+    end
+    if line.icon then
         local icon = State.list:addIcon(8 + indent, y + 4, 16, line.icon)
         if line.iconColour then
             -- A quest's "!" or "?" in its kind's colour, as on the map (line.isTurnInIcon: the "?")
             ns.MapMarks.dressQuestIcon(icon, line.iconColour, line.isTurnInIcon)
         end
-        left = 30 + indent
-    elseif line.isTracked ~= nil then
-        -- The quest's mark, as on the map, is also how it is tracked: a tracked quest shows its coin with what
-        -- it wants, an untracked one an empty dashed ring. Clicking it tracks or untracks.
-        local ringLeft, ringTop, ringSize = 6, y + 2, 20
-        if line.isTracked then
-            -- The quest's mark exactly as on the map
-            State.list:addMark(ringLeft, ringTop, ringSize, {
-                kind = line.isReady and "turnIn" or "objective",
-                questId = questId,
-                number = line.number,
-                glyph = ns.MapMarks.getQuestGlyph(questId),
-                progress = line.isReady and 1 or line.progress or 0,
-                isFocused = false,
-                lines = {},
-            })
-        else
-            State.list:addIcon(ringLeft, ringTop, ringSize, MEDIA .. "RingDashed", { 0.42, 0.38, 0.28 })
-        end
-        -- Its click area is a square just round the mark, the same whether tracked or not; the rest of the row
-        -- below it selects the quest, as the row does
-        local trackButton =
-            State.list:addButton(ringLeft - 3, ringTop - 3, ringSize + 6, ringSize + 6, toggleTracked, questId)
-        trackButton:SetFrameLevel((trackButton:GetFrameLevel() or 1) + 2) -- over the row's own button
-        trackButton.padSkip = true -- with a controller, X tracks the quest (Gamepad.lua)
-        left = 32
+        return 30 + indent
     end
-    local right = width - 10
+    if line.isTracked ~= nil then
+        addTrackingMark(y, questId, line)
+        return 32
+    end
+    return 10 + indent
+end
+
+---@return number right Where the next mark ends
+local function addChainMark(right, y, line)
+    local _, textWidth = State.list:addText(
+        line.chainText,
+        right - 30,
+        y + 7,
+        { font = "GameFontHighlightSmall", color = COLORS.tan, width = 30, justify = "RIGHT", isSingleLine = true }
+    )
+    right = right - math.min(textWidth, 30) - 16
+    -- (a quest that opens others without being a chain's step has the branching mark there: line.chainIcon)
+    State.list:addIcon(right, y + 6, 12, line.chainIcon or CHAIN_ICON, COLORS.tan)
+    return right - 4
+end
+
+---How many of the party are on it too, as the game's own quest log says before a quest's name ("[2]"): the
+---players mark and the count.
+---@return number right Where the next mark ends
+local function addPartyCount(right, y, partyCount)
+    local _, countWidth = State.list:addText(
+        tostring(partyCount),
+        right - 14,
+        y + 7,
+        { font = "GameFontHighlightSmall", color = COLORS.tan, width = 14, justify = "RIGHT", isSingleLine = true }
+    )
+    right = right - math.min(countWidth or 14, 14) - 15
+    State.list:addIcon(right, y + 5, 13, MEDIA .. "GlyphPlayers", COLORS.tan)
+    return right - 4
+end
+
+---The offer to share the quest with the party, when that would help.
+---@return number right Where the next mark ends
+local function addShareOffer(right, y, questId)
+    right = right - 16
+    State.list:addImage(right, y + 4, 16, 16, partyShare.icon, nil, nil, 1)
+    local shareButton =
+        State.list:addButton(right - 2, y + 2, 20, 20, partyShare.share, questId, partyShare.show, nil, partyShare.hide)
+    shareButton:SetFrameLevel((shareButton:GetFrameLevel() or 1) + 2) -- over the row's own button, which takes the rest
+    shareButton.padSkip = true -- the gamepad shares from the row's menu (Y)
+    return right - 4
+end
+
+local function showVoiceHover(button, questId)
+    ns.QuestText.showVoiceTooltip(button, questId)
+end
+
+local function hideVoiceHover()
+    GameTooltip:Hide()
+end
+
+---The narration, only while it plays, waits paused or waits in the queue (with its place): click plays or stops it,
+---right click takes it off the queue.
+---@return number right Where the next mark ends
+local function addVoiceButton(right, y, questId)
+    local voiceState, voicePosition = ns.QuestText.getVoiceState(questId)
+    if not voiceState or voiceState == "idle" then
+        return right
+    end
+    if voiceState == "queued" then
+        local _, numberWidth = State.list:addText(tostring(voicePosition or ""), right - 14, y + 7, {
+            font = "GameFontHighlightSmall",
+            color = ns.QuestText.VOICE_COLORS.queued,
+            width = 14,
+            justify = "RIGHT",
+            isSingleLine = true,
+        })
+        right = right - math.min(numberWidth, 14) - 1
+    end
+    right = right - 14
+    State.list:addIcon(right, y + 5, 14, ns.QuestText.VOICE_ICON, ns.QuestText.VOICE_COLORS[voiceState])
+    local voiceButton = State.list:addButton(
+        right - 3,
+        y + 2,
+        20,
+        20,
+        ns.QuestText.toggleVoice,
+        questId,
+        showVoiceHover,
+        ns.QuestText.toggleVoiceQueue,
+        hideVoiceHover
+    )
+    voiceButton:SetFrameLevel((voiceButton:GetFrameLevel() or 1) + 2) -- over the row's own button
+    return right - 4
+end
+
+---The marks at the row's right, from the edge in: the quest's item, its chain step, the party on it, the offer to
+---share it, its narration.
+---@return number right Where the title must end
+local function addRowMarks(y, questId, line)
+    local right = State.list.width - 10
     if line.itemTexture then
         right = right - 16
         State.list:addIcon(right, y + 4, 16, line.itemTexture)
         right = right - 4
     end
     if line.chainText then
-        local _, textWidth = State.list:addText(
-            line.chainText,
-            right - 30,
-            y + 7,
-            { font = "GameFontHighlightSmall", color = COLORS.tan, width = 30, justify = "RIGHT", isSingleLine = true }
-        )
-        right = right - math.min(textWidth, 30) - 16
-        -- (a quest that opens others without being a chain's step has the branching mark there: line.chainIcon)
-        State.list:addIcon(right, y + 6, 12, line.chainIcon or CHAIN_ICON, COLORS.tan)
-        right = right - 4
+        right = addChainMark(right, y, line)
     end
-    -- How many of the party are on it too, as the game's own quest log says before a quest's name ("[2]"): the
-    -- players mark and the count
     if (line.partyCount or 0) > 0 then
-        local _, countWidth = State.list:addText(
-            tostring(line.partyCount),
-            right - 14,
-            y + 7,
-            { font = "GameFontHighlightSmall", color = COLORS.tan, width = 14, justify = "RIGHT", isSingleLine = true }
-        )
-        right = right - math.min(countWidth or 14, 14) - 15
-        State.list:addIcon(right, y + 5, 13, MEDIA .. "GlyphPlayers", COLORS.tan)
-        right = right - 4
+        right = addPartyCount(right, y, line.partyCount)
     end
     -- Before the chain step: the offer to share it with the party, when that would help
     if line.canShareWithParty then
-        right = right - 16
-        State.list:addImage(right, y + 4, 16, 16, partyShare.icon, nil, nil, 1)
-        local shareButton = State.list:addButton(
-            right - 2,
-            y + 2,
-            20,
-            20,
-            partyShare.share,
-            questId,
-            partyShare.show,
-            nil,
-            partyShare.hide
-        )
-        shareButton:SetFrameLevel((shareButton:GetFrameLevel() or 1) + 2) -- over the row's own button, which takes the rest
-        shareButton.padSkip = true -- the gamepad shares from the row's menu (Y)
-        right = right - 4
+        right = addShareOffer(right, y, questId)
     end
-    -- The narration, only while it plays, waits paused or waits in the queue (with its place): click plays or
-    -- stops it, right click takes it off the queue
-    local voiceState, voicePosition = ns.QuestText.getVoiceState(questId)
-    if voiceState and voiceState ~= "idle" then
-        if voiceState == "queued" then
-            local _, numberWidth = State.list:addText(tostring(voicePosition or ""), right - 14, y + 7, {
-                font = "GameFontHighlightSmall",
-                color = ns.QuestText.VOICE_COLORS.queued,
-                width = 14,
-                justify = "RIGHT",
-                isSingleLine = true,
-            })
-            right = right - math.min(numberWidth, 14) - 1
+    return addVoiceButton(right, y, questId)
+end
+
+---The line under the title: what the quest is worth, quietly at its right, and what the row says of the quest
+---(green after the game's tick when it is ready).
+local function addSecondLine(textY, left, line)
+    local width = State.list.width
+    local subRight = width - 10
+    if line.profitText then
+        local _, profitWidth = State.list:addText(line.profitText, width - 10 - 110, textY, {
+            font = "GameFontHighlightSmall",
+            color = COLORS.tan,
+            width = 110,
+            justify = "RIGHT",
+            isSingleLine = true,
+        })
+        subRight = width - 10 - math.min(profitWidth, 110) - 8
+    end
+    if not line.subText then
+        return
+    end
+    local subLeft = left
+    if line.isReady then
+        -- The tick starts the green line it belongs to: the game's yellow check, as its quest log ticks a quest
+        if List.hasGameArt("questlog-icon-checkmark-yellow") then
+            State.list:addImage(left, textY, 13, 11, List.READY_CHECK)
+        else
+            State.list:addIcon(left, textY, 11, READY_ICON)
         end
-        right = right - 14
-        State.list:addIcon(right, y + 5, 14, ns.QuestText.VOICE_ICON, ns.QuestText.VOICE_COLORS[voiceState])
-        local voiceButton = State.list:addButton(
-            right - 3,
-            y + 2,
-            20,
-            20,
-            ns.QuestText.toggleVoice,
-            questId,
-            function(button)
-                ns.QuestText.showVoiceTooltip(button, questId)
-            end,
-            ns.QuestText.toggleVoiceQueue,
-            function()
-                GameTooltip:Hide()
-            end
-        )
-        voiceButton:SetFrameLevel((voiceButton:GetFrameLevel() or 1) + 2) -- over the row's own button
-        right = right - 4
+        subLeft = left + 16
     end
+    State.list:addText(line.subText, subLeft, textY, {
+        font = "GameFontHighlightSmall",
+        color = line.isReady and COLORS.green or COLORS.tan,
+        width = subRight - subLeft,
+        isSingleLine = true,
+    })
+end
+
+---One quest in the list.
+---@param line { handleClick: fun(questId: number)?, indent: number?, title: string, level: number, subText: string?, color: number[]?, isReady: boolean?, icon: string?, itemTexture: any, canShareWithParty: boolean?, chainText: string?, chainIcon: string?, partyCount: number?, warnings: string[]?, number: number?, progress: number?, isFocused: boolean?, canFocus: boolean? }
+---@return number y Below the row
+local function addListQuest(y, questId, line)
+    local width = State.list.width
+    local warnings = line.warnings or NO_WARNINGS
+    local hasSecondLine = line.subText ~= nil or line.profitText ~= nil
+    local height = 24 + (hasSecondLine and 15 or 0) + #warnings * 15
+    local isSelected = selectedQuestIds[State.selectedTab] == questId
+        and not (State.selectedTab == TAB_QUESTS and State.selectedLogZoneId)
+    if isSelected then
+        State.selectedRowTop, State.selectedRowBottom = y, y + height
+        addSelectionGlow(y, height)
+    end
+    if line.isFocused then
+        State.list:addRect(width - 5, y, 3, height, COLORS.gold, 2) -- the tracker's active quest: a gold bar down the row's right edge
+    end
+    local left = addRowLead(y, questId, line)
+    local right = addRowMarks(y, questId, line)
     State.list:addText(
         ns.Widgets.formatQuestTitle(line.level, line.title, ns.QuestState.getGroupInfo(questId)),
         left,
@@ -647,40 +764,8 @@ local function addListQuest(y, questId, line)
             color = line.color or ns.Widgets.getDifficultyColor(line.level), -- the glow alone marks the chosen quest
         }
     )
-    local textY = y + 21
-    local subRight = width - 10
-    if line.profitText then
-        -- What the quest is worth, quietly at the right of the second line
-        local _, profitWidth = State.list:addText(line.profitText, width - 10 - 110, textY, {
-            font = "GameFontHighlightSmall",
-            color = COLORS.tan,
-            width = 110,
-            justify = "RIGHT",
-            isSingleLine = true,
-        })
-        subRight = width - 10 - math.min(profitWidth, 110) - 8
-    end
-    if line.subText then
-        local subLeft = left
-        if line.isReady then
-            -- The tick starts the green line it belongs to: the game's yellow check, as its quest log ticks a quest
-            if List.hasGameArt("questlog-icon-checkmark-yellow") then
-                State.list:addImage(left, textY, 13, 11, List.READY_CHECK)
-            else
-                State.list:addIcon(left, textY, 11, READY_ICON)
-            end
-            subLeft = left + 16
-        end
-        State.list:addText(line.subText, subLeft, textY, {
-            font = "GameFontHighlightSmall",
-            color = line.isReady and COLORS.green or COLORS.tan,
-            width = subRight - subLeft,
-            isSingleLine = true,
-        })
-    end
-    if hasSecondLine then
-        textY = textY + 15
-    end
+    addSecondLine(y + 21, left, line)
+    local textY = y + 21 + (hasSecondLine and 15 or 0)
     for _, warning in ipairs(warnings) do
         State.list:addText(
             warning,
@@ -692,21 +777,59 @@ local function addListQuest(y, questId, line)
     end
     -- A click opens the quest on the page and highlights it on the map, which turns to it; shift-click links it
     -- in chat; a right click opens its menu (focus, track, share to chat or the party, abandon)
+    local openMenu = line.canFocus and Log.openLogQuestMenu
+        or (questId and not line.handleClick and Log.openAvailableQuestMenu)
+        or nil
     local rowButton = State.list:addButton(
-        buttonLeft,
+        2,
         y,
-        width - 2 - buttonLeft,
+        width - 4,
         height,
         line.handleClick or selectQuest,
         questId,
         handleQuestEnter,
-        line.canFocus and Log.openLogQuestMenu
-            or (questId and not line.handleClick and Log.openAvailableQuestMenu)
-            or nil,
+        openMenu,
         handleQuestLeave
     )
     rowButton.isQuestRow = questId ~= nil
     return y + height + 2
+end
+
+---A chain's step on a quest's row ("2/5"), or how many quests it opens ("+3", with List's branching mark).
+---@return string? text Nil for a quest that is neither
+function List.composeChainText(quest)
+    if quest.chainIndex then
+        return string.format("%d/%d", quest.chainIndex, quest.chainTotal)
+    end
+    local unlockCount = quest.unlockIds and #quest.unlockIds or 0
+    if unlockCount > 0 then
+        return "+" .. unlockCount
+    end
+    return nil
+end
+
+---The mark of what starts a quest to pick up: the item's own icon, an object's scroll, or the giver's "!".
+function List.getStartTypeIcon(quest)
+    if quest.startType == "item" then
+        local icon = quest.itemId and C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(quest.itemId)
+        return icon or Style.ITEM_ICON
+    end
+    return quest.startType == "object" and Style.OBJECT_ICON or Style.GIVER_ICON
+end
+
+---While the quest database is still being read (the Available and Dungeons tabs need it): the list says so, the
+---page stays empty, and the window is drawn again once it is read.
+function List.drawDatabaseWait()
+    State.list:addText(
+        ns.L("Reading the quest database..."),
+        10,
+        8,
+        { color = COLORS.tan, width = State.list.width - 20 }
+    )
+    State.list:finish(40)
+    State.detail:finish(1)
+    State.frame.status:SetText("")
+    ns.Availability.prepare(Log.refresh)
 end
 
 ---------------------------------------------------------------------------------------------------------------

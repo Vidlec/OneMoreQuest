@@ -1,4 +1,5 @@
 local addonName, ns = ... -- the addon's folder, which its pictures are read from
+local CreateFrame = ns.CreateFrame -- (Core: frames made inside an open gamepad window)
 
 -- The quest panels joined to the right side of the game's world map (see MapDock): a dark list, then the
 -- selected quest on parchment, with actions under it. Two tabs: the quests in the log, grouped by where their
@@ -10,7 +11,11 @@ ns.Log = Log
 --   Base          what every part shares: the look (ns.LogStyle), the window's state (ns.LogState), and actions on
 --                 quests (ns.LogActions: select, focus, track, their menus)
 --   List          the list on the left: headings and quest rows (ns.LogList)
---   QuestPage     the page on parchment: a quest's page, its header and rewards, a zone's page (ns.LogQuestPage)
+--   QuestPage     the page on parchment: what its parts share, a quest of the log's page, a zone's page
+--                 (ns.LogQuestPage, which the page's parts below share through)
+--   PageHeader, PageRewards, PageChain, PageToDo, PageParty, HintLadder, AvailablePage
+--                 the page's parts: its header, what a quest gives, the quests around it, its To do list, the party
+--                 on it, the hint ladder, and the page of a quest to pick up
 --   QuestsTab     the My quests tab (ns.LogQuestsTab)
 --   AvailableTab  the Available tab: quests to pick up, dungeon runs (ns.LogAvailableTab)
 --   SettingsView  the settings, drawn in the window (ns.LogSettingsView)
@@ -107,18 +112,75 @@ Log.PANEL_WIDTH = PANEL_WIDTH
 Log.TITLE_HEIGHT = TITLE_HEIGHT -- the room the flat border's buttons take at the top of the list's side
 State.searchText = ""
 
+---A modified click that does something else than selecting: Shift (the game's chat-link click) puts the quest's
+---link in the chat; Ctrl on a quest of the log puts it in focus (or lets go of it), as its Focus button does.
+---@return boolean isHandled
+local function handleModifiedClick(questId)
+    if not questId then
+        return false
+    end
+    if ns.QuestState.isLinkClick() then
+        ns.QuestState.linkInChat(questId)
+        return true
+    end
+    if State.selectedTab == TAB_QUESTS and ns.QuestState.isFocusClick() then
+        Log.focusQuest(questId)
+        return true
+    end
+    return false
+end
+
+---Turns the map to a zone, sliding to a spot in it when one is given, without the Available list following the
+---map: the list keeps its location and its selected quest.
+---@param place table? The spot; nil shows the zone
+local function showPlaceOnMap(zoneId, place)
+    State.isMapFollowPaused = true
+    ns.MapDock.showQuestPlace(zoneId, place)
+    State.isMapFollowPaused = false
+end
+
+---@return table[] places Where an available quest starts: its givers, or where the item that starts it is found
+local function getStartPlaces(questId)
+    local places = ns.Location.getStarterPlaces(questId)
+    if #places > 0 then
+        return places
+    end
+    local itemSource = ns.Location.getStartItemSource(questId)
+    return itemSource and itemSource.places or {}
+end
+
+---An available quest picked up away from the map (a dungeon's quest given in The Barrens, a lead-in in a city):
+---the map turns to where it starts, and the list stays where it is.
+local function showAvailableQuestStart(questId)
+    local places = getStartPlaces(questId)
+    local shownZoneId = ns.MapDock.getShownZoneId()
+    for _, place in ipairs(places) do
+        if ns.Database.getParentZoneId(place.mapZoneId or 0) == shownZoneId or place.groupZoneId == shownZoneId then
+            return -- on the map already
+        end
+    end
+    if #places == 0 then
+        return
+    end
+    local _, _, nearestPlace = ns.Geometry.getNearest(places, ns.Geometry.getPlayerPosition(), ns.Database.getUiMapId)
+    nearestPlace = nearestPlace or places[1]
+    showPlaceOnMap(nearestPlace.mapZoneId or nearestPlace.groupZoneId, nearestPlace.x >= 0 and nearestPlace or nil)
+end
+
+---A quest chosen by hand on the Available or Dungeons tab: the map turns to where it starts and slides to it, as
+---for a quest in the log. The list stays on its location meanwhile, though the map now shows another zone.
+local function showChosenQuestStart(quest)
+    local place = quest.nearestPlace or quest.places[1]
+    if place and place.x >= 0 then
+        showPlaceOnMap(place.mapZoneId or place.groupZoneId, place)
+    end
+end
+
 ---A click on a quest in the list. The selected quest is the highlighted one: its page is open and the map
 ---shows it in full (on the Available tab: where it starts and ends). Clicking it again deselects it, which
 ---leaves nothing highlighted.
 local function selectQuest(questId)
-    -- Shift-click (the game's chat-link click): the quest's link in the chat, nothing else changes
-    if questId and ns.QuestState.isLinkClick() then
-        ns.QuestState.linkInChat(questId)
-        return
-    end
-    -- Ctrl-click a quest of the log: it is put in focus (or let go of, when it was), as its Focus button does
-    if questId and State.selectedTab == TAB_QUESTS and ns.QuestState.isFocusClick() then
-        Log.focusQuest(questId)
+    if handleModifiedClick(questId) then
         return
     end
     -- With the settings open, a click opens the quest, even the one that was selected before
@@ -138,32 +200,8 @@ local function selectQuest(questId)
     State.unfocusedSelection = nil -- (picked in the list: the map shows it again, Log.getSelectedQuestId)
     State.selectedLogZoneId, State.isChainExpanded = nil, false
     State.mapQuestId = questId
-    -- An available quest picked up away from the map (a dungeon's quest given in The Barrens, a lead-in in a
-    -- city): the map turns to where it starts, and the list stays where it is
     if questId and State.selectedTab == TAB_AVAILABLE then
-        local places = ns.Location.getStarterPlaces(questId)
-        if #places == 0 then
-            local itemSource = ns.Location.getStartItemSource(questId)
-            places = itemSource and itemSource.places or {}
-        end
-        local shownZoneId = ns.MapDock.getShownZoneId()
-        local isOnMap = false
-        for _, place in ipairs(places) do
-            isOnMap = isOnMap
-                or ns.Database.getParentZoneId(place.mapZoneId or 0) == shownZoneId
-                or place.groupZoneId == shownZoneId
-        end
-        if not isOnMap and #places > 0 then
-            local _, _, nearestPlace =
-                ns.Geometry.getNearest(places, ns.Geometry.getPlayerPosition(), ns.Database.getUiMapId)
-            nearestPlace = nearestPlace or places[1]
-            State.isMapFollowPaused = true
-            ns.MapDock.showQuestPlace(
-                nearestPlace.mapZoneId or nearestPlace.groupZoneId,
-                nearestPlace.x >= 0 and nearestPlace or nil
-            )
-            State.isMapFollowPaused = false
-        end
+        showAvailableQuestStart(questId)
     end
     Log.refresh()
     ns.MapPins.queueRefresh()
@@ -200,8 +238,9 @@ local function handleQuestEnter(_, questId)
     ns.MapPins.queueHoverRefresh() -- once the mouse rests on it, not for every row it crosses
 end
 
-local function handleQuestLeave(_, questId)
-    if hoveredQuestIds[State.selectedTab] == questId then
+local function handleQuestLeave()
+    -- (whichever quest: a pooled row redrawn under a resting pointer holds another quest by the time it is left)
+    if hoveredQuestIds[State.selectedTab] ~= nil then
         hoveredQuestIds[State.selectedTab] = nil
         ns.MapPins.queueHoverRefresh()
     end
@@ -299,6 +338,44 @@ function Log.openAvailableQuestMenu(questId)
     Log.openQuestMenu(questId, false)
 end
 
+---Gives a small window of the quest window's own (the drop window, the hint ladder) its flat look: a fill and a
+---1px edge.
+---@param edge number[] The edge's colour
+---@param back number[] The fill's colour, its alpha 1 unless given
+function Style.setEdged(frame, edge, back)
+    frame:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Buttons\\WHITE8X8",
+        edgeSize = 1,
+    })
+    frame:SetBackdropColor(back[1], back[2], back[3], back[4] or 1)
+    frame:SetBackdropBorderColor(edge[1], edge[2], edge[3], 1)
+end
+
+---Puts the flat cross the quest window's drawn parts use (Media\Close), lit on hover, in a small window's top
+---right corner: a click hides the window.
+---@param inset number How far from the window's top and right edges
+---@return Button close
+function Style.addCloseButton(window, inset)
+    local close = CreateFrame("Button", nil, window)
+    close:SetSize(14, 14)
+    close:SetPoint("TOPRIGHT", window, "TOPRIGHT", -inset, -inset)
+    local crossFile = MEDIA .. "Close"
+    local cross = close:CreateTexture(nil, "ARTWORK")
+    cross:SetAllPoints(close)
+    cross:SetTexture(crossFile)
+    cross:SetVertexColor(0.85, 0.85, 0.85)
+    local lit = close:CreateTexture(nil, "HIGHLIGHT")
+    lit:SetAllPoints(close)
+    lit:SetTexture(crossFile)
+    lit:SetBlendMode("ADD")
+    lit:SetAlpha(0.5)
+    close:SetScript("OnClick", function()
+        window:Hide()
+    end)
+    return close
+end
+
 local function isMatch(...)
     if State.searchText == "" then
         return true
@@ -364,6 +441,8 @@ State.listOpening = listOpening
 State.listScrollByTab = listScrollByTab
 State.nativeTabs = nativeTabs
 Actions.selectQuest = selectQuest
+Actions.showChosenQuestStart = showChosenQuestStart
+Actions.showPlaceOnMap = showPlaceOnMap
 Actions.selectZone = selectZone
 State.selectedQuestIds = selectedQuestIds
 State.shownDetailSubjectByTab = shownDetailSubjectByTab
