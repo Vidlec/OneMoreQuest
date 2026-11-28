@@ -17,18 +17,18 @@
     {
       "id": "map-marks",
       "title": "Marks that show where to go",
-      "text": "A numbered mark for each tracked quest's area, the givers of quests you can pick up, and where each quest's creatures and items are, on the map and the minimap. Point at a mark for the quest; click it to open the quest.",
+      "text": "A gold mark for each tracked quest showing what to do there, the game's \"?\" where it's ready to hand in, the givers of quests you can pick up, and where each quest's creatures and items are, on the map and the minimap. Point at a mark for the quest; click it to open the quest.",
       "chapter": "find-your-way",
       "layout": "wide",
-      "alt": "The Barrens map covered in numbered quest marks and spawn areas, beside a quest log of ten Barrens quests with their chain steps."
+      "alt": "The Barrens map covered in quest marks, quest givers and spawn areas, beside a quest log of ten Barrens quests with their chain steps."
     },
     {
       "id": "quest-areas",
       "title": "Where it's done, drawn on the map",
-      "text": "The quest in focus drawn in full: where its creatures and items are, as a soft shadow or an outline, with a marker on each spawn. The other quests' places stay around it, fainter, and you choose how it all looks.",
+      "text": "Each tracked quest in a colour of its own: where its creatures and items are, as a soft shadow or an outline, with a marker on each spawn of what to do there. Put a quest in focus to draw it in full, and choose how it all looks.",
       "chapter": "find-your-way",
       "layout": "wide",
-      "alt": "The Barrens map zoomed in near the Crossroads: Centaur Bracers in focus with its Kolkar camps as teal shadows and a marker on each spawn, numbered marks for other quests and the givers of quests to pick up."
+      "alt": "The Barrens map zoomed in round the Crossroads: four quests' areas in their own colours, the harpies of the Dry Hills in green, the Kolkar camps in teal, the prowlers in pink and the pirates on the coast in blue, each with a marker on every spawn."
     },
     {
       "id": "quest-page",
@@ -49,7 +49,7 @@
     {
       "id": "tracker",
       "title": "A tracker grouped by zone",
-      "text": "Your tracked quests by zone, numbered like their marks on the map, with chain steps and quest items you can click. Filter it to the quests here, ready or in focus; hover a quest for the details.",
+      "text": "Your tracked quests by zone, with the same marks as the map's, chain steps and quest items you can click. Filter it to the quests here, ready or in focus; hover a quest for the details.",
       "chapter": "find-your-way",
       "layout": "split",
       "alt": "OneMoreQuest's tracker with eight Barrens quests by zone: chain steps such as 2 of 3, the items each quest needs with their drop chances, and two quests ready to hand in.",

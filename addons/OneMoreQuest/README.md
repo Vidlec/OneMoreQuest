@@ -24,10 +24,11 @@ Made for **WoW: Forever**.
   5"), the quests it needs first and the ones it unlocks.
 - **The quest diagram.** A quest's whole chain as a tree: what comes before, what follows, where each quest
   stands for you.
-- **Map and minimap marks.** A numbered mark for each tracked quest's area, the givers of quests you can pick up,
-  and where each quest's creatures and items are, drawn as soft shadows, ovals or traced outlines.
-- **A tracker grouped by zone.** Numbered like the map's marks, with chain steps, clickable quest items, filters
-  for the quests here, ready or in focus, and a waypoint on the quest in focus (TomTom's arrow when you have it).
+- **Map and minimap marks.** A gold mark for each tracked quest showing what to do there (a sword, a sack, a
+  pointing hand, a speech bubble) and the game's "?" where it's ready to hand in, the givers of quests you can pick
+  up, and where each quest's creatures and items are, in a colour of its own: soft shadows, ovals or traced outlines.
+- **A tracker grouped by zone.** The same marks as the map's, with chain steps, clickable quest items, filters for
+  the quests here, ready or in focus, and a waypoint on the quest in focus (TomTom's arrow when you have it).
 - **Quests to pick up.** The Available tab lists everything you can pick up in a zone and what to do next: pick
   up now, opens from your log, opens after a pick-up, needs a level. Hide the quests you don't want to see.
 - **Dungeons.** Every dungeon with quests for you, by level: its way in, what to pick up before you go, what's

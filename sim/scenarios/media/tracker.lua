@@ -1,6 +1,6 @@
 --@addons QuestieDB, OneMoreQuest
 -- The product page's picture of the tracker: a log full of the Barrens' quests, each tracked, grouped by zone and
--- numbered like their marks on the map, with chain steps, quest items to click and a quest ready to hand in. The map
+-- with the same marks as the map's, with chain steps, quest items to click and a quest ready to hand in. The map
 -- is closed: the tracker as it stands while you play.
 local G = require("sim").G
 

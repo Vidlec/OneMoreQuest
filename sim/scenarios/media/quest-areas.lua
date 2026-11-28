@@ -1,44 +1,42 @@
 --@addons QuestieDB, OneMoreQuest
--- The product page's picture of where quests' objectives are: a log of the Barrens' quests, Centaur Bracers in focus,
--- the map made larger with the quest window's grip and zoomed in on the middle Barrens, the quest panels put away. The
--- quest in focus is drawn in full (its areas as soft shadows, a marker on each spawn), the other quests' numbered marks
--- and spawns around it, and the givers of quests to pick up.
+-- The product page's picture of where quests are done: four Barrens quests whose places lie apart round the
+-- Crossroads, each in a colour of its own (the harpies of the Dry Hills, the Kolkar camps, the prowlers, the pirates
+-- on the coast), none in focus so each shows its own colour. The map made larger with the quest window's grip, the
+-- quest panels put away, zoomed in, and the givers of quests to pick up hidden (the "!" button on the map), so the
+-- areas and the spawn markers have the map to themselves. The fills at their strongest and every quest's markers at
+-- full strength, as the settings allow.
 local G = require("sim").G
 local addon = require("addons").byName["onemorequest"].private
 
 screen(1920, 1080)
-setProfile({ level = 20, race = "Orc", class = "WARRIOR" })
+setProfile({ level = 16, race = "Orc", class = "WARRIOR" })
 moveTo(1413, 0.52, 0.31) -- The Barrens, by the Crossroads
--- The Barrens' quests for the level (zone 17 in the quest database), each taken and tracked
-local quests, taken = G.LibQuestieDB.Quest, 0
-for questId = 1, 9999 do
-    local isRead, zone = pcall(quests.Get, questId, "zoneOrSort")
-    if isRead and zone == 17 and taken < 8 then
-        local level = quests.Get(questId, "questLevel") or 0
-        if level >= 14 and level <= 22 and pcall(accept, questId) then
-            taken = taken + 1
-            G.C_QuestLog.AddQuestWatch(questId)
-        end
-    end
+-- Centaur Bracers, Harpy Raiders, Southsea Freebooters, Prowlers of the Barrens
+for _, questId in ipairs({ 855, 867, 887, 903 }) do
+    accept(questId)
+    G.C_QuestLog.AddQuestWatch(questId)
 end
-expect(G.C_QuestLog.IsOnQuest(855), "Centaur Bracers is in the log")
+addon.settings.areMapGiversHidden = true
+addon.settings.areaFillStrength = 2
+addon.settings.otherSpawnMarkers = "full"
+addon.Focus.set(nil) -- (a quest in focus would leave the others grey)
 wait(2)
-addon.Focus.set(855) -- Centaur Bracers: the Kolkar camps round the Crossroads
 key("M")
 wait(1.5)
 expect(G.WorldMapFrame:IsShown(), "the map opens with M")
--- Larger, with the quest window's grip, then zoomed in as far as the map goes on the middle Barrens
+-- Larger, with the quest window's grip
 local MapDock = addon.MapDock
 MapDock.startResize(false)
-MapDock.resizeTo(560, 380)
+MapDock.resizeTo(440, 330)
 MapDock.stopResize()
 wait(0.5)
-local container = G.WorldMapFrame.ScrollContainer
-container:InstantPanAndZoom(container:GetScaleForMaxZoom(), 0.45, 0.4)
-wait(1.5)
-expect(G.WorldMapFrame:GetCanvasZoomPercent() > 0.5, "the map is zoomed in")
 -- The quest panels put away, as the arrow on the map's edge does: the map alone
 MapDock.foldUntilClosed()
 wait(0.5)
 expect(not G.OneMoreQuestLog:IsVisible(), "the quest panels are put away")
+-- Then zoomed in round the Crossroads (folding the panels lays the map out again, at its whole zone)
+local container = G.WorldMapFrame.ScrollContainer
+container:InstantPanAndZoom(container:GetScaleForMaxZoom(), 0.48, 0.15)
+wait(1.5)
+expect(G.WorldMapFrame:GetCanvasZoomPercent() > 0.5, "the map is zoomed in")
 saveScene("quest-areas", { only = { "WorldMapFrame" } })
