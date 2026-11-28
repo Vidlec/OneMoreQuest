@@ -1,0 +1,712 @@
+/* OneMoreQuest's product page (tools/site/build.ts); the system is written down in DESIGN.md. The ground is the
+   game at dusk: a steel-blue sky over umber earth, parchment for words and forged gold for what matters. The type is
+   close to the game's own Friz Quadrata (not free): Cinzel's carved capitals for the name and headings, Marcellus's
+   flared letters for the text. The screenshots are the windows alone, on nothing: they stand on the page's ground with
+   a shadow, as they stand over the world in the game, as large as the page lets them be. */
+
+@font-face {
+  font-family: "Cinzel";
+  src: url("fonts/Cinzel-Variable.ttf") format("truetype");
+  font-weight: 400 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Marcellus";
+  src: url("fonts/Marcellus-Regular.ttf") format("truetype");
+  font-display: swap;
+}
+
+:root {
+  --earth: #15110c;
+  --leather: #221a12;
+  --sky: #1d3550;
+  --parchment: #ecdcbd;
+  --parchment-quiet: #b8a684;
+  --gold: #e2b04a;
+  --gold-deep: #8f6a26;
+  --gold-shadow: #4a3510;
+  --scroll: #e9d6ae;
+  --scroll-edge: #c9a96e;
+  --ink: #2a1f12;
+  --ink-brown: #5b3a12;
+  --ink-red: #66220b;
+  --line: rgb(226 176 74 / 0.28);
+  /* A reading line of about 65 characters of Marcellus at 18px; in rem so headings and text share their edges */
+  --text: 36rem;
+  --wide: 70rem;
+  --stage: 85rem;
+  --gutter: 24px;
+  --display: "Cinzel", "Marcellus", Georgia, serif;
+  --body: "Marcellus", "Iowan Old Style", Georgia, serif;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  color-scheme: dark;
+  scrollbar-color: var(--gold-deep) var(--earth);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-padding-top: 24px;
+}
+
+body {
+  margin: 0;
+  background: var(--earth);
+  color: var(--parchment);
+  font: 18px / 1.7 var(--body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: rgb(226 176 74 / 0.35);
+  color: var(--parchment);
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--gold);
+  text-wrap: balance;
+}
+
+p {
+  margin: 0 0 1em;
+  text-wrap: pretty;
+}
+
+a {
+  color: var(--gold);
+  text-underline-offset: 0.22em;
+  text-decoration-thickness: 1px;
+}
+
+a:hover {
+  color: var(--parchment);
+}
+
+:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+code {
+  font:
+    0.86em ui-monospace,
+    "SF Mono",
+    Consolas,
+    monospace;
+  color: var(--parchment);
+  background: var(--leather);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 0.1em 0.35em;
+}
+
+.skip {
+  position: absolute;
+  left: var(--gutter);
+  top: -100px;
+  z-index: 2;
+  padding: 10px 16px;
+  background: var(--leather);
+  border: 1px solid var(--gold);
+  border-radius: 4px;
+}
+
+.skip:focus {
+  top: 12px;
+}
+
+/* The bar on top: the name, the pages */
+.masthead {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  max-width: var(--stage);
+  margin: 0 auto;
+  padding: 16px var(--gutter);
+}
+
+/* On the home page it lies over the opening's sky, however many rows it wraps to */
+.masthead-over {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--parchment);
+  text-decoration: none;
+  font: 600 19px / 1 var(--display);
+  letter-spacing: 0.02em;
+}
+
+/* (the opening's title is the name there: the bar keeps its mark alone) */
+.masthead-over .brand span {
+  display: none;
+}
+
+.nav {
+  display: flex;
+  gap: 28px;
+}
+
+.nav a {
+  color: var(--parchment-quiet);
+  text-decoration: none;
+  padding: 10px 0;
+  border-bottom: 1px solid transparent;
+}
+
+.nav a:hover,
+.nav a[aria-current="page"] {
+  color: var(--parchment);
+  border-bottom-color: var(--gold-deep);
+}
+
+/* Buttons: a forged gold plate with an engraved edge, and a quiet one edged in gold */
+.button {
+  display: inline-block;
+  padding: 13px 28px;
+  border: 1px solid #f4d68c;
+  border-radius: 3px;
+  background: linear-gradient(to bottom, #ecc061, #d6a23e);
+  box-shadow:
+    inset 0 -2px 0 #9a7228,
+    0 8px 18px rgb(0 0 0 / 0.35);
+  color: #24180a;
+  font: 600 17px / 1.2 var(--display);
+  letter-spacing: 0.03em;
+  text-decoration: none;
+  transition: filter 160ms var(--ease-out);
+}
+
+.button:hover {
+  color: #24180a;
+  filter: brightness(1.08);
+}
+
+.button:active {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0 -1px 0 #9a7228,
+    0 3px 8px rgb(0 0 0 / 0.35);
+}
+
+.button-quiet {
+  border-color: var(--gold-deep);
+  background: #1c160f;
+  box-shadow: 0 6px 14px rgb(0 0 0 / 0.3);
+  color: var(--gold);
+}
+
+.button-quiet:hover {
+  color: var(--parchment);
+  filter: none;
+  background: var(--leather);
+}
+
+.get .actions {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: 0 0 16px;
+}
+
+.requirement {
+  max-width: 44rem;
+  margin: 0 auto 6px;
+  font-size: 16px;
+  color: var(--parchment-quiet);
+}
+
+/* (on the opening's sky the quiet tone is too dim: a lighter one) */
+.hero .requirement {
+  color: #d6c6a2;
+}
+
+/* The opening: the name over a dusk sky, then the quest window itself, large, on a warm horizon light */
+.hero {
+  position: relative;
+  padding: 80px var(--gutter) 24px;
+  text-align: center;
+  background:
+    radial-gradient(ellipse 60% 46% at 50% 0%, rgb(61 101 143 / 0.6), transparent 72%),
+    radial-gradient(ellipse 120% 70% at 50% 120%, rgb(0 0 0 / 0.55), transparent 60%),
+    linear-gradient(to bottom, var(--sky), #192231 38%, var(--earth) 70%);
+}
+
+.title {
+  font: 700 clamp(30px, 6.2vw, 88px) / 1 var(--display);
+  letter-spacing: 0.02em;
+  color: var(--gold);
+  text-shadow:
+    0 3px 0 var(--gold-shadow),
+    0 10px 24px rgb(0 0 0 / 0.45);
+}
+
+.tagline {
+  margin: 10px auto 22px;
+  max-width: 24ch;
+  font-size: clamp(22px, 2.6vw, 30px);
+  line-height: 1.25;
+  color: var(--parchment);
+}
+
+.showcase {
+  position: relative;
+  z-index: 0;
+  max-width: var(--stage);
+  margin: 28px auto 0;
+}
+
+/* (the horizon's light behind the window: where the sky meets the earth) */
+.showcase::before {
+  content: "";
+  position: absolute;
+  inset: 8% 4% -6%;
+  z-index: -1;
+  background: radial-gradient(ellipse 50% 50% at 50% 55%, rgb(226 176 74 / 0.16), transparent 70%);
+}
+
+/* (as tall as the window leaves under the opening's words, so the whole of it is seen at once) */
+.showcase img {
+  width: auto;
+  max-height: max(380px, calc(100svh - 400px));
+}
+
+/* A screenshot: the windows standing on the ground, as large as they stay sharp (drawn at twice their shown size) */
+.pan img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+  filter: drop-shadow(0 28px 40px rgb(0 0 0 / 0.6)) drop-shadow(0 0 1px rgb(0 0 0 / 0.9));
+}
+
+.shot {
+  min-width: 0; /* (a grid item: else its picture's width props the row open on a phone) */
+  margin: 0 auto;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .showcase img {
+    animation: rise 700ms var(--ease-out) both;
+  }
+
+  @keyframes rise {
+    from {
+      transform: translateY(24px);
+    }
+  }
+}
+
+.intro {
+  max-width: var(--text);
+  margin: 0 auto;
+  padding: 64px var(--gutter) 0;
+  font-size: 21px;
+  line-height: 1.6;
+}
+
+.intro strong {
+  font-weight: 400;
+  color: var(--gold);
+}
+
+/* A chapter: its title under a gold rule with a diamond, the one ornament on the page, then its features */
+.chapter {
+  max-width: var(--stage);
+  margin: 0 auto;
+  padding: 112px var(--gutter) 0;
+}
+
+.chapter-title {
+  font-size: clamp(32px, 4.6vw, 54px);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-align: center;
+  text-shadow: 0 2px 0 var(--gold-shadow);
+}
+
+.chapter-title::before {
+  content: "";
+  display: block;
+  width: min(420px, 70%);
+  height: 16px;
+  margin: 0 auto 28px;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Cpath d='M8 1 15 8 8 15 1 8Z' fill='%23e2b04a' stroke='%2315110c' stroke-width='2'/%3E%3C/svg%3E")
+    center / 16px 16px no-repeat,
+    linear-gradient(to right, transparent, var(--gold-deep) 30%, var(--gold-deep) 70%, transparent) center / 100% 1px
+    no-repeat;
+}
+
+/* A feature: its title and what it does side by side, then its windows across the whole stage; a small picture
+   stands beside its words instead */
+.feature {
+  padding-top: 72px;
+}
+
+.feature-text {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, var(--text));
+  gap: 12px 48px;
+  align-items: baseline;
+  max-width: var(--wide);
+  margin: 0 auto 36px;
+}
+
+.feature h3 {
+  font-size: clamp(25px, 2.6vw, 34px);
+  letter-spacing: 0.01em;
+}
+
+.feature-text p {
+  margin: 0;
+  color: var(--parchment-quiet);
+}
+
+.feature-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 48px;
+  align-items: center;
+  max-width: var(--wide);
+  margin: 0 auto;
+}
+
+.feature-split .feature-text {
+  grid-template-columns: 1fr;
+  margin: 0;
+}
+
+/* (every second window beside its words stands on the left) */
+.feature-flip {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.feature-flip .feature-text {
+  order: 2;
+}
+
+/* Also in the box: what has no picture of its own, in two columns on the ground */
+.also {
+  max-width: var(--wide);
+  margin: 0 auto;
+  padding: 112px var(--gutter) 0;
+}
+
+.also h2 {
+  margin-bottom: 28px;
+  font-size: clamp(28px, 3.4vw, 40px);
+  text-align: center;
+}
+
+.also ul {
+  columns: 2 22rem;
+  column-gap: 56px;
+  margin: 0;
+  padding-left: 20px;
+  color: var(--parchment-quiet);
+}
+
+.also li {
+  margin: 0 0 14px;
+  break-inside: avoid;
+}
+
+/* The closing: one more call to get it, on the same sky the page opened with */
+.closing {
+  margin-top: 128px;
+  padding: 88px var(--gutter) 120px;
+  text-align: center;
+  background:
+    radial-gradient(ellipse 60% 70% at 50% 100%, rgb(61 101 143 / 0.45), transparent 72%),
+    linear-gradient(to bottom, var(--earth), #192231);
+}
+
+.closing h2 {
+  margin-bottom: 28px;
+  font-size: clamp(32px, 4.6vw, 54px);
+  font-weight: 700;
+  text-shadow: 0 2px 0 var(--gold-shadow);
+}
+
+/* What it needs, its commands, its credits: one sheet of parchment, written in ink */
+.scroll {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  max-width: var(--wide);
+  margin: -48px auto 0;
+  padding: 44px 8px 28px;
+  background: radial-gradient(ellipse 80% 70% at 50% 45%, var(--scroll), var(--scroll-edge) 140%);
+  border: 1px solid rgb(91 58 18 / 0.4);
+  border-radius: 4px;
+  box-shadow: 0 30px 60px rgb(0 0 0 / 0.55);
+  color: var(--ink);
+  font-size: 17px;
+}
+
+.extra {
+  padding: 0 32px 12px;
+}
+
+.extra + .extra {
+  border-left: 1px solid rgb(91 58 18 / 0.25);
+}
+
+.extra h2 {
+  margin-bottom: 14px;
+  font-size: 22px;
+  color: var(--ink-brown);
+}
+
+.scroll .extra a {
+  color: var(--ink-red);
+}
+
+.scroll .extra a:hover {
+  color: var(--ink);
+}
+
+.scroll .extra a:focus-visible {
+  outline-color: var(--ink-red);
+}
+
+.extra ul {
+  margin: 0 0 1em;
+  padding-left: 20px;
+}
+
+.extra li {
+  margin: 4px 0;
+}
+
+.extra strong {
+  font-weight: 400;
+  color: var(--ink-brown);
+}
+
+.extra code {
+  color: var(--ink);
+  background: rgb(91 58 18 / 0.1);
+  border-color: rgb(91 58 18 / 0.3);
+}
+
+/* The changelog: an index of the versions, each version under its own heading, its notes in one reading column; the
+   newest opens with its highlights as wide as the stage */
+.changelog {
+  max-width: var(--stage);
+  margin: 0 auto;
+  padding: 24px var(--gutter) 48px;
+}
+
+.changelog > h1,
+.changelog-lede,
+.versions,
+.release > h2,
+.notes,
+.to-top {
+  max-width: var(--text);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.changelog > h1 {
+  margin-top: 32px;
+  margin-bottom: 8px;
+  font: 700 clamp(40px, 6vw, 64px) / 1.1 var(--display);
+  text-shadow: 0 3px 0 var(--gold-shadow);
+}
+
+.changelog-lede {
+  color: var(--parchment-quiet);
+}
+
+.versions ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 8px 0 0;
+  padding: 16px 0 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+  font-size: 16px;
+}
+
+.version-link {
+  display: inline-block;
+  padding: 4px 0;
+}
+
+.version-latest {
+  font-size: 14px;
+  color: var(--parchment-quiet);
+}
+
+.release > h2 {
+  margin-top: 72px;
+  margin-bottom: 12px;
+  padding-top: 28px;
+  border-top: 1px solid var(--line);
+  font-size: 32px;
+}
+
+.release-highlighted > h2 {
+  max-width: var(--wide);
+  border-top: 0;
+  font-size: clamp(34px, 5vw, 54px);
+  font-weight: 700;
+  text-align: center;
+  text-shadow: 0 2px 0 var(--gold-shadow);
+}
+
+.highlights {
+  margin-bottom: 56px;
+}
+
+.summary {
+  max-width: var(--text);
+  margin: 0 auto;
+  font-size: 21px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.notes ul {
+  margin: 0 0 1em;
+  padding-left: 22px;
+}
+
+.notes li {
+  margin: 12px 0;
+}
+
+.notes li li {
+  margin: 8px 0;
+}
+
+/* (the notes' "New" and "Fixed": a small heading of their own) */
+.notes p strong:only-child {
+  display: block;
+  margin-top: 1.6em;
+  font: 600 19px / 1.3 var(--display);
+  letter-spacing: 0.03em;
+  color: var(--gold);
+}
+
+.to-top {
+  margin-top: 64px;
+}
+
+.footer {
+  max-width: var(--wide);
+  margin: 80px auto 0;
+  padding: 28px var(--gutter) 40px;
+  border-top: 1px solid var(--line);
+  color: var(--parchment-quiet);
+  font-size: 15px;
+  text-align: center;
+}
+
+.footer p {
+  margin: 0 0 6px;
+}
+
+@media (max-width: 900px) {
+  /* (minmax, not 1fr: a picture that pans on a phone must not prop the column wider than the screen) */
+  .feature-text,
+  .feature-split,
+  .feature-flip {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .feature-flip .feature-text {
+    order: 0;
+  }
+
+  .feature-split {
+    gap: 28px;
+  }
+
+  .extra + .extra {
+    border-left: 0;
+    border-top: 1px solid rgb(91 58 18 / 0.25);
+    padding-top: 20px;
+  }
+}
+
+/* A phone: the pictures keep a size their text can be read at, and pan sideways */
+@media (max-width: 720px) {
+  body {
+    font-size: 17px;
+  }
+
+  .hero {
+    padding-top: 84px;
+  }
+
+  .intro {
+    font-size: 19px;
+  }
+
+  .chapter {
+    padding-top: 88px;
+  }
+
+  /* (stretched to the column, not shrunk round its picture: auto margins would size it to the picture's width) */
+  .shot {
+    margin-inline: 0;
+  }
+
+  .pan {
+    overflow-x: auto;
+    margin-inline: calc(var(--gutter) * -1);
+    padding: 0 var(--gutter) 12px;
+    scrollbar-width: thin;
+  }
+
+  /* (its shown size from its width attribute, up to a readable 720px: a small window, the tracker, stays as sharp as
+     it was drawn) */
+  .pan img {
+    max-width: min(720px, 190vw);
+    margin: 0;
+  }
+
+  .showcase img {
+    max-height: none;
+  }
+
+  .scroll {
+    margin-inline: var(--gutter);
+    padding-inline: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button {
+    transition: none;
+  }
+}

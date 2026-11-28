@@ -1,0 +1,118 @@
+{
+  "headline": "Your quests, sorted by where you go next.",
+  "introParagraphs": 2,
+  "pictureScale": 3,
+  "url": "https://vidlec.github.io/OneMoreQuest/",
+  "curseforge": "https://www.curseforge.com/wow/addons/onemorequest",
+  "github": "https://github.com/Vidlec/OneMoreQuest",
+  "features": [
+    {
+      "id": "quest-log",
+      "title": "Grouped by where you go next",
+      "text": "The game's log files a quest under the zone you picked it up in. OneMoreQuest files it under the zone you have to go to next, in a window docked beside the map, so the zone you're in is your to-do list.",
+      "chapter": "find-your-way",
+      "layout": "wide",
+      "alt": "The Barrens map with quest marks, beside OneMoreQuest's quest log: two quests grouped under Razorfen Kraul and Scarlet Monastery, the open quest's page showing what to do and where."
+    },
+    {
+      "id": "map-marks",
+      "title": "Marks that show where to go",
+      "text": "A numbered mark for each tracked quest's area, the givers of quests you can pick up, and where each quest's creatures and items are, on the map and the minimap. Point at a mark for the quest; click it to open the quest.",
+      "chapter": "find-your-way",
+      "layout": "wide",
+      "alt": "The Barrens map covered in numbered quest marks and spawn areas, beside a quest log of ten Barrens quests with their chain steps."
+    },
+    {
+      "id": "quest-areas",
+      "title": "Where it's done, drawn on the map",
+      "text": "The quest in focus drawn in full: where its creatures and items are, as a soft shadow or an outline, with a marker on each spawn. The other quests' places stay around it, fainter, and you choose how it all looks.",
+      "chapter": "find-your-way",
+      "layout": "wide",
+      "alt": "The Barrens map zoomed in near the Crossroads: Centaur Bracers in focus with its Kolkar camps as teal shadows and a marker on each spawn, numbered marks for other quests and the givers of quests to pick up."
+    },
+    {
+      "id": "quest-page",
+      "title": "Every quest, and where it leads",
+      "text": "What to do and where, which creatures drop each item and how often, a kill counter against the usual number of kills, where to hand it in, its rewards and what it's roughly worth.",
+      "chapter": "find-your-way",
+      "layout": "split",
+      "alt": "The page of the quest Hearts of Zeal: the creatures that drop the hearts, where they are, the drop chances, and where to turn it in."
+    },
+    {
+      "id": "available",
+      "title": "What to pick up next",
+      "text": "Everything you can pick up in a zone, with the givers marked on the map, and what to do next: pick up now, opens from your log, opens after a pick-up, needs a level. Each says how far its giver is and what it's worth.",
+      "chapter": "find-more",
+      "layout": "wide",
+      "alt": "The Available tab in the Barrens: quests to pick up now with their givers, distances and experience, and the page of The Swarm Grows showing how to start it."
+    },
+    {
+      "id": "tracker",
+      "title": "A tracker grouped by zone",
+      "text": "Your tracked quests by zone, numbered like their marks on the map, with chain steps and quest items you can click. Filter it to the quests here, ready or in focus; hover a quest for the details.",
+      "chapter": "find-your-way",
+      "layout": "split",
+      "alt": "OneMoreQuest's tracker with eight Barrens quests by zone: chain steps such as 2 of 3, the items each quest needs with their drop chances, and two quests ready to hand in.",
+      "scale": 5
+    },
+    {
+      "id": "quest-diagram",
+      "title": "The quest diagram",
+      "text": "A quest's whole chain as a tree: what comes before above, what follows below, where each quest stands for you, and its page beside the tree. Opened from any quest's page.",
+      "chapter": "find-more",
+      "layout": "wide",
+      "alt": "The quest diagram of Cutting Teeth: the quest at the top, the three quests it unlocks below, and its page beside the tree."
+    },
+    {
+      "id": "dungeons",
+      "title": "Dungeons, with their quests",
+      "text": "Every dungeon with quests for you, by level: its way in, what to pick up before you go, what's found inside and which lead-ins open the rest. Forever's own dungeons are learned as you run them.",
+      "chapter": "find-more",
+      "layout": "split",
+      "alt": "The Dungeons tab: dungeons by level, Wailing Caverns open with its experience, the quests to pick up before going and the way in."
+    },
+    {
+      "id": "chronicle",
+      "title": "Your own chronicle",
+      "text": "A record of your character's questing, written as you play: totals and records, each day's gold, experience, kills and loot, a journal of every quest handed in, and how much of each zone you've done.",
+      "chapter": "make-it-yours",
+      "layout": "split",
+      "alt": "The chronicle's At a glance page: today's gold, experience and quests, the character's totals, and records such as the fastest quest."
+    },
+    {
+      "id": "spoilers",
+      "title": "As many spoilers as you like",
+      "text": "Choose how much OneMoreQuest tells you: four presets from Guide (everything) to Purist (your log and the tracker's counts), then each kind of hint by hand. The quest's own text is never touched.",
+      "chapter": "make-it-yours",
+      "layout": "split",
+      "alt": "The spoiler settings: the four presets Guide, Hints, Explorer and Purist, and fine-tuning for each kind of hint."
+    },
+    {
+      "id": "settings",
+      "title": "Make it yours",
+      "text": "The quest log, the tracker, the map marks and the quests to pick up can each be switched back to the game's own, or all at once with a quick setup. Every change shows as you make it.",
+      "chapter": "make-it-yours",
+      "layout": "split",
+      "alt": "The settings' At a glance page: switches for each part of OneMoreQuest and quick setups."
+    }
+  ],
+  "requirement": {
+    "name": "QuestieDB",
+    "url": "https://www.curseforge.com/wow/addons/questiedb",
+    "note": "its WoW: Forever build"
+  },
+  "chapters": [
+    {
+      "id": "find-your-way",
+      "title": "Find your way"
+    },
+    {
+      "id": "find-more",
+      "title": "Find more to do"
+    },
+    {
+      "id": "make-it-yours",
+      "title": "Make it yours"
+    }
+  ]
+}

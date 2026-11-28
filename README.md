@@ -4,7 +4,9 @@ A quest addon for WoW: Forever: a quest log beside the map, a tracker grouped by
 to go. Built on QuestieDB. The player-facing description is [addons/OneMoreQuest/README.md](addons/OneMoreQuest/README.md);
 what changed in each version is [addons/OneMoreQuest/CHANGELOG.md](addons/OneMoreQuest/CHANGELOG.md).
 
-Downloads: the [releases](../../releases) (each with its SHA-256 checksum) and CurseForge.
+Downloads: the [releases](../../releases) (each with its SHA-256 checksum) and
+[CurseForge](https://www.curseforge.com/wow/addons/onemorequest). The product page, with screenshots:
+https://vidlec.github.io/OneMoreQuest/.
 
 ## The repository
 
@@ -27,9 +29,12 @@ addons/OneMoreQuest/       the addon (Lua 5.1), as it goes into the game's Inter
   Locales/, Translators/   Czech, and the translation addons quest texts come from
   Media/                   pictures and fonts
   tests/                   unit tests in a fake game (not shipped)
-sim/                       the simulator's scenarios, plugins and helpers (AddonSim)
+sim/                       the simulator's scenarios, plugins and helpers (AddonSim); sim/scenarios/media/ the
+                           product page's screenshots
+site/                      the product page: its features and links (site.json), its style, its screenshots (media/)
 tools/
-  release/                 the release: zip, notes, CurseForge upload (Python, standard library only)
+  release/                 the release: zip, notes, CurseForge upload (TypeScript, run by Bun; no dependencies)
+  site/                    the product page's build (bun run site) and its screenshots (bun run media)
   data/                    generators of the addon's data tables
   design/                  design boards and the design system's sources (not shipped)
 docs/                      history kept for the record
@@ -49,6 +54,9 @@ bun run lint            # StyLua and luacheck (Lua; every Forever global known),
 bun run typecheck       # the tools' TypeScript
 bun run test            # the unit tests, then every simulator scenario
 bun run zip             # the release zip into dist/
+bun run site            # the product page into dist/site
+bun run site:preview    # the product page served as GitHub Pages does, and CurseForge's description
+bun run media           # the product page's screenshots into site/media (the simulator, headless)
 ```
 
 Add a Lua file to the addon by adding it to `OneMoreQuest.toc`: the unit tests, the simulator and the release all
@@ -65,11 +73,12 @@ A release goes out when a pull request that raises the version is merged to main
    requests), and uploads the zip to CurseForge.
 
 A merge that does not raise the version releases nothing. The zip is built byte for byte the same from the same
-files, so anyone can rebuild it (`bun run zip`) and compare its checksum.
+files and the same Bun (`packageManager` in package.json), so anyone can rebuild it (`bun run zip`) and compare its
+checksum.
 
 ### CurseForge
 
-The upload (`tools/release/curseforge.py`) needs, under Settings > Secrets and variables > Actions:
+The upload (`tools/release/curseforge.ts`) needs, under Settings > Secrets and variables > Actions:
 
 | Name                       | Kind               | Value                                                                                      |
 | -------------------------- | ------------------ | ------------------------------------------------------------------------------------------ |
@@ -81,13 +90,40 @@ The upload (`tools/release/curseforge.py`) needs, under Settings > Secrets and v
 To find the game version's id or name, with the token in the environment:
 
 ```
-CURSEFORGE_API_TOKEN=... python tools/release/curseforge.py --list-versions 1.15
+CURSEFORGE_API_TOKEN=... bun tools/release/curseforge.ts --list-versions 1.15
 ```
 
 Until the token is set the upload is skipped (the workflow says so). The file's relations on CurseForge (QuestieDB
 required, the optional addons) come from `addons/OneMoreQuest/.pkgmeta`. To see what would be sent without sending
-it: `python tools/release/curseforge.py --zip dist/OneMoreQuest-<version>.zip --dry-run`. A release whose CurseForge
+it: `bun tools/release/curseforge.ts --zip dist/OneMoreQuest-<version>.zip --dry-run`. A release whose CurseForge
 upload failed can be retried from Actions > Release > Run workflow, with "Upload to CurseForge" ticked.
+
+### The product page
+
+https://vidlec.github.io/OneMoreQuest/ is built from the addon's README.md (its opening, what it needs, its commands,
+its credits), CHANGELOG.md (every version, each with a link of its own), the TOC's version and notes, and
+`site/site.json` (the headline, the links, and the features, each with its screenshot). The Release workflow
+publishes it on every merge to main, before the release (Settings > Pages > Source: GitHub Actions). `bun run site`
+builds it into `dist/site`; `bun run site:preview` builds it and serves it as GitHub Pages does
+(http://127.0.0.1:4321/OneMoreQuest/), with CurseForge's description at http://127.0.0.1:4321/curseforge/. Its type
+is Cinzel (`site/fonts`) and Marcellus (the addon's `Media/Fonts`), free stand-ins for the game's Friz Quadrata.
+Its design system is `DESIGN.md` (with `PRODUCT.md`, the product it presents).
+
+Screenshots are made in the simulator and committed: `bun run media [feature ...]` plays each feature's scenario
+(`sim/scenarios/media/<id>.lua`, which saves the windows it shows with `saveScene(id, { only = {...} })`) and draws
+it headless into `site/media/<id>.webp` (WebP, with its alpha: a tenth of a PNG), those windows alone on a transparent background. Look at them, then commit
+them with the change they show. A new feature is an entry in `site.json` and a scenario of the same name. The
+pictures are drawn at twice the screen's size (`pictureScale`) and shown at their own, so they stay sharp.
+
+A release worth showing gets highlights: `site/releases/<version>.json` (a summary, and each new thing with its
+picture, a scenario in `sim/scenarios/media` like the features'). The changelog page opens that version with them,
+and the GitHub release's notes and CurseForge's file changelog start with them (their pictures the product page's,
+published before the release).
+
+CurseForge's project description is set by hand, once: paste `dist/site/curseforge-description.html` (its HTML
+source) into the description's source view. Its pictures are the site's own, so each release's new screenshots show
+there too. Each file's changelog on CurseForge links to its version on the product page. The gallery is uploaded by
+hand.
 
 ## Licence
 

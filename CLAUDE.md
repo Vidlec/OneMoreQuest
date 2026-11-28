@@ -236,7 +236,14 @@ skipped is said too.
   Generated files are never edited by hand.
 - **Releasing** (README.md, Releasing): a merge to main that raises `## Version:` and the Title's version in the TOC,
   with that version's CHANGELOG section, builds the zip, creates the GitHub release (notes, checksum), and uploads to
-  CurseForge once its secret is set. The release scripts are in `tools/release/` (Python, standard library).
+  CurseForge once its secret is set. The release scripts are in `tools/release/` (TypeScript, run by Bun; no dependencies).
+- **The product page** (README.md, The product page): https://vidlec.github.io/OneMoreQuest/, built by `bun run site`
+  (`tools/site/build.ts`) from the addon's README and CHANGELOG and `site/site.json`, published by the Release
+  workflow on every merge. Its screenshots are committed in `site/media`; `bun run media [id]` remakes them from
+  `sim/scenarios/media/<id>.lua` (headless, the scenario's `saveScene(id, { only = {...} })` windows alone on a
+  transparent background). A change a screenshot shows: remake that picture, look at it, keep it with the change.
+  `bun run site:preview` serves it locally. A release's highlights (the changelog page, the release notes and
+  CurseForge's changelog open with them) are `site/releases/<version>.json`, their pictures media scenarios too.
 - **CI** (`.github/workflows/checks.yml`) runs the format, lint and unit checks and the release build on every
   pull request. The simulator's scenarios run on a developer's machine only.
 - **Design boards and the design system's sources** are in `tools/design/`. They are not shipped and not linted.

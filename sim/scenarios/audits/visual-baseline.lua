@@ -3,7 +3,7 @@
 -- are drawn: the picture must stay the same. Writes sim/scenarios/.visual/<label>/<state>.txt, one line per drawn item
 -- (sorted, without the objects' own numbers: which texture of a pool draws a thing does not matter).
 --   set VISUAL_LABEL=before  (or after), then: bun run test:sim sim/scenarios/audits/visual-baseline.lua
---   python sim/scenarios/audits/visual-diff.py before after
+--   bun sim/scenarios/audits/visual-diff.ts before after
 local scene = require("scene")
 local sim = require("sim")
 local label = os.getenv("VISUAL_LABEL") or "run"

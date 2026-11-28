@@ -12,5 +12,9 @@ sim/scenarios/.mock-export*.json
 sim/scenarios/.profile*.txt
 sim/lib/mapcost.options
 
-# The release tools' output (python tools/release/build_zip.py)
+# The release tools' output (bun tools/release/build-zip.ts) and the product page (bun run site)
 dist/
+
+# Addons the simulator plays with that are not ours (QuestieDB...): the simulator's AddOns folder on a machine
+# without the game (its addonsRoot setting points here)
+.addons/

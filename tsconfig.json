@@ -15,5 +15,5 @@
     "isolatedModules": true,
     "skipLibCheck": true
   },
-  "include": ["addonsim.config.ts", "tools/**/*.ts"]
+  "include": ["addonsim.config.ts", "tools/**/*.ts", "sim/**/*.ts"]
 }

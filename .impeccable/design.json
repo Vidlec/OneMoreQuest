@@ -1,0 +1,160 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-28T00:30:00Z",
+  "title": "Design System: OneMoreQuest",
+  "extensions": {
+    "colorMeta": {
+      "gold": {
+        "role": "primary",
+        "displayName": "Forged Gold",
+        "tonalRamp": ["#3b2a0c", "#5b4214", "#7d5c1d", "#a07828", "#c69636", "#e2b04a", "#ecc979", "#f6e3b6"]
+      },
+      "gold-deep": { "role": "primary", "displayName": "Tarnished Gold" },
+      "gold-shadow": { "role": "primary", "displayName": "Gold's Shadow" },
+      "sky": {
+        "role": "secondary",
+        "displayName": "Dusk Sky",
+        "tonalRamp": ["#0d1826", "#152638", "#1d3550", "#2a4867", "#3d658f", "#6386ab", "#94acc6", "#c9d6e3"]
+      },
+      "earth": { "role": "neutral", "displayName": "Umber Earth" },
+      "leather": { "role": "neutral", "displayName": "Saddle Leather" },
+      "parchment": {
+        "role": "neutral",
+        "displayName": "Parchment",
+        "tonalRamp": ["#3a3326", "#5c5240", "#7f735b", "#a19476", "#b8a684", "#d6c6a2", "#ecdcbd", "#f7efe0"]
+      },
+      "parchment-quiet": { "role": "neutral", "displayName": "Weathered Parchment" },
+      "scroll": { "role": "neutral", "displayName": "Scroll" },
+      "scroll-edge": { "role": "neutral", "displayName": "Scroll Edge" },
+      "ink": { "role": "neutral", "displayName": "Ink" },
+      "ink-brown": { "role": "neutral", "displayName": "Ink Brown" },
+      "ink-red": { "role": "neutral", "displayName": "Ink Red" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "The name, once, in the opening; the changelog's title." },
+      "headline": { "displayName": "Headline", "purpose": "Chapter titles, the closing call, the latest version." },
+      "title": { "displayName": "Title", "purpose": "A feature's or a highlight's name." },
+      "lead": { "displayName": "Lead", "purpose": "The pitch and a release's summary." },
+      "body": { "displayName": "Body", "purpose": "Everything read, in a 36rem column." },
+      "label": { "displayName": "Label", "purpose": "The requirement line, the version index." },
+      "button": { "displayName": "Button", "purpose": "The two plates." }
+    },
+    "shadows": [
+      {
+        "name": "window-on-ground",
+        "value": "drop-shadow(0 28px 40px rgb(0 0 0 / 0.6)) drop-shadow(0 0 1px rgb(0 0 0 / 0.9))",
+        "purpose": "Every screenshot, following the windows' outline."
+      },
+      { "name": "plate-cast", "value": "0 8px 18px rgb(0 0 0 / 0.35)", "purpose": "The primary button." },
+      {
+        "name": "plate-engraving",
+        "value": "inset 0 -2px 0 #9a7228",
+        "purpose": "The primary button's engraved lower edge."
+      },
+      { "name": "parchment", "value": "0 30px 60px rgb(0 0 0 / 0.55)", "purpose": "The closing parchment." },
+      { "name": "carved", "value": "0 3px 0 #4a3510", "purpose": "Under gold display type." }
+    ],
+    "motion": [
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "The showcase's rise on load (700ms, transform only, skipped with reduced motion) and button states (160ms)."
+      }
+    ],
+    "breakpoints": [{ "name": "stacked", "value": "900px" }, { "name": "phone", "value": "720px" }]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one way to act: a forged gold plate with an engraved lower edge.",
+      "html": "<a class=\"ds-btn-primary\" href=\"#\">Install with CurseForge</a>",
+      "css": ".ds-btn-primary { display: inline-block; padding: 13px 28px; border: 1px solid #f4d68c; border-radius: 3px; background: linear-gradient(to bottom, #ecc061, #d6a23e); box-shadow: inset 0 -2px 0 #9a7228, 0 8px 18px rgb(0 0 0 / 0.35); color: #24180a; font: 600 17px/1.2 Cinzel, Marcellus, Georgia, serif; letter-spacing: 0.03em; text-decoration: none; transition: filter 160ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-primary:hover { filter: brightness(1.08); } .ds-btn-primary:focus-visible { outline: 2px solid #e2b04a; outline-offset: 3px; } .ds-btn-primary:active { transform: translateY(1px); box-shadow: inset 0 -1px 0 #9a7228, 0 3px 8px rgb(0 0 0 / 0.35); }"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "The other way: a dark plate edged in tarnished gold.",
+      "html": "<a class=\"ds-btn-quiet\" href=\"#\">Download the zip</a>",
+      "css": ".ds-btn-quiet { display: inline-block; padding: 13px 28px; border: 1px solid #8f6a26; border-radius: 3px; background: #1c160f; box-shadow: 0 6px 14px rgb(0 0 0 / 0.3); color: #e2b04a; font: 600 17px/1.2 Cinzel, Marcellus, Georgia, serif; letter-spacing: 0.03em; text-decoration: none; } .ds-btn-quiet:hover { background: #221a12; color: #ecdcbd; } .ds-btn-quiet:focus-visible { outline: 2px solid #e2b04a; outline-offset: 3px; }"
+    },
+    {
+      "name": "Navigation",
+      "kind": "nav",
+      "refersTo": "nav-link",
+      "description": "Three links, the current page underlined in tarnished gold.",
+      "html": "<nav class=\"ds-nav\"><a href=\"#\" aria-current=\"page\">Features</a><a href=\"#\">Changelog</a><a href=\"#\">Source</a></nav>",
+      "css": ".ds-nav { display: flex; gap: 28px; background: #15110c; padding: 12px 16px; font: 18px/1.7 Marcellus, Georgia, serif; } .ds-nav a { color: #b8a684; text-decoration: none; padding: 10px 0; border-bottom: 1px solid transparent; } .ds-nav a:hover, .ds-nav a[aria-current=page] { color: #ecdcbd; border-bottom-color: #8f6a26; } .ds-nav a:focus-visible { outline: 2px solid #e2b04a; outline-offset: 3px; }"
+    },
+    {
+      "name": "Chapter Title",
+      "kind": "custom",
+      "description": "A chapter's title under the one ornament: a gold rule with a diamond.",
+      "html": "<h2 class=\"ds-chapter\">Find your way</h2>",
+      "css": ".ds-chapter { margin: 0; padding: 24px; background: #15110c; color: #e2b04a; font: 700 40px/1.15 Cinzel, Georgia, serif; letter-spacing: 0.02em; text-align: center; text-shadow: 0 2px 0 #4a3510; } .ds-chapter::before { content: ''; display: block; width: 320px; max-width: 70%; height: 16px; margin: 0 auto 24px; background: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Cpath d='M8 1 15 8 8 15 1 8Z' fill='%23e2b04a' stroke='%2315110c' stroke-width='2'/%3E%3C/svg%3E\") center / 16px 16px no-repeat, linear-gradient(to right, transparent, #8f6a26 30%, #8f6a26 70%, transparent) center / 100% 1px no-repeat; }"
+    },
+    {
+      "name": "Parchment",
+      "kind": "card",
+      "refersTo": "scroll",
+      "description": "The closing sheet, written in ink.",
+      "html": "<div class=\"ds-scroll\"><h2>You'll need</h2><p><a href=\"#\">QuestieDB</a> (required, the WoW: Forever build)</p></div>",
+      "css": ".ds-scroll { max-width: 360px; padding: 28px 32px 16px; background: radial-gradient(ellipse 80% 70% at 50% 45%, #e9d6ae, #c9a96e 140%); border: 1px solid rgb(91 58 18 / 0.4); border-radius: 4px; box-shadow: 0 30px 60px rgb(0 0 0 / 0.55); color: #2a1f12; font: 17px/1.7 Marcellus, Georgia, serif; } .ds-scroll h2 { margin: 0 0 12px; color: #5b3a12; font: 600 22px/1.15 Cinzel, Georgia, serif; } .ds-scroll a { color: #66220b; } .ds-scroll a:hover { color: #2a1f12; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Quest Board at Dusk",
+    "overview": "Evening in a questing town: the day's work posted in gold and ink, and the windows themselves the notices. The page is the game's own hour of rest, a steel-blue sky over umber earth, and on that ground stand OneMoreQuest's windows, large and lifted, as they stand over the world in the game. The pictures are the product: drawn from the game as the windows alone on a transparent ground, given the most room the page has. It is a fantasy game's page without a game company's assets.",
+    "keyCharacteristics": [
+      "Dusk sky over umber earth; parchment for words, forged gold for what matters, ink on the closing parchment.",
+      "Cinzel's carved capitals for the name and headings, Marcellus's flared letters for everything read.",
+      "Screenshots as the architecture: a stage of 85rem against a reading column of 36rem.",
+      "Chapters, each opened by the one ornament: a gold rule with a diamond.",
+      "Lifted, never glowing: soft, offset, neutral shadows; light only as sky and horizon."
+    ],
+    "rules": [
+      {
+        "name": "The One Gold Rule",
+        "body": "Gold is for the name, headings, links and the primary plate. A paragraph is never gold; a background is never gold except the plate.",
+        "section": "colors"
+      },
+      {
+        "name": "The Sky Is Light Rule",
+        "body": "Blue appears only as the sky and its glow at the horizon, behind content, never on it.",
+        "section": "colors"
+      },
+      {
+        "name": "The Carved Shadow Rule",
+        "body": "Gold display type casts a short solid shadow straight down (0 2-3px 0, gold-shadow), as if cut into the page. It never glows.",
+        "section": "typography"
+      },
+      {
+        "name": "The rem Column Rule",
+        "body": "Reading widths are set in rem, not ch, so a large heading and the text under it share one left edge.",
+        "section": "typography"
+      },
+      {
+        "name": "The No Halo Rule",
+        "body": "No zero-offset coloured shadow, box or text. Depth is offset and neutral; light is a background.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do give screenshots the stage (85rem) and redraw them (bun run media) rather than enlarging a picture past half its pixels.",
+      "Do write alt text that describes the windows' content.",
+      "Do keep QuestieDB, the requirement, beside every way to get the addon.",
+      "Do set reading widths in rem (36rem) and keep body text at 18px, 4.5:1 or better.",
+      "Do credit QuestieDB and say that World of Warcraft belongs to Blizzard, once, in the footer."
+    ],
+    "donts": [
+      "Don't use Blizzard's logos, fonts or extracted art; only the addon's own screenshots.",
+      "Don't add download counts, ratings or testimonials that do not exist.",
+      "Don't put a glow or zero-offset coloured shadow on anything (The No Halo Rule).",
+      "Don't use gold for paragraphs or backgrounds other than the primary plate (The One Gold Rule).",
+      "Don't set the page in rounded, equal SaaS cards or put an eyebrow label over a heading.",
+      "Don't add the diamond ornament anywhere but a chapter's opening."
+    ]
+  }
+}

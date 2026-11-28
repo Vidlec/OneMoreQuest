@@ -66,17 +66,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: oven-sh/setup-bun@v2
         with:
-          python-version: "3.12"
+          bun-version-file: package.json
 
       - name: Build the zip and its notes
         run: |
-          python -m py_compile tools/release/*.py
-          python tools/release/build_zip.py
-          python tools/release/notes.py
-          CURSEFORGE_GAME_VERSIONS=0 python tools/release/curseforge.py --zip dist/OneMoreQuest-*.zip --dry-run > /dev/null
+          bun tools/release/build-zip.ts
+          bun tools/release/notes.ts
+          CURSEFORGE_GAME_VERSIONS=0 bun tools/release/curseforge.ts --zip dist/OneMoreQuest-*.zip --dry-run > /dev/null
           cat dist/SHA256SUMS.txt >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build the product page
+        run: bun tools/site/build.ts
 
       - uses: actions/upload-artifact@v4
         with:

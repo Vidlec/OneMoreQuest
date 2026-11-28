@@ -1,6 +1,7 @@
 {
   "name": "wowaddons",
   "private": true,
+  "packageManager": "bun@1.4.5",
   "type": "module",
   "scripts": {
     "test": "bun run test:unit && bun run test:sim",
@@ -14,9 +15,12 @@
     "format:lua": "bun node_modules/addonsim/tools/lua-tools.ts format addons sim tools",
     "lint:lua": "bun node_modules/addonsim/tools/lua-tools.ts check addons sim tools",
     "luacheck:globals": "addonsim run sim/tools/luacheck-globals.lua",
-    "zip": "python tools/release/build_zip.py",
-    "release:notes": "python tools/release/notes.py",
-    "check": "bun run typecheck && bun run lint && bun run test:unit && bun run zip"
+    "zip": "bun tools/release/build-zip.ts",
+    "site": "bun tools/site/build.ts",
+    "site:preview": "bun tools/site/preview.ts",
+    "media": "bun tools/site/media.ts",
+    "release:notes": "bun tools/release/notes.ts",
+    "check": "bun run typecheck && bun run lint && bun run test:unit && bun run zip && bun run site"
   },
   "dependencies": {
     "addonsim": "link:addonsim"

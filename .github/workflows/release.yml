@@ -1,12 +1,17 @@
-# On every merge to main: the checks, then a release of the version in the TOC if it has none yet.
+# On every merge to main: the checks, the product page, then a release of the version in the TOC if it has none yet.
 #
-# - Builds OneMoreQuest-<version>.zip and SHA256SUMS.txt (tools/release/build_zip.py).
-# - Creates the GitHub release v<version>: its notes are the version's CHANGELOG.md section, how to install and the
-#   checksum (tools/release/notes.py), then the merged pull requests (GitHub's generated notes). The zip and the
+# - Publishes the product page (tools/site/build.ts: the README, the changelog, the releases' highlights and the
+#   committed screenshots in site/media) on GitHub Pages, on every merge, released or not: Settings > Pages > Source
+#   must be "GitHub Actions". It goes first: the release's notes show its pictures.
+# - Builds OneMoreQuest-<version>.zip and SHA256SUMS.txt (tools/release/build-zip.ts).
+# - Creates the GitHub release v<version>: its notes are the version's highlights (site/releases), its CHANGELOG.md
+#   section, how to install and the
+#   checksum (tools/release/notes.ts), then the merged pull requests (GitHub's generated notes). The zip and the
 #   checksums are its downloads. A version with a "-" (1.2.3-beta1) is marked a pre-release.
-# - Uploads the zip to CurseForge (tools/release/curseforge.py) when it is set up: the secret CURSEFORGE_API_TOKEN
+# - Uploads the zip to CurseForge (tools/release/curseforge.ts) when it is set up: the secret CURSEFORGE_API_TOKEN
 #   and the repository variables CURSEFORGE_PROJECT_ID and CURSEFORGE_GAME_VERSIONS (Settings > Secrets and
-#   variables > Actions). Without the token the step is skipped.
+#   variables > Actions). Without the token the step is skipped. Its changelog opens with the version's highlights
+#   and ends with a link to the version on the product page.
 #
 # A merge that does not raise "## Version:" in the TOC releases nothing (its version has a release already): raise
 # the version and write its CHANGELOG.md section in the pull request to release it. Run by hand (Actions > Release >
@@ -36,7 +41,7 @@ jobs:
 
   release:
     name: Release
-    needs: checks
+    needs: [checks, site]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -50,13 +55,13 @@ jobs:
         with:
           fetch-depth: 0 # (the tags, for the generated notes since the last release)
 
-      - uses: actions/setup-python@v5
+      - uses: oven-sh/setup-bun@v2
         with:
-          python-version: "3.12"
+          bun-version-file: package.json # (the packageManager's Bun: the zip is the same bytes on every machine with it)
 
       - name: Build the zip
         id: build
-        run: python tools/release/build_zip.py
+        run: bun tools/release/build-zip.ts
 
       - name: Is this version released already?
         id: state
@@ -72,7 +77,7 @@ jobs:
 
       - name: Write the release notes
         if: steps.state.outputs.exists == 'false'
-        run: python tools/release/notes.py --out dist/release-notes.md
+        run: bun tools/release/notes.ts --out dist/release-notes.md
 
       - name: Create the GitHub release
         if: steps.state.outputs.exists == 'false'
@@ -102,7 +107,7 @@ jobs:
         if: env.CURSEFORGE_API_TOKEN != '' && (steps.state.outputs.exists == 'false' || inputs.curseforge)
         env:
           ZIP: ${{ steps.build.outputs.zip }}
-        run: python tools/release/curseforge.py --zip "$ZIP"
+        run: bun tools/release/curseforge.ts --zip "$ZIP"
 
       - name: CurseForge is not set up
         if: env.CURSEFORGE_API_TOKEN == '' && steps.state.outputs.exists == 'false'
@@ -115,3 +120,33 @@ jobs:
           name: OneMoreQuest-${{ steps.build.outputs.version }}
           path: dist/
           retention-days: 30
+
+  site:
+    name: Product page
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Build the site
+        run: bun tools/site/build.ts
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/site
+
+      - name: Publish it
+        id: deploy
+        uses: actions/deploy-pages@v4

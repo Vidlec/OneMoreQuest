@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          "tools/design/system/site/project/**"
+        ],
+        "createdAt": "2026-11-28T00:27:31.552Z",
+        "reason": "Claude: that folder is the in-game UI design system (its own type: Archivo Narrow, Metamorphous), committed before; DESIGN.md describes the product page only"
+      }
+    ]
+  }
+}

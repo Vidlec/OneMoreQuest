@@ -14,7 +14,9 @@
       "!tools/design",
       "!**/*.lua",
       "!sim/plugins/questie",
-      "!sim/scenarios/golden"
+      "!sim/scenarios/golden",
+      "!DESIGN.md",
+      "!.impeccable"
     ]
   },
   "formatter": {

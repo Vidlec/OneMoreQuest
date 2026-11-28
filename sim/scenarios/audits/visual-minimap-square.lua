@@ -1,7 +1,7 @@
 -- The square minimap (Forever's own) draws its areas' fills on a canvas slid under the minimap, where a round one
 -- places each triangle at every move. Both ways must draw the same picture: the same walk recorded with the canvas
 -- (VISUAL_LABEL=canvas) and without (VISUAL_LABEL=nocanvas, which also sets CANVAS_OFF=1), then
---   python sim/scenarios/audits/visual-diff.py nocanvas canvas
+--   bun sim/scenarios/audits/visual-diff.ts nocanvas canvas
 -- Only what shows on the minimap is recorded: what its square cuts away entirely is left out, and places are
 -- rounded to half a pixel (the two ways work them out by different sums).
 local scene = require("scene")

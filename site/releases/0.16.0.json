@@ -1,0 +1,35 @@
+{
+  "summary": "The quest diagram, an Available tab that tells you what to do next, a quest window you can resize, and a quieter way to draw quest areas.",
+  "highlights": [
+    {
+      "picture": "quest-diagram",
+      "title": "The quest diagram",
+      "text": "Open a quest's whole chain as a tree from its page: what comes before above, what follows below, each quest with its level, where it stands for you and its giver. Click a quest to read its page beside the tree.",
+      "alt": "The quest diagram of Cutting Teeth: the quest at the top, the three quests it unlocks below, and its page beside the tree."
+    },
+    {
+      "picture": "available",
+      "title": "What to do next, on the Available tab",
+      "text": "Quests come in sections: pick up now, opens from your log, opens after a pick-up, needs a level, needs something else. Each says what opens it, how many steps away it is, its experience and how far its giver is.",
+      "alt": "The Available tab in the Barrens: quests to pick up now with their givers, distances and experience, and the page of The Swarm Grows."
+    },
+    {
+      "picture": "tracker-unlocks",
+      "title": "What a quest unlocks",
+      "text": "A quest that opens others shows a small key with how many. Its tooltip and its page name them, with the quests that must be done first.",
+      "alt": "The tracker with the quest Cutting Teeth, and its tooltip naming the three quests it unlocks."
+    },
+    {
+      "picture": "resize",
+      "title": "Resize the quest window",
+      "text": "Drag the grip at the window's corner: down makes the map larger and the window as tall beside it, right makes its page wider. Hold Shift to scale the text too; a right click puts the usual size back.",
+      "alt": "The map and quest window made larger with the grip at the window's corner: a taller map and a wider quest page."
+    },
+    {
+      "picture": "quest-areas-shadows",
+      "title": "Quest areas as shadows",
+      "text": "A new look for quest areas: a soft tinted shadow where each quest's spawns are, no rings and no lines. The quietest on the map, and the lightest to draw.",
+      "alt": "The Barrens map with quest areas drawn as soft shadows, beside the quest log."
+    }
+  ]
+}
