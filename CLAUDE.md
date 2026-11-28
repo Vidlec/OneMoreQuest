@@ -67,6 +67,15 @@ The addon is Lua 5.1, as the game runs it (LuaJIT in the simulator: write nothin
   `pcall`. Never let one bad quest stop a whole pass (skip it, report once).
 - **Combat lockdown:** protected frames (secure buttons, the game's own panels) cannot be shown, hidden, moved or
   created in combat. Check `InCombatLockdown()`, and do it after the fight (a module's `afterCombat`).
+- **The real client is stricter than the simulator.** What passes there can still fail in the game:
+  - A nameplate's parts cannot be measured by addons ("can't measure restricted regions"): place frames on a plate
+    by anchors only, never by `GetLeft` / `GetRect` / `GetSize`.
+  - Some values are secret in a fight (a unit's GUID, auras): check `issecretvalue` before using one.
+  - A frame the game forbids (a nameplate in a fight) errors on any question: check `IsForbidden()` first.
+  - OpenMap's combat view hides Blizzard's map canvas (alpha 0), and everything drawn on it, for the fight.
+
+  When a bug the user sees does not reproduce in the simulator, suspect these first, and ask the user for a short
+  `/run` line from the game (under 255 characters: the chat box cuts longer lines).
 - `sim/plugins/questie/` is Questie's own code, copied unchanged: neither formatted nor linted.
 
 ### Style: readable by a stranger

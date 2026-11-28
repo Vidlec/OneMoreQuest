@@ -2,6 +2,12 @@
 
 What changed in each version of OneMoreQuest. A release takes its notes from its own section here.
 
+## 0.16.2
+
+**Fixed**
+
+- An elite or rare quest creature's nameplate shows the game's elite mark again: OneMoreQuest's icon stood right over it. The icon now stands before the elite mark (or a raid mark), its glow clear of it, at every icon size; on a plain creature's plate it stays where it was.
+
 ## 0.16.1
 
 **Fixed**
