@@ -53,28 +53,52 @@ do
         header.title:SetText(title)
     end
 
-    ---The zone in the facts, underlined over a button of its own size, as the page's place links are.
-    local function setHeaderZoneLink(header, zoneLink)
-        local zoneButton = header.zoneButton
-        zoneButton:SetShown(zoneLink ~= nil)
-        zoneButton.underline:SetShown(zoneLink ~= nil)
-        if not zoneLink then
-            return
+    ---@return number width, number height A part of the facts line, measured in its font
+    local function measureFacts(header, text)
+        header.measure:SetText(text)
+        local width, height = header.measure:GetStringWidth(), header.measure:GetStringHeight()
+        return type(width) == "number" and width or #text * 6, type(height) == "number" and height or 12
+    end
+
+    ---A link in the facts (the zone, "Wowhead"), underlined over a button of its own size, as the page's place links
+    ---are. A link the line would wrap onto a second line is left out, as the button is placed on the first.
+    ---@return boolean isShown
+    local function setFactsLink(header, button, link)
+        local beforeWidth = link and measureFacts(header, link.before) or 0
+        local linkWidth, lineHeight = 0, 0
+        if link then
+            linkWidth, lineHeight = measureFacts(header, link.text)
         end
-        header.measure:SetText(zoneLink.before)
-        local beforeWidth = header.measure:GetStringWidth()
-        header.measure:SetText(zoneLink.text)
-        local linkWidth, lineHeight = header.measure:GetStringWidth(), header.measure:GetStringHeight()
-        beforeWidth = type(beforeWidth) == "number" and beforeWidth or 0
-        linkWidth = type(linkWidth) == "number" and linkWidth or 60
-        lineHeight = type(lineHeight) == "number" and lineHeight or 12
-        zoneButton:ClearAllPoints()
-        zoneButton:SetPoint("TOPLEFT", header.facts, "TOPLEFT", beforeWidth - 2, 2)
-        zoneButton:SetSize(linkWidth + 4, lineHeight + 4)
-        zoneButton.underline:ClearAllPoints()
-        zoneButton.underline:SetPoint("TOPLEFT", header.facts, "TOPLEFT", beforeWidth, -lineHeight)
-        zoneButton.underline:SetSize(linkWidth, 1)
-        zoneButton.handleClick, zoneButton.data = zoneLink.handleClick, zoneLink.data
+        local isShown = link ~= nil and beforeWidth + linkWidth <= PAGE_CONTENT_WIDTH - 2 * PADDING
+        button:SetShown(isShown)
+        button.underline:SetShown(isShown)
+        if not isShown then
+            return false
+        end
+        button:ClearAllPoints()
+        button:SetPoint("TOPLEFT", header.facts, "TOPLEFT", beforeWidth - 2, 2)
+        button:SetSize(linkWidth + 4, lineHeight + 4)
+        button.underline:ClearAllPoints()
+        button.underline:SetPoint("TOPLEFT", header.facts, "TOPLEFT", beforeWidth, -lineHeight)
+        button.underline:SetSize(linkWidth, 1)
+        button.handleClick, button.data = link.handleClick, link.data
+        return true
+    end
+
+    ---A quest's facts end in "Wowhead", the link to its page there (WowheadLink: a panel to copy it from).
+    ---@return string factsText The facts with the link, when it fits on their first line
+    local function setHeaderWowheadLink(header, factsText, questId)
+        local link = questId
+            and {
+                before = factsText ~= "" and (factsText .. Style.DOT) or "",
+                text = ns.L("Wowhead"),
+                handleClick = ns.WowheadLink.show,
+                data = questId,
+            }
+        if setFactsLink(header, header.wowheadButton, link) then
+            return link.before .. link.text
+        end
+        return factsText
     end
 
     ---@return number height The title and the facts under it, with the room to the header art's lower edge
@@ -151,6 +175,9 @@ do
             return
         end
         header.backButton:Hide() -- shown by Log.setPageHeaderBack, after the header is set
+        if header.questId ~= questId then
+            ns.WowheadLink.hide() -- (the panel opened under this quest's "Wowhead": another page now)
+        end
         header.questId = questId
         header.titleButton:SetShown(questId ~= nil)
         -- The seal is a quest giver's: on a quest's page only, not on the settings, the Chronicle or a dungeon
@@ -161,8 +188,8 @@ do
         if title then
             setHeaderBadge(header, chainIndex, chainTotal)
             placeHeaderTitle(header, title, chainIndex)
-            header.facts:SetText(factsText or "")
-            setHeaderZoneLink(header, zoneLink)
+            header.facts:SetText(setHeaderWowheadLink(header, factsText or "", questId))
+            setFactsLink(header, header.zoneButton, zoneLink)
             height = measureHeaderText(header) + setHeaderVoice(header, questId)
             header:SetHeight(height)
         end
@@ -227,6 +254,25 @@ local function addHeaderOrnaments(header)
     if header.seal then
         header.seal:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", -8, -22) -- (over the right flourish's end, half on the page)
     end
+end
+
+---A button over a link in the facts line, with its underline: setFactsLink places it and says what a click does
+---(its handleClick, given its data and the button).
+local function createFactsLinkButton(header)
+    local button = CreateFrame("Button", nil, header)
+    button:SetFrameLevel((header:GetFrameLevel() or 1) + 2)
+    local hover = button:CreateTexture(nil, "HIGHLIGHT")
+    hover:SetAllPoints(button)
+    hover:SetColorTexture(1, 1, 1, 0.1)
+    button:SetScript("OnClick", function(self)
+        if self.handleClick then
+            self.handleClick(self.data, self)
+        end
+    end)
+    button.underline = header:CreateTexture(nil, "OVERLAY")
+    button.underline:SetColorTexture(COLORS.tan[1], COLORS.tan[2], COLORS.tan[3], 0.8)
+    button:Hide()
+    return button
 end
 
 local function createPageHeader(parent, pageLeft)
@@ -364,19 +410,9 @@ local function createPageHeader(parent, pageLeft)
     header.voice.text:SetWordWrap(false)
     header.voice.text:SetTextColor(COLORS.tan[1], COLORS.tan[2], COLORS.tan[3])
     header.voice:Hide()
-    header.zoneButton = CreateFrame("Button", nil, header)
-    header.zoneButton:SetFrameLevel((header:GetFrameLevel() or 1) + 2)
-    local zoneHover = header.zoneButton:CreateTexture(nil, "HIGHLIGHT")
-    zoneHover:SetAllPoints(header.zoneButton)
-    zoneHover:SetColorTexture(1, 1, 1, 0.1)
-    header.zoneButton:SetScript("OnClick", function(self)
-        if self.handleClick then
-            self.handleClick(self.data)
-        end
-    end)
-    header.zoneButton.underline = header:CreateTexture(nil, "OVERLAY")
-    header.zoneButton.underline:SetColorTexture(COLORS.tan[1], COLORS.tan[2], COLORS.tan[3], 0.8)
-    header.zoneButton:Hide()
+    header.zoneButton = createFactsLinkButton(header)
+    header.wowheadButton = createFactsLinkButton(header)
+    header:HookScript("OnHide", ns.WowheadLink.hide) -- (the window closed: the panel opened from it goes too)
     -- The chain badge: the tracker's rounded outline around the chain icon and the step
     header.badge = CreateFrame("Frame", nil, header)
     header.badge:SetHeight(BADGE_HEIGHT)

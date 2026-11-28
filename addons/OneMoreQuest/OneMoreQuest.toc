@@ -67,6 +67,7 @@ Quests\AutoQuest.lua
 UI\Nameplates.lua
 UI\Widgets.lua
 UI\QuestTooltip.lua
+UI\WowheadLink.lua
 Quests\MissedReport.lua
 Tracker\BlizzardTracker.lua
 Tracker\ItemButtons.lua

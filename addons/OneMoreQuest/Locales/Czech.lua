@@ -50,6 +50,11 @@ ns.Locale.add("cs", {
     ["Taken %d day ago"] = { "Vzatý před %d dnem", "Vzatý před %d dny", "Vzatý před %d dny" },
     ["Found in %s"] = "Najdeš v %s",
     ["Share to chat"] = "Odkaz do chatu",
+    ["Wowhead link"] = "Odkaz na Wowhead",
+    ["Wowhead"] = "Wowhead", -- (the site's name, on a quest page's title line)
+    ["%s on Wowhead"] = "%s na Wowheadu",
+    ["Ctrl+C to copy, Esc closes"] = "Ctrl+C zkopíruje, Esc zavře",
+    ["Copied: paste it into your browser."] = "Zkopírováno: vlož odkaz do prohlížeče.",
     ["done"] = "hotovo",
     ["in your log"] = "v logu",
     ["%d quests first, from %s"] = "nejdřív %d questy, od %s",

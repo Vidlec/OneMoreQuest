@@ -145,6 +145,7 @@ function Tracker.openQuestMenu(entry, owner)
         root:CreateButton(ns.L("Share to chat"), function()
             ns.QuestState.linkInChat(questId)
         end)
+        ns.WowheadLink.addMenuItem(root, questId)
         root:CreateButton(ns.L("Open in the quest log"), function()
             if ns.GamepadTracker then
                 ns.GamepadTracker.release() -- (the quest window has the pad then, not the tracker)

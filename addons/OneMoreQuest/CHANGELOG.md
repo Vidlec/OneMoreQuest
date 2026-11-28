@@ -4,6 +4,10 @@ What changed in each version of OneMoreQuest. A release takes its notes from its
 
 ## 0.16.2
 
+**New**
+
+- A Wowhead link for every quest: "Wowhead" at the end of the line under a quest's title, and "Wowhead link" in the quest menus of the quest list, the Available tab and the tracker. The game opens no web page for an addon, so a small panel opens beside it with the link selected: Ctrl+C copies it, the panel says so and closes, Esc or a click elsewhere closes it. It opens Wowhead's Classic database in the game's language where Wowhead has a site in it.
+
 **Fixed**
 
 - An elite or rare quest creature's nameplate shows the game's elite mark again: OneMoreQuest's icon stood right over it. The icon now stands before the elite mark (or a raid mark), its glow clear of it, at every icon size; on a plain creature's plate it stays where it was.

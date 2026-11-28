@@ -304,6 +304,7 @@ function Log.openQuestMenu(questId, isInLog)
         root:CreateButton(ns.L("Share to chat"), function()
             ns.QuestState.linkInChat(questId)
         end)
+        ns.WowheadLink.addMenuItem(root, questId)
         ns.QuestText.addVoiceMenuItems(root, questId) -- a translation addon's narration, when the quest has one
         if isInLog then
             local share = root:CreateButton(ns.L("Share with the party"), function()
