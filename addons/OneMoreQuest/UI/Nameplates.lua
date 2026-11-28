@@ -73,38 +73,30 @@ local function getMark(plate)
     return plate.oneMoreQuestMark
 end
 
-local GAP = 3 -- between the icon and what it stands beside
-local VISIBLE_HALF = 8 -- half of what shows of the icon: its picture and the strong middle of its glow
-local MAX_PART_HEIGHT = 60 -- taller parts of a plate (a selection glow round it all) are not what is drawn on it
--- The game's plate puts an elite or rare creature's ornament just before the bar, a raid mark between them: their
--- sizes in its layout (Blizzard_NamePlates), for keeping the ornament's place free without measuring it
-local ORNAMENT_SIZE, RAID_MARK_SIZE = 20, 22
+local GAP = 3 -- between the icon's glow and what it stands beside, in the plate's units
 local ORNAMENT_KINDS = { elite = true, worldboss = true, rare = true, rareelite = true }
 
----@return number? left Where the game's elite or rare ornament begins, before the bar, in the frame's units; nil when
----the creature has none or the plate is not the game's. Kept free by the layout's own rule, not by measuring: the
----client may not tell the ornament's edges, and shows it a moment after the plate.
--- (asked in protected calls, the game's answer looked up inside: no function made per plate)
+-- The client lets no addon measure a nameplate's parts ("can't measure restricted regions"): the icon is placed by
+-- anchors alone, beside the outermost part on its side as the game lays the plate out (Blizzard_NamePlates). Asked in
+-- protected calls, as a nameplate unit's answers may be secret in a fight; the game's answer is looked up inside them,
+-- so no function is made per plate.
 local function hasOrnament(unit)
     return ORNAMENT_KINDS[UnitClassification(unit)] == true
 end
 
-local function getOrnamentLeft(unitFrame, unit, barLeft)
-    local ornament = unitFrame.ClassificationFrame
-    if not (unit and ornament and barLeft and UnitClassification) then
-        return nil
-    end
-    local isKnown, isOrnamented = pcall(hasOrnament, unit)
-    if not (isKnown and isOrnamented) then
-        return nil
-    end
-    local isScaled, scale = pcall(ornament.GetScale, ornament)
-    local width = ORNAMENT_SIZE * (isScaled and type(scale) == "number" and scale > 0 and scale or 1)
-    local isMarked, raidMark = false, nil
-    if GetRaidTargetIndex then
-        isMarked, raidMark = pcall(GetRaidTargetIndex, unit)
-    end
-    return barLeft - (isMarked and raidMark and RAID_MARK_SIZE or 0) - width
+local function isLevelOnTheRight(levelFrame)
+    local _, _, relativePoint = levelFrame:GetPoint()
+    return levelFrame:IsShown() and relativePoint == "RIGHT"
+end
+
+local function isShownPart(region)
+    return region:IsShown()
+end
+
+---@return any answer What a call answered, or nil where the game refused to tell
+local function ask(fn, ...)
+    local isAnswered, answer = pcall(fn, ...)
+    return isAnswered and answer or nil
 end
 
 ---@return table frame What is drawn of a nameplate, which the game scales (nameplate size, the target's larger
@@ -114,86 +106,53 @@ local function getUnitFrame(plate)
     if type(plate.unitFrame) == "table" and plate.unitFrame.IsShown and plate.unitFrame:IsShown() then
         return plate.unitFrame
     end
-    -- The game's own, shown or not yet: never the plate itself, which the game forbids measuring
+    -- The game's own, shown or not yet
     if type(plate.UnitFrame) == "table" then
         return plate.UnitFrame
     end
     return nil
 end
 
----@return number? left, number? right, number? top, number? bottom A part's edges, or nil where the game will not tell
----(a restricted part of a plate cannot be measured, and asking is an error). In the units of the plate's own frame:
----a part tells its edges in its own, and some are drawn at a scale of their own (the elite and rare ornament is), so
----each is turned into the frame's by how much larger or smaller it is drawn.
----@param frameScale number? The scale the plate's frame is drawn at (its effective scale)
-local function measure(region, frameScale)
-    local isMeasured, left, right, top, bottom = pcall(function()
-        return region:GetLeft(), region:GetRight(), region:GetTop(), region:GetBottom()
-    end)
-    if not isMeasured or not (left and right and top and bottom) then
-        return nil
+---@return table anchor What the icon stands beside at the plate's left. The game lines up before the bar an elite or
+---rare creature's ornament, then its raid mark, then the bar (Blizzard_NamePlates): the outermost there is.
+local function getLeftAnchor(unitFrame, unit, bar)
+    local ornament, raidMark = unitFrame.ClassificationFrame, unitFrame.RaidTargetFrame
+    if ornament and unit and UnitClassification and ask(hasOrnament, unit) then
+        return ornament
     end
-    -- Its scale asked apart: a part that will not tell it (or a kind of part that has none) keeps its edges as told
-    local isScaled, scale = pcall(function()
-        return region:GetEffectiveScale()
-    end)
-    local factor = 1
-    if isScaled and type(scale) == "number" and scale > 0 and type(frameScale) == "number" and frameScale > 0 then
-        factor = scale / frameScale
+    if raidMark and unit and GetRaidTargetIndex and ask(GetRaidTargetIndex, unit) then
+        return raidMark
     end
-    return left * factor, right * factor, top * factor, bottom * factor
+    return unitFrame.HealthBarsContainer or bar
 end
 
----@return number? left, number? right, number? top The edges of what shows on the plate: its bar, its name, its level
----and anything else drawn on it, in the unit frame's units; nil before the plate is laid out
----@return table bar The health bar, which the icon lines up with
-local function getDrawnEdges(unitFrame, mark, unit)
-    local bar = unitFrame.healthBar or unitFrame.HealthBarsContainer or unitFrame
-    local left, right, top
-    local isScaleKnown, frameScale = pcall(unitFrame.GetEffectiveScale, unitFrame)
-    frameScale = isScaleKnown and frameScale or nil
-    local function include(region)
-        if region == mark or not (region.IsShown and region:IsShown()) then
-            return
-        end
-        local regionLeft, regionRight, regionTop, regionBottom = measure(region, frameScale)
-        if
-            not (regionLeft and regionRight and regionTop and regionBottom)
-            or regionTop - regionBottom > MAX_PART_HEIGHT
-        then
-            return
-        end
-        left, right = math.min(left or regionLeft, regionLeft), math.max(right or regionRight, regionRight)
-        top = math.max(top or regionTop, regionTop)
+---@return table anchor What the icon stands beside at the plate's right: the level, where the game puts it past the
+---bar, else the bar (with the classic look, the level's box is inside the bar's border)
+local function getRightAnchor(unitFrame, bar)
+    local levelFrame = unitFrame.PlayerLevelDiffFrame
+    if levelFrame and ask(isLevelOnTheRight, levelFrame) then
+        return levelFrame
     end
-    include(bar)
-    if unitFrame.name then
-        include(unitFrame.name)
-    end
-    for _, child in ipairs({ unitFrame:GetChildren() }) do
-        include(child)
-    end
-    -- The bar's own middle, which the icon is placed from, in the same units
-    local barLeft, barRight, barTop, barBottom = measure(bar, frameScale)
-    local barX, barY
-    if barLeft and barBottom then
-        barX, barY = (barLeft + barRight) / 2, (barTop + barBottom) / 2
-    end
-    local ornamentLeft = getOrnamentLeft(unitFrame, unit, barLeft)
-    if ornamentLeft and left then
-        left = math.min(left, ornamentLeft)
-    end
-    return left, right, top, bar, barX, barY
+    return unitFrame.HealthBarsContainer or bar
 end
 
----Puts the icon where the player chose, beside what is drawn of the plate and in line with its bar: before it at the
----left, past its level at the right, or over its name; at the size chosen, on top of the game's own nameplate scale.
+---@return table anchor What the icon stands over: the name, where the plate shows one above the bar, else the bar
+local function getTopAnchor(unitFrame, bar)
+    local name = unitFrame.name
+    if name and ask(isShownPart, name) then
+        return name
+    end
+    return unitFrame.HealthBarsContainer or bar
+end
+
+---Puts the icon where the player chose, beside the plate's outermost part on that side, its whole glow clear of it:
+---before the elite ornament, raid mark or bar at the left, past the level at the right, or over the name; at the size
+---chosen, on top of the game's own nameplate scale.
 function Nameplates.place(mark, plate)
     local unitFrame = getUnitFrame(plate)
+    mark:ClearAllPoints()
     if not unitFrame then
-        -- No frame of the plate's own to stand on: beside the plate, by anchors alone (nothing measured)
-        mark:ClearAllPoints()
-        mark:SetPoint("RIGHT", plate, "LEFT", -GAP, 0)
+        mark:SetPoint("RIGHT", plate, "LEFT", -GAP, 0) -- (no frame of the plate's own to stand on: beside the plate)
         return
     end
     if mark:GetParent() ~= unitFrame then
@@ -202,20 +161,16 @@ function Nameplates.place(mark, plate)
     mark:SetFrameLevel((unitFrame:GetFrameLevel() or 1) + 10)
     local scale = math.max(0.5, math.min(2, tonumber(ns.settings.nameplateIconScale) or 1))
     mark:SetScale(scale)
-    local left, right, top, bar, barX, barY = getDrawnEdges(unitFrame, mark, plate.namePlateUnitToken or unitFrame.unit)
-    mark:ClearAllPoints()
-    if not (left and barX) then
-        mark:SetPoint("RIGHT", bar, "LEFT", -GAP, 0) -- not laid out yet: placed again on the next update
-        return
-    end
-    -- In the icon's own units: what is measured on the plate, over the icon's size
+    local bar = unitFrame.healthBar or unitFrame.HealthBarsContainer or unitFrame
+    local gap = GAP / scale -- (in the icon's own units: it is drawn at its own scale)
     local side = ns.settings.nameplateIconSide
     if side == "right" then
-        mark:SetPoint("CENTER", bar, "CENTER", (right - barX + GAP) / scale + VISIBLE_HALF, 0)
+        mark:SetPoint("LEFT", getRightAnchor(unitFrame, bar), "RIGHT", gap, 0)
     elseif side == "top" then
-        mark:SetPoint("CENTER", bar, "CENTER", 0, (top - barY + GAP) / scale + VISIBLE_HALF)
+        mark:SetPoint("BOTTOM", getTopAnchor(unitFrame, bar), "TOP", 0, gap)
     else
-        mark:SetPoint("CENTER", bar, "CENTER", (left - barX - GAP) / scale - VISIBLE_HALF, 0)
+        local unit = plate.namePlateUnitToken or unitFrame.unit
+        mark:SetPoint("RIGHT", getLeftAnchor(unitFrame, unit, bar), "LEFT", -gap, 0)
     end
 end
 

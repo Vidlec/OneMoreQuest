@@ -266,10 +266,19 @@ local function getMouseFocus()
     return GetMouseFocus and GetMouseFocus() or nil
 end
 
+---@return boolean isForbidden A frame the game keeps from addons (a nameplate, in a fight): asking it anything, even
+---its size, is an error, and its tooltip is the game's own
+local function isForbidden(frame)
+    return frame.IsForbidden ~= nil and frame:IsForbidden() == true
+end
+
 ---@return boolean isPin The cursor is over a pin (ours, the game's or another addon's), which has its own tooltip
 local function isOverPin(focus)
     if not focus or focus.mark then
         return focus ~= nil
+    end
+    if isForbidden(focus) then
+        return true -- (the game's frame, with its own tooltip: ours stays out of its way)
     end
     if not focus.GetSize then
         return false
@@ -285,6 +294,9 @@ local lastReport = 0
 local function describeFrame(frame)
     if not frame then
         return "nothing"
+    end
+    if isForbidden(frame) then
+        return "a frame the game keeps to itself"
     end
     local width, height
     if frame.GetSize then

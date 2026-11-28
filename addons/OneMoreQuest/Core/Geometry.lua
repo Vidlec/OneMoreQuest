@@ -39,6 +39,11 @@ local function readPlayerPosition()
         return nil
     end
     local x, y = mapPosition:GetXY()
+    -- (where the game keeps the player's place secret, in a fight on this client, it is not known: reckoning with
+    -- a secret number is an error)
+    if type(x) ~= "number" or type(y) ~= "number" or (issecretvalue and (issecretvalue(x) or issecretvalue(y))) then
+        return nil
+    end
     local continentId, north, west = Geometry.getWorldPosition(uiMapId, x * 100, y * 100)
     if not north then
         return nil
