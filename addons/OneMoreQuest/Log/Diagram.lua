@@ -985,6 +985,26 @@ function Diagram.show(questId, shouldStay)
     Diagram.fill()
 end
 
+---@return boolean canShow The quest has quests around it (ones it needs first or opens), and the Spoilers choice
+---lets their names be told: as the quest page offers its "Quest diagram" button
+function Diagram.canShow(questId)
+    if ns.Spoilers.isActive() and ns.Spoilers.get("chains", questId) ~= "all" then
+        return false
+    elseif ns.Availability.isLaterHidden("quest") then
+        return false
+    end
+    return #ns.Chain.getPreviousQuestIds(questId) > 0 or #ns.Chain.getNextQuestIds(questId) > 0
+end
+
+---Adds "Quest diagram" to a quest's menu (the quest list's, the tracker's), where the diagram may be shown.
+function Diagram.addMenuItem(root, questId)
+    if Diagram.canShow(questId) then
+        root:CreateButton(ns.L("Quest diagram"), function()
+            Diagram.show(questId, true)
+        end)
+    end
+end
+
 ---@return table? window The diagram's frame (its boxes in window.boxes), for the tests and the simulator
 function Diagram.getWindow()
     return window

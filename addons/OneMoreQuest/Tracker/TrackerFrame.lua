@@ -152,6 +152,7 @@ function Tracker.openQuestMenu(entry, owner)
             end
             Tracker.openInLog(entry)
         end)
+        ns.LogDiagram.addMenuItem(root, questId)
         root:CreateButton(ns.L("Untrack"), function()
             C_QuestLog.RemoveQuestWatch(questId)
             ns.QuestState.forgetWatches()

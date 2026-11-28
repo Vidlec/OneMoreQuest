@@ -1,15 +1,15 @@
 local _, ns = ...
 
--- A quest's page on Wowhead (its Classic database, which WoW: Forever's quests share their numbers with): a link to
--- copy, as the game opens no web page for an addon. "Wowhead" on the quest page's title line and "Wowhead link" in
+-- A quest's page on Wowhead (its WoW: Forever database, which has Forever's own quests too): a link to copy, as the
+-- game opens no web page for an addon. "Wowhead" on the quest page's title line and "Wowhead link" in
 -- the quests' menus (the quest list's and the tracker's) open a small panel in the tooltip's look beside what was
 -- clicked: the quest's name, the link selected, and how to copy it. Ctrl+C is seen, so the panel says it worked and
 -- closes. The link is in the game's language where Wowhead has a site in it, English otherwise.
 local WowheadLink = {}
 ns.WowheadLink = WowheadLink
 
-local BASE_URL = "https://www.wowhead.com/classic/"
--- The game's languages and Wowhead's sites in them (each checked to answer: wowhead.com/classic/<site>/quest=518)
+local BASE_URL = "https://www.wowhead.com/forever/"
+-- The game's languages and Wowhead's sites in them (each checked to answer: wowhead.com/forever/<site>/quest=844)
 local SITES = {
     deDE = "de",
     esES = "es",
@@ -24,7 +24,7 @@ local SITES = {
 }
 
 local PANEL = {
-    width = 380, -- the whole link in sight, with a language's site in it (".../classic/de/quest=12345")
+    width = 380, -- the whole link in sight, with a language's site in it (".../forever/de/quest=12345")
     height = 76,
     padding = 12,
     copiedSeconds = 1.5, -- the "Copied" line stays this long, then the panel closes

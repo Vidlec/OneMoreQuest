@@ -2,6 +2,7 @@
 -- Every quest's Wowhead link: the game opens no web page for an addon, so "Wowhead" on the quest page's title line
 -- and "Wowhead link" in the quests' menus open a small panel beside what was clicked, the link selected for Ctrl+C.
 -- Ctrl+C is seen: the panel says the link was copied and closes. For a quest in the log and one to pick up alike.
+screen(1920, 1080) -- (room to stretch the window)
 setProfile({ level = 14, race = "Scourge", class = "MAGE" })
 moveTo(1413, 0.52, 0.31)
 accept(844) -- Plainstrider Menace
@@ -18,7 +19,7 @@ local function expectLinkShown(questId, where)
         return nil
     end
     local editBox = panel.editBox
-    local url = "https://www.wowhead.com/classic/quest=" .. questId
+    local url = "https://www.wowhead.com/forever/quest=" .. questId
     expect(editBox:GetText() == url, where .. ": it holds the quest's link (" .. tostring(editBox:GetText()) .. ")")
     expect(editBox:HasFocus(), where .. ": ready to copy (the text box has the keyboard)")
     expectText("on Wowhead", where .. ": it names the quest")
@@ -117,6 +118,73 @@ if panel then
     expect(addon.WowheadLink.getShownPanel() ~= nil, "and stays a moment to be read")
     wait(1.5)
     expectClosed("quest page, Ctrl+C")
+end
+
+-- A long line: "Wowhead" ends it while it fits the line's own width (a stretched window's is wider than the page's
+-- least), and starts a line of its own under it when it does not. Letters are added until the line with "Wowhead"
+-- passes that least but fits the stretched one.
+do
+    local MapDock = addon.MapDock
+    MapDock.startResize(false)
+    MapDock.resizeTo(300, 0) -- (sideways beyond the map's growing: the page widens)
+    MapDock.stopResize()
+    wait(0.3)
+    local least = addon.LogStyle.PAGE_CONTENT_WIDTH - 2 * addon.LogStyle.PADDING
+    local lineWidth = header.facts:GetWidth()
+    local function measure(text)
+        header.measure:SetText(text)
+        return header.measure:GetStringWidth()
+    end
+    local longFacts = "Levels 36\226\128\14741+ \194\183 Riverglades \194\183 Group quest"
+    while measure(longFacts .. " \194\183 Wowhead") <= least + 10 do
+        longFacts = longFacts .. "i"
+    end
+    local width = measure(longFacts .. " \194\183 Wowhead")
+    expect(width < lineWidth - 10, "the long line fits the stretched one (" .. width .. ", " .. lineWidth .. ")")
+    addon.LogQuestPage.setPageHeader("Twilight No More!", longFacts, 1, 3, nil, 844)
+    expect(
+        header.facts:GetText() == longFacts .. " \194\183 Wowhead",
+        "stretched: Wowhead ends the line (" .. header.facts:GetText() .. ")"
+    )
+    expect(header.wowheadButton:IsShown(), "a link over it")
+    local oneLineHeight = header:GetHeight()
+
+    -- The usual size again: Wowhead on a line of its own
+    click(MapDock.getResizeGrip(), "RightButton")
+    wait(0.3)
+    addon.LogQuestPage.setPageHeader("Twilight No More!", longFacts, 1, 3, nil, 844)
+    expect(
+        header.facts:GetText() == longFacts .. "\nWowhead",
+        "the usual width: Wowhead on a line of its own (" .. header.facts:GetText() .. ")"
+    )
+    expect(header.wowheadButton:IsShown(), "a link over it")
+    local scale = header:GetEffectiveScale()
+    local factsLeft, factsBottom = header.facts:GetLeft() * scale, header.facts:GetBottom() * scale
+    local linkLeft, linkBottom = header.wowheadButton:GetLeft() * scale, header.wowheadButton:GetBottom() * scale
+    expect(
+        math.abs(linkLeft - (factsLeft - 2 * scale)) < 1 and math.abs(linkBottom - (factsBottom - 2 * scale)) < 1,
+        "at the start of the facts' last line ("
+            .. linkLeft
+            .. ","
+            .. linkBottom
+            .. " / "
+            .. factsLeft
+            .. ","
+            .. factsBottom
+            .. ")"
+    )
+    expect(header:GetHeight() > oneLineHeight + 8, "the header grows by the line")
+
+    -- A new width lays the shown header out again, without a new drawing (the page turns wide after it is drawn)
+    local usualWidth = header:GetWidth()
+    addon.LogQuestPage.setPageHeaderWidth(usualWidth + 100)
+    expect(header.facts:GetText() == longFacts .. " \194\183 Wowhead", "wider: back on the line")
+    addon.LogQuestPage.setPageHeaderWidth(usualWidth)
+    expect(header.facts:GetText() == longFacts .. "\nWowhead", "narrower: on its own line again")
+    addon.Log.selectQuest(869)
+    wait(0.2)
+    addon.Log.selectQuest(844)
+    wait(0.2)
 end
 
 -- Another page closes a panel opened from this one

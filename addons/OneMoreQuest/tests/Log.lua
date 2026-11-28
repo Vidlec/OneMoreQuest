@@ -1030,15 +1030,15 @@ test(
     end
 )
 
-test("every quest's Wowhead link: Classic's page, in the game's language where Wowhead has a site in it", function()
+test("every quest's Wowhead link: WoW Forever's page, in the game's language where Wowhead has a site in it", function()
     local ns = createAddon()
-    expectEqual(ns.WowheadLink.getUrl(518), "https://www.wowhead.com/classic/quest=518", "English without a language")
+    expectEqual(ns.WowheadLink.getUrl(518), "https://www.wowhead.com/forever/quest=518", "English without a language")
     local gameLocale = GetLocale
     for locale, url in pairs({
-        enUS = "https://www.wowhead.com/classic/quest=518",
-        deDE = "https://www.wowhead.com/classic/de/quest=518",
-        esMX = "https://www.wowhead.com/classic/mx/quest=518",
-        zhTW = "https://www.wowhead.com/classic/tw/quest=518",
+        enUS = "https://www.wowhead.com/forever/quest=518",
+        deDE = "https://www.wowhead.com/forever/de/quest=518",
+        esMX = "https://www.wowhead.com/forever/mx/quest=518",
+        zhTW = "https://www.wowhead.com/forever/tw/quest=518",
     }) do
         GetLocale = function()
             return locale

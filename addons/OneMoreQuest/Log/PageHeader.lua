@@ -24,8 +24,12 @@ local HEADER_CORNER = { 28, 23 } -- the gold flourishes in the header's lower co
 
 local HEADER_BOTTOM_PADDING = 20 -- room under the last line (the facts, or the narration's buttons) to the header art's lower edge
 local VOICE_ROW_HEIGHT = 26 -- the narration's buttons under the facts, with the gap above them
+local LINE_ROOM = 6 -- kept free at the facts line's end: a measure and the line's own wrapping differ by a little
 
 local setPageHeader
+-- The header's width as the window places it (setPageHeaderWidth), and what setPageHeader last gave it: kept here, as
+-- a new width lays the header out again
+local placedWidth, shownContent
 do
     ---For a quest in a chain, the tracker's badge with its step, wide enough for its words.
     local function setHeaderBadge(header, chainIndex, chainTotal)
@@ -61,44 +65,46 @@ do
     end
 
     ---A link in the facts (the zone, "Wowhead"), underlined over a button of its own size, as the page's place links
-    ---are. A link the line would wrap onto a second line is left out, as the button is placed on the first.
-    ---@return boolean isShown
+    ---are: on the facts' first line (the zone), or on their last (isOnLastLine: "Wowhead", which ends them).
+    ---@param link { before: string, text: string, isOnLastLine: boolean?, handleClick: function, data: any }? `before`
+    ---is the text ahead of the link on its line
     local function setFactsLink(header, button, link)
-        local beforeWidth = link and measureFacts(header, link.before) or 0
-        local linkWidth, lineHeight = 0, 0
-        if link then
-            linkWidth, lineHeight = measureFacts(header, link.text)
+        button:SetShown(link ~= nil)
+        button.underline:SetShown(link ~= nil)
+        if not link then
+            return
         end
-        local isShown = link ~= nil and beforeWidth + linkWidth <= PAGE_CONTENT_WIDTH - 2 * PADDING
-        button:SetShown(isShown)
-        button.underline:SetShown(isShown)
-        if not isShown then
-            return false
-        end
+        local linkWidth, lineHeight = measureFacts(header, link.text)
+        -- Where it starts: the line up to its end, less the link (a measure leaves out the trailing space before it)
+        local left = link.before ~= "" and (measureFacts(header, link.before .. link.text) - linkWidth) or 0
+        local edge = link.isOnLastLine and "BOTTOMLEFT" or "TOPLEFT"
+        local lineTop = link.isOnLastLine and lineHeight or 0
         button:ClearAllPoints()
-        button:SetPoint("TOPLEFT", header.facts, "TOPLEFT", beforeWidth - 2, 2)
+        button:SetPoint("TOPLEFT", header.facts, edge, left - 2, lineTop + 2)
         button:SetSize(linkWidth + 4, lineHeight + 4)
         button.underline:ClearAllPoints()
-        button.underline:SetPoint("TOPLEFT", header.facts, "TOPLEFT", beforeWidth, -lineHeight)
+        button.underline:SetPoint("TOPLEFT", header.facts, edge, left, lineTop - lineHeight)
         button.underline:SetSize(linkWidth, 1)
         button.handleClick, button.data = link.handleClick, link.data
-        return true
     end
 
-    ---A quest's facts end in "Wowhead", the link to its page there (WowheadLink: a panel to copy it from).
-    ---@return string factsText The facts with the link, when it fits on their first line
-    local function setHeaderWowheadLink(header, factsText, questId)
-        local link = questId
-            and {
-                before = factsText ~= "" and (factsText .. Style.DOT) or "",
-                text = ns.L("Wowhead"),
-                handleClick = ns.WowheadLink.show,
-                data = questId,
-            }
-        if setFactsLink(header, header.wowheadButton, link) then
-            return link.before .. link.text
+    ---A quest's facts end in "Wowhead", the link to its page there (WowheadLink: a panel to copy it from): after
+    ---them on their line where it fits, else at the start of a line of its own under them.
+    ---@return string factsText The facts with the link
+    ---@return table? link The link, for setFactsLink (nil on a page that is not a quest's)
+    local function composeWowheadLink(header, factsText, questId)
+        if not questId then
+            return factsText, nil
         end
-        return factsText
+        local link = { text = ns.L("Wowhead"), isOnLastLine = true, handleClick = ns.WowheadLink.show, data = questId }
+        local lineWidth = (placedWidth or PAGE_CONTENT_WIDTH) - 2 * PADDING
+        local inline = factsText ~= "" and (factsText .. Style.DOT) or ""
+        if measureFacts(header, inline .. link.text) <= lineWidth - LINE_ROOM then
+            link.before = inline
+            return inline .. link.text, link
+        end
+        link.before = ""
+        return factsText .. "\n" .. link.text, link
     end
 
     ---@return number height The title and the facts under it, with the room to the header art's lower edge
@@ -162,6 +168,31 @@ do
         return header.hasFringeApart == true and HEADER_FRINGE or math.floor(height * HEADER_FRINGE_SHARE)
     end
 
+    ---Lays the header out for what setPageHeader gave it (shownContent) at its width: its title, facts and their
+    ---links, the narration's row, its height, and the page under it.
+    local function layoutPageHeader(header)
+        local content = shownContent
+        local height = 0
+        if content.title then
+            setHeaderBadge(header, content.chainIndex, content.chainTotal)
+            placeHeaderTitle(header, content.title, content.chainIndex)
+            local factsText, wowheadLink = composeWowheadLink(header, content.factsText or "", header.questId)
+            header.facts:SetText(factsText)
+            setFactsLink(header, header.zoneButton, content.zoneLink)
+            setFactsLink(header, header.wowheadButton, wowheadLink)
+            height = measureHeaderText(header) + setHeaderVoice(header, header.questId)
+            header:SetHeight(height)
+        end
+        header:SetShown(content.title ~= nil)
+        State.detail.frame:SetPoint(
+            "TOPLEFT",
+            State.frame,
+            "TOPLEFT",
+            State.frame.pageLeft or LIST_WIDTH + 2,
+            -PAGE_TOP - height + getPageOverlap(header, content.title, header.questId, height)
+        )
+    end
+
     ---The page's header in the look of the game's window titles: a dark red bar with the quest's name in gold,
     ---a line of facts under it, and for a quest in a chain the tracker's badge with its step. It is pinned
     ---above the scrolling page and spans it edge to edge, scroll bar included.
@@ -184,23 +215,27 @@ do
         if type(header.seal) == "table" then
             header.seal:SetShown(questId ~= nil)
         end
-        local height = 0
-        if title then
-            setHeaderBadge(header, chainIndex, chainTotal)
-            placeHeaderTitle(header, title, chainIndex)
-            header.facts:SetText(setHeaderWowheadLink(header, factsText or "", questId))
-            setFactsLink(header, header.zoneButton, zoneLink)
-            height = measureHeaderText(header) + setHeaderVoice(header, questId)
-            header:SetHeight(height)
+        shownContent = {
+            title = title,
+            factsText = factsText,
+            chainIndex = chainIndex,
+            chainTotal = chainTotal,
+            zoneLink = zoneLink,
+        }
+        layoutPageHeader(header)
+    end
+
+    ---The header's width, as the window places it: given here, as the game measures no hidden frame and the header
+    ---is hidden while a page is drawn. A new width lays the facts out again ("Wowhead" may fit on their line now).
+    function QuestPage.setPageHeaderWidth(width)
+        local header = State.pageHeader
+        if not header or placedWidth == width then
+            return
         end
-        header:SetShown(title ~= nil)
-        State.detail.frame:SetPoint(
-            "TOPLEFT",
-            State.frame,
-            "TOPLEFT",
-            State.frame.pageLeft or LIST_WIDTH + 2,
-            -PAGE_TOP - height + getPageOverlap(header, title, questId, height)
-        )
+        placedWidth = width
+        if shownContent and shownContent.title then
+            layoutPageHeader(header)
+        end
     end
 end
 

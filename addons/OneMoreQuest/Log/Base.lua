@@ -301,6 +301,7 @@ function Log.openQuestMenu(questId, isInLog)
                 toggleTracked(questId)
             end)
         end
+        ns.LogDiagram.addMenuItem(root, questId)
         root:CreateButton(ns.L("Share to chat"), function()
             ns.QuestState.linkInChat(questId)
         end)

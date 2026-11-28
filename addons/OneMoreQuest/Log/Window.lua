@@ -1353,6 +1353,7 @@ local function definePagePlacement(pageLeft)
             pageRight + State.frame.pageShift + State.frame.pageExtra + stretch, State.frame.pageBottom
         parchment:SetPoint("BOTTOMRIGHT", State.frame, "BOTTOMLEFT", right, bottom)
         State.pageHeader:SetPoint("TOPRIGHT", State.frame, "TOPLEFT", right, -PAGE_TOP - State.frame.pageTopInset)
+        QuestPage.setPageHeaderWidth(right - State.frame.pageLeft)
         State.rewardsBlock:SetPoint("BOTTOMRIGHT", State.frame, "BOTTOMLEFT", right, bottom)
         State.detail:setWidth(
             PAGE_WIDTH - 2 + pageLeft - State.frame.pageLeft + State.frame.pageShift + State.frame.pageExtra + stretch
