@@ -54,6 +54,8 @@ bun run lint            # StyLua and luacheck (Lua; every Forever global known),
 bun run typecheck       # the tools' TypeScript
 bun run test            # the unit tests, then every simulator scenario
 bun run zip             # the release zip into dist/
+bun run release:version # the next version (patch, minor, major or 1.2.3) into package.json and the TOC
+bun run release:dry-run # the zip, then what the CurseForge upload would send (nothing is sent)
 bun run site            # the product page into dist/site
 bun run site:preview    # the product page served as GitHub Pages does, and CurseForge's description
 bun run media           # the product page's screenshots into site/media (the simulator, headless)
@@ -66,8 +68,11 @@ load the TOC's list, and the release build fails on a Lua file the TOC does not 
 
 A release goes out when a pull request that raises the version is merged to main:
 
-1. In the pull request, raise `## Version:` and the version in `## Title:` in `addons/OneMoreQuest/OneMoreQuest.toc`,
-   and write the version's section in `CHANGELOG.md` (`## 1.2.3`). A version like `1.2.3-beta1` is a pre-release.
+1. In the pull request, raise the version: `bun run release:version patch` (or `minor`, `major`, or a version like
+   `1.2.3`). It sets `"version"` in `package.json`, the one place the version is kept, writes it into the TOC's
+   `## Version:` and `## Title:`, and adds the version's section to `CHANGELOG.md` (`## 1.2.3`): write what changed
+   under it. A version like `1.2.3-beta1` is a pre-release. The build fails on a TOC whose version is not
+   package.json's.
 2. Merge it. The Release workflow runs the checks, builds `OneMoreQuest-<version>.zip` and `SHA256SUMS.txt`, creates
    the GitHub release `v<version>` (the changelog section, how to install, the checksum, and the merged pull
    requests), and uploads the zip to CurseForge.
@@ -90,12 +95,15 @@ The upload (`tools/release/curseforge.ts`) needs, under Settings > Secrets and v
 To find the game version's id or name, with the token in the environment:
 
 ```
-CURSEFORGE_API_TOKEN=... bun tools/release/curseforge.ts --list-versions 1.15
+CURSEFORGE_API_TOKEN=... bun tools/release/curseforge.ts --list-versions 1.60
 ```
+
+WoW: Forever 1.60.1 is `17053`.
 
 Until the token is set the upload is skipped (the workflow says so). The file's relations on CurseForge (QuestieDB
 required, the optional addons) come from `addons/OneMoreQuest/.pkgmeta`. To see what would be sent without sending
-it: `bun tools/release/curseforge.ts --zip dist/OneMoreQuest-<version>.zip --dry-run`. A release whose CurseForge
+it: `bun run release:dry-run` (with `CURSEFORGE_GAME_VERSIONS` and `CURSEFORGE_PROJECT_ID` in the environment to see
+them too). A release whose CurseForge
 upload failed can be retried from Actions > Release > Run workflow, with "Upload to CurseForge" ticked.
 
 ### The product page

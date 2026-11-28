@@ -2,7 +2,7 @@
 // API"): the file, its display name, its changelog (the version's highlights when it has some, then CHANGELOG.md's
 // section, as Markdown, with a link to the version on the product page), the game versions it is for, its release type, and its relations (from .pkgmeta).
 //
-//     bun tools/release/curseforge.ts --zip dist/OneMoreQuest-0.16.0.zip [--dry-run]
+//     bun tools/release/curseforge.ts [--zip dist/OneMoreQuest-0.16.1.zip] [--dry-run]
 //     bun tools/release/curseforge.ts --list-versions [filter]
 //
 // Settings come from the environment (GitHub: a secret and repository variables):
@@ -13,7 +13,8 @@
 //                               lists them ("1.15.7"); --list-versions shows them
 //     CURSEFORGE_RELEASE_TYPE   release, beta or alpha (default: release; beta for a version like 1.2.3-beta1)
 //
-// --dry-run prints what would be sent and sends nothing (no token needed unless versions are given by name).
+// --zip defaults to the TOC's version's zip in dist/ (bun run zip). --dry-run prints what would be sent and sends
+// nothing (no token needed unless versions are given by name): bun run release:dry-run.
 
 import { readFileSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
@@ -192,11 +193,12 @@ const printGameVersions = async (token: string, filter: string) => {
   }
 };
 
-const upload = async (zipPath: string | undefined, isDryRun: boolean, token: string) => {
-  if (!zipPath || !isFile(zipPath)) {
-    throw new ReleaseError(`no zip to upload: '${zipPath ?? ""}' (build it first: bun tools/release/build-zip.ts)`);
-  }
+const upload = async (givenZipPath: string | undefined, isDryRun: boolean, token: string) => {
   const toc = readToc();
+  const zipPath = givenZipPath ?? join(REPO_ROOT, "dist", `${ADDON_NAME}-${toc.version}.zip`);
+  if (!isFile(zipPath)) {
+    throw new ReleaseError(`no zip to upload: '${zipPath}' (build it first: bun run zip)`);
+  }
   const changelog = readChangelog(toc.version);
   const releaseType =
     (process.env.CURSEFORGE_RELEASE_TYPE ?? "").trim().toLowerCase() || (toc.isPrerelease ? "beta" : "release");

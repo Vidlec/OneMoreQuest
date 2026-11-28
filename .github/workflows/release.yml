@@ -13,8 +13,9 @@
 #   variables > Actions). Without the token the step is skipped. Its changelog opens with the version's highlights
 #   and ends with a link to the version on the product page.
 #
-# A merge that does not raise "## Version:" in the TOC releases nothing (its version has a release already): raise
-# the version and write its CHANGELOG.md section in the pull request to release it. Run by hand (Actions > Release >
+# A merge that does not raise the version releases nothing (its version has a release already): raise it in the pull
+# request (bun run release:version patch: package.json's "version", written into the TOC) and write its CHANGELOG.md
+# section to release it. Run by hand (Actions > Release >
 # Run workflow) to retry a release that failed part way; what was done already is not done twice.
 name: Release
 

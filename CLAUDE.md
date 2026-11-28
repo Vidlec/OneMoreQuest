@@ -236,8 +236,9 @@ skipped is said too.
   - `bun addonsim test sim/tools/gathering-nodes.lua` regenerates `Data/GatheringNodes.lua`.
 
   Generated files are never edited by hand.
-- **Releasing** (README.md, Releasing): a merge to main that raises `## Version:` and the Title's version in the TOC,
-  with that version's CHANGELOG section, builds the zip, creates the GitHub release (notes, checksum), and uploads to
+- **Releasing** (README.md, Releasing): a merge to main that raises the version (`bun run release:version patch`:
+  package.json's `"version"` is the one kept by hand, written into the TOC's Version and Title from there), with that
+  version's CHANGELOG section, builds the zip, creates the GitHub release (notes, checksum), and uploads to
   CurseForge once its secret is set. The release scripts are in `tools/release/` (TypeScript, run by Bun; no dependencies).
 - **The product page** (README.md, The product page): https://vidlec.github.io/OneMoreQuest/, built by `bun run site`
   (`tools/site/build.ts`) from the addon's README and CHANGELOG and `site/site.json`, published by the Release

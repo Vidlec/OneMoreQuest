@@ -1,6 +1,7 @@
 // What the release tools know about the addon, read from its own files (nothing kept by hand twice):
 //
-// - the TOC: its version, its title, and the files the game loads, in order;
+// - package.json: the addon's version, the one place it is written by hand (bun run release:version);
+// - the TOC: the same version (written there from package.json), its title, and the files the game loads, in order;
 // - CHANGELOG.md: the notes of each version (a "## <version>" heading, up to the next one);
 // - .pkgmeta: the addon's relations on CurseForge (required-dependencies, optional-dependencies, tools-used...).
 //
@@ -14,7 +15,7 @@ export const ADDON_NAME = "OneMoreQuest";
 export const ADDON_DIR = join(REPO_ROOT, "addons", ADDON_NAME);
 
 // A version as the TOC writes it: 1.2.3, or 1.2.3-beta1 for a pre-release
-const VERSION_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?$/;
+export const VERSION_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?$/;
 
 /** Something in the addon's files a release cannot go out with: said in a sentence, for the CI log */
 export class ReleaseError extends Error {}
@@ -29,6 +30,16 @@ export type Toc = {
 };
 
 export const isFile = (path: string) => existsSync(path) && statSync(path).isFile();
+
+/** The addon's version as package.json's "version" gives it */
+export const readPackageVersion = () => {
+  const path = join(REPO_ROOT, "package.json");
+  const { version } = JSON.parse(readFileSync(path, "utf8")) as { version?: unknown };
+  if (typeof version !== "string" || !VERSION_PATTERN.test(version)) {
+    throw new ReleaseError(`${path}: "version" is not a version like 1.2.3`);
+  }
+  return version;
+};
 
 export const readToc = (addonDir: string = ADDON_DIR): Toc => {
   const path = join(addonDir, `${ADDON_NAME}.toc`);
@@ -55,10 +66,19 @@ export const readToc = (addonDir: string = ADDON_DIR): Toc => {
   if (!VERSION_PATTERN.test(version)) {
     throw new ReleaseError(`${path}: '## Version: ${version}' is not a version like 1.2.3`);
   }
+  // The TOC's version is written from package.json's: one raised by hand alone is caught here
+  const packageVersion = readPackageVersion();
+  if (version !== packageVersion) {
+    throw new ReleaseError(
+      `${path}: '## Version: ${version}' is not package.json's ${packageVersion}: set it with bun run release:version`,
+    );
+  }
   const title = tags.get("Title") ?? "";
   // The title shows the version in the game's AddOns list ("OneMoreQuest v0.16.0"): raised with the Version line
   if (!title.includes(`v${version}|r`)) {
-    throw new ReleaseError(`${path}: the Title (${title}) does not show the version ${version}: raise both together`);
+    throw new ReleaseError(
+      `${path}: the Title (${title}) does not show the version ${version}: set it with bun run release:version`,
+    );
   }
   return { version, title, interface: tags.get("Interface") ?? "", files, isPrerelease: version.includes("-") };
 };

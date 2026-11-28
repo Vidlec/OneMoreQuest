@@ -1,6 +1,7 @@
 {
   "name": "wowaddons",
   "private": true,
+  "version": "0.16.1",
   "packageManager": "bun@1.4.5",
   "type": "module",
   "scripts": {
@@ -20,6 +21,8 @@
     "site:preview": "bun tools/site/preview.ts",
     "media": "bun tools/site/media.ts",
     "release:notes": "bun tools/release/notes.ts",
+    "release:version": "bun tools/release/version.ts",
+    "release:dry-run": "bun run zip && bun tools/release/curseforge.ts --dry-run",
     "check": "bun run typecheck && bun run lint && bun run test:unit && bun run zip && bun run site"
   },
   "dependencies": {
