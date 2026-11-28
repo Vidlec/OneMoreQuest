@@ -2,6 +2,12 @@
 
 What changed in each version of OneMoreQuest. A release takes its notes from its own section here.
 
+## 0.16.1
+
+**Fixed**
+
+- M and L work as the game's own keys do, each with its own version of the map: M the map as you left it (full screen or not, the quest log as the arrow says), L the map with its quest log. A key closes its own version, and on the other's it brings out its own instead of closing the map: the full-screen map, then L, shows the map with the quest log; M then makes it full screen again (it closed the map, and the map opened small from then on). Each opens the map where you moved it and as large as you made it.
+
 ## 0.16.0
 
 **New**

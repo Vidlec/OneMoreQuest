@@ -337,7 +337,13 @@ local isFoldedTillClosed = false -- the panels were put away by their close butt
 -- quest log key, or anything that asks for a quest, brings the panels out for that opening only (isLogAskedFor),
 -- whatever the arrow says, and leaves the lasting choice as it is; the map closed, it is forgotten.
 local isLogAskedFor = false
-local wasDocked = false -- the panels were beside the map when it was last looked at open
+-- The two keys each have their version of the map, as the game's own do: the map key's ("map": the map as the player
+-- left it, full screen or windowed, its panels as the arrow says) and the quest log key's ("log": the windowed map with
+-- the panels, as left). A key closes its own version, and on the other's brings out its own; a quest asked for opens
+-- the quest log key's. Nil while the map is closed. shownAt: when the map last opened (a key's command, which the game
+-- may turn several ways in one moment, is told from one pressed on a map already open).
+local shownVersion
+local shownAt
 local wasHiddenChoice = false -- the arrow's choice when the dock was last looked at
 
 ---@return boolean isDown The quest log's key is held right now: it is what opened or closed the map (both keys run
@@ -352,6 +358,39 @@ local function isLogKeyDown()
         end
     end
     return false
+end
+
+---@return boolean isDown The map's own key is held right now (not the quest log's, which runs the same command)
+local function isMapKeyDown()
+    if not IsKeyDown or not GetBindingKey or isLogKeyDown() then
+        return false
+    end
+    for _, key in ipairs({ GetBindingKey("TOGGLEWORLDMAP") }) do
+        if type(key) == "string" and IsKeyDown(key:match("([^-]+)$") or key) then
+            return true
+        end
+    end
+    return false
+end
+
+---Takes the full-screen map out of full screen for the quest log, as the game's own quest log key does: the windowed
+---map, the player's lasting choice of size left as it was (the game's miniWorldMap, set only by the map's own minimize
+---and maximize buttons). The map key then brings the full-screen map back, as the game's does
+---(QuestLogOwnerMixin's HandleUserActionToggleSelf), and the map opens full screen again next time.
+---@param map table WorldMapFrame
+local function minimizeForLog(map)
+    if not map:IsShown() or not map:IsMaximized() then
+        return
+    end
+    if map.Minimize then
+        map:Minimize()
+        local sizeButton = map.BorderFrame and map.BorderFrame.MaximizeMinimizeFrame
+        if sizeButton and sizeButton.SetMaximizedLook then
+            sizeButton:SetMaximizedLook()
+        end
+    elseif map.HandleUserActionMinimizeSelf then
+        map:HandleUserActionMinimizeSelf()
+    end
 end
 
 ---Puts the panels away until the map is next closed: for the close button, when the game will not close the map.
@@ -531,9 +570,6 @@ function MapDock.apply()
     local isWindowed = map:IsShown() == true and not map:IsMaximized()
     applyMapSize(map, isWindowed)
     local isDocked = isReplacing() and isWindowed and (isLogAskedFor or not ns.settings.arePanelsHidden)
-    if map:IsShown() then
-        wasDocked = isDocked
-    end
     if panelToggle then
         panelToggle:SetShown(isReplacing() and isWindowed)
         MapDock.updatePanelToggle()
@@ -1027,19 +1063,18 @@ function MapDock.open()
         ShowUIPanel(map)
         isLogAskedFor = true -- (the map's showing looked at the dock already: asked for still)
     end
-    if map:IsShown() and map:IsMaximized() and map.HandleUserActionMinimizeSelf then
-        map:HandleUserActionMinimizeSelf()
-    end
+    shownVersion = "log"
+    minimizeForLog(map)
     MapDock.apply()
 end
 
----The quest log key: closes the pair when it is open, opens it otherwise.
+---The quest log key: closes its version of the map when that is open, brings it out otherwise.
 function MapDock.toggle()
     local map = WorldMapFrame
     if not map then
         return
     end
-    if map:IsShown() and not map:IsMaximized() then
+    if map:IsShown() and shownVersion == "log" then
         if MapDock.isMapHandsOff() then
             return -- (the gamepad's: the map closes by the game's own keys)
         end
@@ -1261,6 +1296,28 @@ function MapDock.create()
     panelToggle = createPanelToggle(WorldMapFrame)
     giverToggle = createGiverToggle(WorldMapFrame)
     hooksecurefunc(WorldMapFrame, "SetDisplayState", function()
+        -- The game's map command made the map full screen (the player's lasting size), or the map's own maximize
+        -- button did. That is the map key's version of the map: the panels asked for put away. By the quest log key (which runs the same command:
+        -- Log.applyBinding) it never is, as the game's own quest log key never makes the map full screen: on its own
+        -- version it closes the map, otherwise it brings that version out, windowed, with the log
+        -- (QuestLogOwnerMixin's HandleUserActionToggleQuestLog)
+        local map = WorldMapFrame
+        local canAct = isReplacing()
+            and not MapDock.isMapHandsOff()
+            and not (InCombatLockdown and InCombatLockdown())
+            and map:IsShown()
+            and map:IsMaximized()
+        local isOpenedNow = shownAt == (GetTime and GetTime())
+        if canAct and isLogKeyDown() and shownVersion == "log" and not isOpenedNow then
+            HideUIPanel(map) -- (its OnHide lays out the rest)
+            return
+        elseif canAct and isLogKeyDown() then
+            isLogAskedFor, shownVersion = true, "log"
+            minimizeForLog(map)
+        elseif canAct then
+            -- (by the map key, or the map's own maximize button: a full-screen map is the map key's version)
+            isLogAskedFor, shownVersion = false, "map"
+        end
         ns.Timing.measure("map layout (display state)", MapDock.apply)
     end)
     -- The game's window layout places the map at each opening and when other windows open beside it: where the
@@ -1272,13 +1329,14 @@ function MapDock.create()
     end
     WorldMapFrame:HookScript("OnShow", function()
         areHandlesKnown = false -- (a map addon's own handles: looked for again, once it has made them)
-        -- Opened by the quest log's key: with the panels, in the windowed map, as the game's own quest log key
+        shownAt = GetTime and GetTime()
+        -- Opened by the quest log's key: its version, with the panels, in the windowed map, as the game's own quest
+        -- log key; by anything asking for the log (MapDock.open) the same; otherwise the map key's version
         if isLogKeyDown() and isReplacing() and not MapDock.isMapHandsOff() then
             isLogAskedFor = true
-            if WorldMapFrame:IsMaximized() and WorldMapFrame.HandleUserActionMinimizeSelf then
-                WorldMapFrame:HandleUserActionMinimizeSelf()
-            end
+            minimizeForLog(WorldMapFrame)
         end
+        shownVersion = isLogAskedFor and "log" or "map"
         ns.Timing.startOpening()
         ns.Timing.measure("opening (quest window included)", MapDock.apply)
         -- Map addons lay out their own frame as the map opens too; look again once everything has its place
@@ -1289,18 +1347,24 @@ function MapDock.create()
         end
     end)
     WorldMapFrame:HookScript("OnHide", function()
-        -- The quest log's key on a map that was open alone asks for the log, not for the map to go: the key runs
-        -- the game's map command, which closed it, so it is opened again with the panels (not in a fight, where
-        -- an addon may not: there the key closes the map, and pressed again opens the pair)
-        local isLogWanted = isReplacing()
-            and not wasDocked
-            and not MapDock.isMapHandsOff()
-            and isLogKeyDown()
-            and not (InCombatLockdown and InCombatLockdown())
-        wasDocked = false
+        -- Both keys run the game's map command, which closes the map open in either version. A key on its own version
+        -- means that (the map stays closed); on the other's it asks for its own, so the map is opened again in it
+        -- once the game is done closing it. Not in a fight, where an addon may not open the map: there a key closes
+        -- it, and pressed again opens its version.
+        local wasVersion = shownVersion
+        shownVersion = nil
+        local canAct = isReplacing() and not MapDock.isMapHandsOff() and not (InCombatLockdown and InCombatLockdown())
+        local isLogWanted = canAct and wasVersion ~= "log" and isLogKeyDown()
+        local isMapWanted = canAct and wasVersion == "log" and isMapKeyDown()
         MapDock.apply() -- (closing with Escape does not go through the map's own toggle)
         if isLogWanted and C_Timer then
-            C_Timer.After(0, MapDock.open) -- (once the game is done closing it)
+            C_Timer.After(0, MapDock.open)
+        elseif isMapWanted and C_Timer then
+            C_Timer.After(0, function()
+                isLogAskedFor = false -- (the map key's version: its panels as the arrow says)
+                ShowUIPanel(WorldMapFrame)
+                MapDock.apply()
+            end)
         end
     end)
     -- The gamepad interface: the map opens its quest panel itself as its focus goes to it (out of sight there, the
