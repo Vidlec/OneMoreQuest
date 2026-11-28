@@ -1,7 +1,7 @@
 {
   "name": "wowaddons",
   "private": true,
-  "version": "0.16.1",
+  "version": "0.16.2",
   "packageManager": "bun@1.4.5",
   "type": "module",
   "scripts": {

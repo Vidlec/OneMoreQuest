@@ -1,7 +1,7 @@
 ## Interface: 16001
-## Title: OneMoreQuest|cFF00FF00 v0.16.1|r
+## Title: OneMoreQuest|cFF00FF00 v0.16.2|r
 ## Notes: Just one more quest: a quest log beside the map, a tracker grouped by zone, and map marks showing where to go. Built on QuestieDB.
-## Version: 0.16.1
+## Version: 0.16.2
 ## Category: Quests
 ## Category-deDE: Quests
 ## Category-esES: Misiones
