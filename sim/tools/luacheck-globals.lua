@@ -26,3 +26,33 @@ end
 out:write("}\n")
 out:close()
 print("GLOBALS", #names, build)
+
+-- The simulator's scenario steps (moveTo, wait, expect...), the globals every file of sim/ runs with: read from
+-- AddonSim's declarations for the language server, and kept here so luacheck knows them where AddonSim is not
+-- installed (CI)
+local declarations = assert(io.open(projectRoot .. "/node_modules/addonsim/types/addonsim.lua", "rb"))
+local steps, isListed = { "sim", "combat" }, { sim = true, combat = true, G = true } -- (G: writable, .luacheckrc)
+for line in declarations:lines() do
+    local name = line:match("^function ([%a_][%w_]*)%(") or line:match("^([%a_][%w_]*) = ")
+    if name and not isListed[name] then
+        isListed[name] = true
+        steps[#steps + 1] = name
+    end
+end
+declarations:close()
+table.sort(steps)
+local stepsOut = assert(io.open(projectRoot .. "/.luacheck/addonsim-steps.lua", "wb"))
+stepsOut:write(
+    "-- The simulator's scenario steps, the globals every file of sim/ runs with (G aside: a scenario may change\n"
+)
+stepsOut:write(
+    "-- the game's globals through it). Read from AddonSim's types/addonsim.lua; made again after an AddonSim update:\n"
+)
+stepsOut:write("-- bun run luacheck:globals\n")
+stepsOut:write("return {\n")
+for _, name in ipairs(steps) do
+    stepsOut:write('    "', name, '",\n')
+end
+stepsOut:write("}\n")
+stepsOut:close()
+print("STEPS", #steps)

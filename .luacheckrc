@@ -87,25 +87,9 @@ files["addons/OneMoreQuest/Compatibility/MapUtils.lua"] = { globals = { "_G" } }
 -- a helper's several answers are read one at a time
 files["addons/OneMoreQuest/tests/**"] = { ignore = { "11.", "12.", "311" }, max_cyclomatic_complexity = false }
 
--- Scenarios and the simulator's plugins run with its steps as globals (moveTo, wait, expect...): read from their
--- declarations for the language server (addonsim's types/addonsim.lua)
-local steps = { "sim", "combat" }
-local declarations = io.open("node_modules/addonsim/types/addonsim.lua")
-if declarations then
-    for line in declarations:lines() do
-        local name = line:match("^function ([%a_][%w_]*)%(") or line:match("^([%a_][%w_]*) = ")
-        if name then
-            steps[#steps + 1] = name
-        end
-    end
-    declarations:close()
-end
--- (G: the game's globals, which a scenario may change: G.GetMinimapShape = ...; jit and _ENV, asked whether there)
-for index = #steps, 1, -1 do
-    if steps[index] == "G" then
-        table.remove(steps, index) -- (writable, below)
-    end
-end
+-- Scenarios and the simulator's plugins run with its steps as globals (moveTo, wait, expect...): the list made from
+-- AddonSim's declarations (bun run luacheck:globals), committed so the check runs where AddonSim is not installed (CI)
+local steps = readList(".luacheck/addonsim-steps.lua")
 files["sim/**"] = { std = "luajit", read_globals = steps, globals = { "G", "_ENV" } }
 -- The audit's trace settings, globals its hook reads
 files["sim/scenarios/audits/api-budget.lua"] = { globals = { "traceMethod", "traceLeft", "traceEvery" } }

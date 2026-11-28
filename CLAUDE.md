@@ -43,8 +43,10 @@ README.md lists the folders. This file says how to work in them.
 The addon is Lua 5.1, as the game runs it (LuaJIT in the simulator: write nothing LuaJIT-only).
 
 - **Format and lint.** StyLua formats it (`stylua.toml`: 120 columns, 4 spaces, double quotes). luacheck lints it and
-  knows every Forever global (`.luacheck/forever-globals.lua`; regenerate with `bun run luacheck:globals` after a client
-  update), so a misspelled or missing API name is caught. Lua uses `function` as every file does.
+  knows every Forever global (`.luacheck/forever-globals.lua`) and AddonSim's scenario steps
+  (`.luacheck/addonsim-steps.lua`, committed for CI, which has no AddonSim). Regenerate both with
+  `bun run luacheck:globals` after a client or AddonSim update. A misspelled or missing API name is caught. Lua uses
+  `function` as every file does.
 - **A file** starts `local addonName, ns = ...` (or `local _, ns = ...`), makes its module a local table, puts it on
   `ns` (`ns.Prices = Prices`), and ends by registering what it does at each moment: `ns.registerModule({ name = ...,
   create = ..., refresh = ..., events = {...}, changes = {...} })` (Core runs modules in TOC order).
